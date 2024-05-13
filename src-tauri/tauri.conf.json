@@ -14,7 +14,8 @@
       "all": false,
       "shell": {
         "all": false,
-        "open": true
+        "open": true,
+        "execute": true
       },
       "window": {
         "all": false,
@@ -25,7 +26,8 @@
         "minimize": true,
         "unmaximize": true,
         "unminimize": true,
-        "startDragging": true
+        "startDragging": true,
+        "setAlwaysOnTop": true
       }
     },
     "windows": [
