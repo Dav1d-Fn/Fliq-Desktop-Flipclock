@@ -5,6 +5,8 @@ import { window as tauriWindow } from "@tauri-apps/api";
 
 function App() {
 
+  tauriWindow.appWindow.setAlwaysOnTop(true);
+
   //const noDragSelector = "input, a, button"; // CSS selector
   document.addEventListener("mousedown", async e => {
       //if (e.target.closest(noDragSelector)) return; // a non-draggable element either in target or its ancestors
