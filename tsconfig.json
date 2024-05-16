@@ -7,9 +7,6 @@
     "skipLibCheck": true,
 
     "allowJs": true,
-    // "esModuleInterop": true,
-    // "allowSyntheticDefaultImports": true,
-    // "forceConsistentCasingInFileNames" : true,
 
     /* Bundler mode */
     "moduleResolution": "bundler",
@@ -28,4 +25,3 @@
   "include": ["src"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }
-

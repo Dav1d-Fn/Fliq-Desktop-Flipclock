@@ -7,15 +7,16 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[lib]
+name = "desktop_flipclock_lib"
+crate-type = ["lib", "cdylib", "staticlib"]
+
 [build-dependencies]
-tauri-build = { version = "1", features = [] }
+tauri-build = { version = "2.0.0-beta", features = [] }
 
 [dependencies]
-tauri = { version = "1", features = [ "window-create", "shell-execute", "window-set-always-on-top", "window-unmaximize", "window-minimize", "window-unminimize", "window-maximize", "window-close", "window-start-dragging", "window-hide", "window-show", "shell-open"] }
+tauri = { version = "2.0.0-beta", features = ["image-png"] }
+tauri-plugin-shell = "2.0.0-beta"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-tauri-plugin-context-menu = "0.7.1"
 
-[features]
-# This feature is used for production builds or when a dev server is not specified, DO NOT REMOVE!!
-custom-protocol = ["tauri/custom-protocol"]
