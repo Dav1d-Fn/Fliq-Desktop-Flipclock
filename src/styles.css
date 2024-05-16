@@ -13,19 +13,7 @@
   -moz-osx-font-smoothing: grayscale;
   -webkit-text-size-adjust: 100%;
 }
-.App {
-  font-family: sans-serif;
-  text-align: center;
-  padding: 3em;
-}
 
-img {
-  width: 9em;
-}
-
-.tick {
-  font-size: 3em;
-}
 .container {
   margin: 0;
   padding-top: 10vh;

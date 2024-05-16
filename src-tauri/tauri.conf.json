@@ -27,7 +27,8 @@
         "unmaximize": true,
         "unminimize": true,
         "startDragging": true,
-        "setAlwaysOnTop": true
+        "setAlwaysOnTop": true,
+        "create": true
       }
     },
     "windows": [

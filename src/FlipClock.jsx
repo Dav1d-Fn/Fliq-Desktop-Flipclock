@@ -1,9 +1,21 @@
 import Tick from "@pqina/flip";
 import "@pqina/flip/dist/flip.min.css";
 import "./flipclockstyles.css";
+
 import React, { useEffect, useRef } from 'react';
+import { useAtom } from "jotai";
+import { atomWithStorage } from "jotai/utils";
+
+const flipCardBackgroundAtom = atomWithStorage('flipCardBackground', '#000000ff')
+const textColorAtom = atomWithStorage('textColor', '#ffffffff')
+const seperationColorAtom = atomWithStorage('seperationColor', '#000000ff')
 
 export default function FlipClock() {
+
+  const [flipCardBackground, setFlipCardBackground] = useAtom(flipCardBackgroundAtom);
+  const [textColor, setTextColor] = useAtom(textColorAtom);
+  const [seperationColor, setSeperationColor] = useAtom(seperationColorAtom);
+
   const tickRef = useRef();
 
   useEffect(() => {
@@ -38,16 +50,26 @@ export default function FlipClock() {
   }, []);
 
   return (
-    <div className="tick" ref={tickRef} data-did-init="handleTickInit" data-credits="false">
-      <div data-layout="horizontal fit">
-        <span data-key="hours0" data-transform="pad(0)" data-view="flip"></span>
-        <span data-key="hours1" data-transform="pad(0)" data-view="flip"></span>
-        <span className="tick-text-inline" data-view="text" data-key="sep"></span>
-        <span data-key="minutes0" data-transform="pad(0)" data-view="flip"></span>
-        <span data-key="minutes1" data-transform="pad(0)" data-view="flip"></span>
-        <span className="tick-text-inline" data-view="text" data-key="sep"></span>
-        <span data-key="seconds0" data-transform="pad(0)" data-view="flip"></span>
-        <span data-key="seconds1" data-transform="pad(0)" data-view="flip"></span>
+    <div>
+      <div  style={{"--flipcard-bg-color": flipCardBackground, 
+                    "--text-color": textColor, 
+                    "--seperator-color": seperationColor}} 
+            ref={tickRef} data-did-init="handleTickInit" 
+            data-credits="false">
+
+        <div data-layout="horizontal fit">
+          <span data-key="hours0" data-transform="pad(0)" data-view="flip"></span>
+          <span data-key="hours1" data-transform="pad(0)" data-view="flip"></span>
+          {/* <span data-key="sep" data-transform="pad(0)" data-view="flip"></span> */}
+          <span className="tick-text-inline" data-view="text" data-key="sep"></span>
+          <span data-key="minutes0" data-transform="pad(0)" data-view="flip"></span>
+          <span data-key="minutes1" data-transform="pad(0)" data-view="flip"></span>
+          {/* <span data-key="sep" data-transform="pad(0)" data-view="flip"></span> */}
+          <span className="tick-text-inline" data-view="text" data-key="sep"></span>
+          <span data-key="seconds0" data-transform="pad(0)" data-view="flip"></span>
+          <span data-key="seconds1" data-transform="pad(0)" data-view="flip"></span>
+        </div>
+
       </div>
     </div>
   );
