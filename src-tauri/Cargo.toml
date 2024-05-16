@@ -11,9 +11,10 @@ edition = "2021"
 tauri-build = { version = "1", features = [] }
 
 [dependencies]
-tauri = { version = "1", features = [ "shell-execute", "window-set-always-on-top", "window-unmaximize", "window-minimize", "window-unminimize", "window-maximize", "window-close", "window-start-dragging", "window-hide", "window-show", "shell-open"] }
+tauri = { version = "1", features = [ "window-create", "shell-execute", "window-set-always-on-top", "window-unmaximize", "window-minimize", "window-unminimize", "window-maximize", "window-close", "window-start-dragging", "window-hide", "window-show", "shell-open"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+tauri-plugin-context-menu = "0.7.1"
 
 [features]
 # This feature is used for production builds or when a dev server is not specified, DO NOT REMOVE!!
