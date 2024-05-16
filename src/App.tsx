@@ -13,11 +13,13 @@ import { useAtom } from "jotai"
 
 const boxBackgroundColorAtom = atomWithStorage('boxBackgroundColor', '#00000000')
 const autostartAtom = atomWithStorage('autostart', false)
+const hideInTaskbarAtom = atomWithStorage('hideInTaskbar', true)
 
 function App() {
 
   const [boxBackgroundColor, ] = useAtom(boxBackgroundColorAtom);
   const [autostart, setAutostart] = useAtom(autostartAtom);
+  const [hideInTaskbar, setHideInTaskbarAtom] = useAtom(hideInTaskbarAtom);
 
   async function open_colorpicker() {
     if(!Webview.getByLabel('Colorpicker'))
@@ -35,6 +37,16 @@ function App() {
     }
   }
 
+  async function toggle_hideInTaskbar() {
+    if(hideInTaskbar) {
+      getCurrent().setSkipTaskbar(false);
+      setHideInTaskbarAtom(false)
+    } else {
+      getCurrent().setSkipTaskbar(true);
+      setHideInTaskbarAtom(true)
+    }
+  }
+
   getCurrent().setAlwaysOnTop(true);
 
   document.addEventListener("mousedown", async e => {
@@ -46,9 +58,10 @@ function App() {
 
     const settingsItem = await MenuItem.new({enabled:true ,text: "Settings", action: () => {open_colorpicker()}});
     const autostartItem = await CheckMenuItem.new({checked: autostart, enabled: true , text: "Autostart", action: () => { toggle_autostart() }});
+    const hideInTaskbarItem = await CheckMenuItem.new({checked: hideInTaskbar, enabled: true , text: "Hide in Taskbar", action: () => { toggle_hideInTaskbar() }});
     const exitItem = await MenuItem.new({enabled:true ,text: "Exit", action: () => { getAll().forEach( window => { window.close(); }); }});
 
-    const menu = await Menu.new({items: [ settingsItem, autostartItem, exitItem]});
+    const menu = await Menu.new({items: [ settingsItem, autostartItem, hideInTaskbarItem, exitItem]});
 
     const position: PhysicalPosition = new PhysicalPosition(e.clientX, e.clientY);
     await menu.popup(position); 
