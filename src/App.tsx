@@ -3,7 +3,7 @@ import '@mantine/core/styles.css'
 import "@pqina/flip/dist/flip.min.css"
 
 import FlipClock from "./FlipClock"
-import { PhysicalPosition, getCurrent, getAll } from '@tauri-apps/api/window' //getCurrent gets the current window, getAll gets all windows
+import { PhysicalPosition, getCurrent, getAll, LogicalSize } from '@tauri-apps/api/window' //getCurrent gets the current window, getAll gets all windows
 import { enable, disable } from '@tauri-apps/plugin-autostart';
 import { Webview } from '@tauri-apps/api/webview';
 import { CheckMenuItem, Menu, MenuItem } from '@tauri-apps/api/menu'
@@ -11,15 +11,31 @@ import { invoke } from '@tauri-apps/api/core'
 import { atomWithStorage } from "jotai/utils"
 import { useAtom } from "jotai"
 
-const boxBackgroundColorAtom = atomWithStorage('boxBackgroundColor', '#00000000')
 const autostartAtom = atomWithStorage('autostart', false)
 const hideInTaskbarAtom = atomWithStorage('hideInTaskbar', true)
+//clockSize is an integer with represents the width of the window
+const clockSizeAtom = atomWithStorage('clockSize', 100)
 
 function App() {
 
-  const [boxBackgroundColor, ] = useAtom(boxBackgroundColorAtom);
   const [autostart, setAutostart] = useAtom(autostartAtom);
-  const [hideInTaskbar, setHideInTaskbarAtom] = useAtom(hideInTaskbarAtom);
+  const [hideInTaskbar, setHideInTaskbar] = useAtom(hideInTaskbarAtom);
+  const [clockSize, setClockSize] = useAtom(clockSizeAtom);
+
+  if(clockSize < 10) setClockSize(100)
+
+  getCurrent().setAlwaysOnTop(true);
+  getCurrent().setSkipTaskbar(hideInTaskbar);
+  getCurrent().setSize(new LogicalSize(clockSize, getWindowHeight()));
+
+  function getWindowHeight() {
+    var elem = document.getElementById('flipClockDiv')
+    if(elem) {
+      return elem.clientHeight+5;
+    } else {
+      return 100;
+    }
+  }
 
   async function open_colorpicker() {
     if(!Webview.getByLabel('Colorpicker'))
@@ -40,14 +56,12 @@ function App() {
   async function toggle_hideInTaskbar() {
     if(hideInTaskbar) {
       getCurrent().setSkipTaskbar(false);
-      setHideInTaskbarAtom(false)
+      setHideInTaskbar(false)
     } else {
       getCurrent().setSkipTaskbar(true);
-      setHideInTaskbarAtom(true)
+      setHideInTaskbar(true)
     }
   }
-
-  getCurrent().setAlwaysOnTop(true);
 
   document.addEventListener("mousedown", async e => {
       if(e.button === 0)
@@ -69,7 +83,7 @@ function App() {
   }
 
   return (
-      <div onContextMenu={e => open_context_menu(e)} style={{ margin: '10px', backgroundColor: boxBackgroundColor }}>
+      <div onContextMenu={e => open_context_menu(e)}>
         <FlipClock/>
       </div>
   );

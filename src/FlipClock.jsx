@@ -6,17 +6,54 @@ import React, { useEffect, useRef } from 'react';
 import { useAtom } from "jotai";
 import { atomWithStorage } from "jotai/utils";
 
-const flipCardBackgroundAtom = atomWithStorage('flipCardBackground', '#000000ff')
+const boxBackgroundColorAtom = atomWithStorage('boxBackgroundColor', '#1a1a1a00')
+const boxRoundedAtom = atomWithStorage('boxRounded', 20)
 const textColorAtom = atomWithStorage('textColor', '#ffffffff')
 const seperationColorAtom = atomWithStorage('seperationColor', '#000000ff')
+const flipCardBackgroundAtom = atomWithStorage('flipCardBackground', '#000000ff')
+const flipcardRoundedAtom = atomWithStorage('flipcardRounded', 20)
+//clockSize is an integer with represents the width of the window
+const clockSizeAtom = atomWithStorage('clockSize', 100)
+const clockPaddingAtom = atomWithStorage('clockPadding', 0)
 
 export default function FlipClock() {
 
-  const [flipCardBackground, setFlipCardBackground] = useAtom(flipCardBackgroundAtom);
+  const [boxBackgroundColor, ] = useAtom(boxBackgroundColorAtom);
+  const [boxRounded, setBoxRounded] = useAtom(boxRoundedAtom);
   const [textColor, setTextColor] = useAtom(textColorAtom);
   const [seperationColor, setSeperationColor] = useAtom(seperationColorAtom);
+  const [flipCardBackground, setFlipCardBackground] = useAtom(flipCardBackgroundAtom);
+  const [flipcardRounded, setFlipcardRounded] = useAtom(flipcardRoundedAtom);
+  const [clockSize, setClockSize] = useAtom(clockSizeAtom);
+  const [clockPadding, setClockPadding] = useAtom(clockPaddingAtom);
 
   const tickRef = useRef();
+
+  function percentage_to_em_string(percentage) {
+    return (percentage / 100).toString() + "em";
+  }
+
+  function percentage_padding_to_vh_string (percentage) {
+    return (percentage * 0.3 + 5).toString() + "vh";
+  }
+
+  function getWindowHeight() {
+    var elem = document.getElementById('flipClockDiv')
+    if(elem) {
+      return elem.clientHeight+5;
+    } else {
+      return 100;
+    }
+  }
+
+  function percentage_box_rounded_to_px_string(percentage) {
+    return ((percentage / 100) * getWindowHeight()).toString() + "px";
+  }
+
+  function getClockWidthString() { 
+    const calculatedWidth = clockSize - (2*clockMargin);
+    return calculatedWidth.toString() + "px"; 
+  }
 
   useEffect(() => {
     const tick = Tick.DOM.create(tickRef.current);
@@ -50,14 +87,14 @@ export default function FlipClock() {
   }, []);
 
   return (
-    <div>
-      <div  style={{"--flipcard-bg-color": flipCardBackground, 
+    <div style={{padding: percentage_padding_to_vh_string(clockPadding), backgroundColor: boxBackgroundColor, borderRadius: percentage_box_rounded_to_px_string(boxRounded)}}>
+      <div style={{"--flipcard-bg-color": flipCardBackground, 
                     "--text-color": textColor, 
-                    "--seperator-color": seperationColor}} 
+                    "--seperator-color": seperationColor,
+                    "--flipcard-rounded": percentage_to_em_string(flipcardRounded)}} 
             ref={tickRef} data-did-init="handleTickInit" 
             data-credits="false">
-
-        <div data-layout="horizontal fit">
+        <div id:flipClockDiv data-layout="horizontal fit">
           <span data-key="hours0" data-transform="pad(0)" data-view="flip"></span>
           <span data-key="hours1" data-transform="pad(0)" data-view="flip"></span>
           {/* <span data-key="sep" data-transform="pad(0)" data-view="flip"></span> */}

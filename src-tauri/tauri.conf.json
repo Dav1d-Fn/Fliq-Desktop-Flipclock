@@ -13,7 +13,9 @@
         "decorations": false,
         "transparent": true,
         "shadow": false,
-        "title": "desktop-flipclock",
+
+        "title": "Desktop Flipclock",
+        
         "width": 300,
         "height": 150
       }
