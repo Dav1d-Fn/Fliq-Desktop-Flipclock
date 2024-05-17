@@ -26,6 +26,9 @@
     "autostart:allow-enable",
     "autostart:allow-disable",
     "autostart:allow-is-enabled",
-    "window:allow-set-skip-taskbar"
+    "window:allow-set-skip-taskbar",
+    "window:allow-set-size",
+    "window:allow-set-resizable",
+    "window:allow-set-maximizable"
   ]
 }

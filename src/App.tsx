@@ -10,36 +10,43 @@ import { CheckMenuItem, Menu, MenuItem } from '@tauri-apps/api/menu'
 import { invoke } from '@tauri-apps/api/core'
 import { atomWithStorage } from "jotai/utils"
 import { useAtom } from "jotai"
+import { useEffect } from "react"
 
 const autostartAtom = atomWithStorage('autostart', false)
 const hideInTaskbarAtom = atomWithStorage('hideInTaskbar', true)
-//clockSize is an integer with represents the width of the window
-const clockSizeAtom = atomWithStorage('clockSize', 100)
+//clockWidth is an integer with represents the width of the window
+const clockWidthAtom = atomWithStorage('clockWidth', 300)
+const clockPaddingAtom = atomWithStorage('clockPadding', 0)
 
 function App() {
 
   const [autostart, setAutostart] = useAtom(autostartAtom);
   const [hideInTaskbar, setHideInTaskbar] = useAtom(hideInTaskbarAtom);
-  const [clockSize, setClockSize] = useAtom(clockSizeAtom);
-
-  if(clockSize < 10) setClockSize(100)
+  const [clockWidth, ] = useAtom(clockWidthAtom);
+  const [clockPadding, ] = useAtom(clockPaddingAtom);
 
   getCurrent().setAlwaysOnTop(true);
   getCurrent().setSkipTaskbar(hideInTaskbar);
-  getCurrent().setSize(new LogicalSize(clockSize, getWindowHeight()));
+  getCurrent().setResizable(false);
+  getCurrent().setMaximizable(false);
+
+  useEffect(() => {
+      const size = new LogicalSize((clockWidth+30)*5, getWindowHeight());
+      getCurrent().setSize(size);
+  }, [clockWidth, clockPadding])
 
   function getWindowHeight() {
-    var elem = document.getElementById('flipClockDiv')
+    var elem = document.getElementById('flipclockdiv')
     if(elem) {
-      return elem.clientHeight+5;
+      return (elem.clientHeight+(2*clockPadding)+90);
     } else {
-      return 100;
+      return 200;
     }
   }
 
   async function open_colorpicker() {
-    if(!Webview.getByLabel('Colorpicker'))
-      await invoke("open_colorpicker_window") ; 
+    if(!Webview.getByLabel('Styling'))
+      await invoke("open_stylingmenu_window") ; 
     console.log("Window was opened") ; 
   }
 
@@ -70,7 +77,7 @@ function App() {
 
   async function open_context_menu(e: any) {
 
-    const settingsItem = await MenuItem.new({enabled:true ,text: "Settings", action: () => {open_colorpicker()}});
+    const settingsItem = await MenuItem.new({enabled:true ,text: "Styling", action: () => {open_colorpicker()}});
     const autostartItem = await CheckMenuItem.new({checked: autostart, enabled: true , text: "Autostart", action: () => { toggle_autostart() }});
     const hideInTaskbarItem = await CheckMenuItem.new({checked: hideInTaskbar, enabled: true , text: "Hide in Taskbar", action: () => { toggle_hideInTaskbar() }});
     const exitItem = await MenuItem.new({enabled:true ,text: "Exit", action: () => { getAll().forEach( window => { window.close(); }); }});

@@ -4,16 +4,16 @@ fn greet(name: &str) -> String {
 }
 
 #[tauri::command]
-async fn open_colorpicker_window(app: tauri::AppHandle) {
-    let file_path: &str = "colorPicker.html";
+async fn open_stylingmenu_window(app: tauri::AppHandle) {
+    let file_path: &str = "stylingMenu.html";
 
-    let _colorpicker_window = tauri::WebviewWindowBuilder::new(
+    let _stylingmenu_window = tauri::WebviewWindowBuilder::new(
         &app,
-        "Colorpicker", /* the unique window label */
+        "Styling", /* the unique window label */
         tauri::WebviewUrl::App(file_path.into()),
     )
     .inner_size(500.0, 400.0)
-    .title("Colorpicker")
+    .title("Styling")
     .build()
     .unwrap();
 }
@@ -24,7 +24,7 @@ pub fn run() {
         .plugin(tauri_plugin_autostart::init(tauri_plugin_autostart::MacosLauncher::LaunchAgent, Some(vec!["--flag1", "--flag2"])))
         .plugin(tauri_plugin_shell::init())
         .invoke_handler(tauri::generate_handler![greet])
-        .invoke_handler(tauri::generate_handler![open_colorpicker_window])
+        .invoke_handler(tauri::generate_handler![open_stylingmenu_window])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

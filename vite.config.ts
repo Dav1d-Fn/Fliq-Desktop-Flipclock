@@ -34,7 +34,7 @@ export default defineConfig(async () => ({
     rollupOptions: {
       input: {
         main: 'index.html',
-        windows: "colorPicker.html",
+        windows: "stylingMenu.html",
       }
     }
   }
