@@ -2,20 +2,23 @@ import "./styles.css"
 import '@mantine/core/styles.css'
 import "@pqina/flip/dist/flip.min.css"
 
+import { useEffect } from "react"
 import FlipClock from "./FlipClock"
+
+import { invoke } from '@tauri-apps/api/core'
 import { PhysicalPosition, getCurrent, getAll, LogicalSize } from '@tauri-apps/api/window' //getCurrent gets the current window, getAll gets all windows
-import { enable, disable } from '@tauri-apps/plugin-autostart';
 import { Webview } from '@tauri-apps/api/webview';
 import { CheckMenuItem, Menu, MenuItem } from '@tauri-apps/api/menu'
-import { invoke } from '@tauri-apps/api/core'
+import { enable, disable } from '@tauri-apps/plugin-autostart';
+import { saveWindowState, StateFlags, restoreStateCurrent } from '@tauri-apps/plugin-window-state';
+
 import { atomWithStorage } from "jotai/utils"
 import { useAtom } from "jotai"
-import { useEffect } from "react"
 
 const autostartAtom = atomWithStorage('autostart', false)
 const hideInTaskbarAtom = atomWithStorage('hideInTaskbar', true)
 //clockWidth is an integer with represents the width of the window
-const clockWidthAtom = atomWithStorage('clockWidth', 300)
+const clockWidthAtom = atomWithStorage('clockWidth', 15)
 const clockPaddingAtom = atomWithStorage('clockPadding', 0)
 
 function App() {
@@ -25,14 +28,32 @@ function App() {
   const [clockWidth, ] = useAtom(clockWidthAtom);
   const [clockPadding, ] = useAtom(clockPaddingAtom);
 
+  restoreStateCurrent(StateFlags.ALL);
   getCurrent().setAlwaysOnTop(true);
   getCurrent().setSkipTaskbar(hideInTaskbar);
   getCurrent().setResizable(false);
   getCurrent().setMaximizable(false);
 
   useEffect(() => {
+    
+    async function handleMouseDown(e:any) {
+      if (e.button === 0) 
+        await getCurrent().startDragging();
+        saveWindowState(StateFlags.ALL);
+    }
+
+    document.addEventListener("mousedown", handleMouseDown);
+
+    return () => {
+      // Clean up the event listener
+      document.removeEventListener("mousedown", handleMouseDown);
+    };
+  }, []);
+
+  useEffect(() => {
       const size = new LogicalSize((clockWidth+30)*5, getWindowHeight());
       getCurrent().setSize(size);
+      saveWindowState(StateFlags.ALL);
   }, [clockWidth, clockPadding])
 
   function getWindowHeight() {
@@ -70,10 +91,6 @@ function App() {
     }
   }
 
-  document.addEventListener("mousedown", async e => {
-      if(e.button === 0)
-        await getCurrent().startDragging();
-  });
 
   async function open_context_menu(e: any) {
 
