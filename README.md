@@ -39,7 +39,9 @@ This project utilizes the following dependencies:
 - [pqina/flip](https://github.com/pqina/flip) - A lightweight JavaScript library for creating flip animations.
 - [Day.JS](https://github.com/iamkun/dayjs) - A useful library for parsing, formatting,
   and manipulating dates.
-- [mantine](https://github.com/mantinedev/mantine) - A comprehensive React components library for building modern web applications.
+- [mantine](https://github.com/mantinedev/mantine) - A comprehensive React components
+  library for building modern web applications.
+- [jotai](https://github.com/pmndrs/jotai) - A primitive and flexible state management library for React.
 
 We are grateful for the hard work of the developers of these libraries!
 
@@ -55,7 +57,7 @@ I have exciting features planned for future updates:
 
 If you find this software useful and would like to support its development, please consider making a donation. Your support is greatly appreciated!
 
-[![Donate](https://img.shields.io/badge/Donate-PayPal-blue.svg)](https://www.paypal.com/donate-link)
+[![ko-fi](https://www.ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/davidfn)
 
 ---
 
