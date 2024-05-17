@@ -5,7 +5,7 @@
 ## Overview
 
 FlipClock is a sleek and customizable desktop clock application that displays the current
-time in a flip clock style. It is built using [React](https://reactjs.org/) and ["Tauri v2"](https://tauri.app/), and is 
+time in a flip clock style. It is built using [React](https://reactjs.org/) and [Tauri v2](https://tauri.app/), and is 
 available for Windows, Linux, and MacOS. 
 
 ## Features
