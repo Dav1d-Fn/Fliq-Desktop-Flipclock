@@ -1,7 +1,7 @@
 import ReactDOM from "react-dom/client";
 import "./styles.css";
-import ColorPickMenu from "./ColorPickMenu";
+import StylingMenu from "./StylingMenu";
 
 ReactDOM.createRoot(document.getElementById("colorpicker-root") as HTMLElement).render(
-   <ColorPickMenu/>
+   <StylingMenu/>
 ); 

@@ -12,8 +12,10 @@ const textColorAtom = atomWithStorage('textColor', '#ffffffff')
 const seperationColorAtom = atomWithStorage('seperationColor', '#000000ff')
 const flipcardRoundedAtom = atomWithStorage('flipcardRounded', 20)
 const clockPaddingAtom = atomWithStorage('clockPadding', 0)
+//clockWidth is an integer with represents the width of the window
+const clockWidthAtom = atomWithStorage('clockWidth', 100)
 
-export default function ColorPickMenu() {
+export default function StylingMenu() {
     
     const [boxBackgroundColor, setboxBackgroundColor] = useAtom(boxBackgroundColorAtom);
     const [boxRounded, setBoxRounded] = useAtom(boxRoundedAtom);
@@ -22,11 +24,26 @@ export default function ColorPickMenu() {
     const [seperationColor, setSeperationColor] = useAtom(seperationColorAtom);
     const [flipcardRounded, setFlipcardRounded] = useAtom(flipcardRoundedAtom);
     const [clockPadding, setClockPadding] = useAtom(clockPaddingAtom);
+    const [clockWidth, setClockWidth] = useAtom(clockWidthAtom);
 
     return (
     <div style={{ marginLeft: '30px', marginRight: '30px', marginTop: '15px'  }}>
         <MantineProvider>
             <SimpleGrid style={{marginTop: "30px"}} cols={2} spacing="lg" verticalSpacing="lg">
+                <div>
+                    <Text style={{marginBottom: "10px", color: "black"}} size="sm" fw={500}>Clock Size</Text>
+                    <Slider
+                        value={clockWidth} 
+                        onChange={setClockWidth} 
+                        color="blue"
+                        size="lg"
+                        marks={[
+                            { value: 20, label: '20%' },
+                            { value: 50, label: '50%' },
+                            { value: 80, label: '80%' },
+                        ]}
+                    />
+                </div>
                 <div>
                     <Text style={{marginBottom: "10px", color: "black"}} size="sm" fw={500}>Flip Card rounded</Text>
                     <Slider

@@ -2,7 +2,7 @@ import Tick from "@pqina/flip";
 import "@pqina/flip/dist/flip.min.css";
 import "./flipclockstyles.css";
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useCallback } from 'react';
 import { useAtom } from "jotai";
 import { atomWithStorage } from "jotai/utils";
 
@@ -12,8 +12,8 @@ const textColorAtom = atomWithStorage('textColor', '#ffffffff')
 const seperationColorAtom = atomWithStorage('seperationColor', '#000000ff')
 const flipCardBackgroundAtom = atomWithStorage('flipCardBackground', '#000000ff')
 const flipcardRoundedAtom = atomWithStorage('flipcardRounded', 20)
-//clockSize is an integer with represents the width of the window
-const clockSizeAtom = atomWithStorage('clockSize', 100)
+//clockWidth is an integer with represents the width of the window
+const clockWidthAtom = atomWithStorage('clockWidth', 100)
 const clockPaddingAtom = atomWithStorage('clockPadding', 0)
 
 export default function FlipClock() {
@@ -24,10 +24,11 @@ export default function FlipClock() {
   const [seperationColor, setSeperationColor] = useAtom(seperationColorAtom);
   const [flipCardBackground, setFlipCardBackground] = useAtom(flipCardBackgroundAtom);
   const [flipcardRounded, setFlipcardRounded] = useAtom(flipcardRoundedAtom);
-  const [clockSize, setClockSize] = useAtom(clockSizeAtom);
+  const [clockWidth, setClockWidth] = useAtom(clockWidthAtom);
   const [clockPadding, setClockPadding] = useAtom(clockPaddingAtom);
 
   const tickRef = useRef();
+  const flipClockDifRef = useRef(null)
 
   function percentage_to_em_string(percentage) {
     return (percentage / 100).toString() + "em";
@@ -38,20 +39,20 @@ export default function FlipClock() {
   }
 
   function getWindowHeight() {
-    var elem = document.getElementById('flipClockDiv')
+    var elem = document.getElementById('flipclockdiv')
     if(elem) {
       return elem.clientHeight+5;
     } else {
       return 100;
     }
-  }
+  } 
 
   function percentage_box_rounded_to_px_string(percentage) {
     return ((percentage / 100) * getWindowHeight()).toString() + "px";
   }
 
   function getClockWidthString() { 
-    const calculatedWidth = clockSize - (2*clockMargin);
+    const calculatedWidth = clockWidth - (2*clockMargin);
     return calculatedWidth.toString() + "px"; 
   }
 
@@ -94,7 +95,7 @@ export default function FlipClock() {
                     "--flipcard-rounded": percentage_to_em_string(flipcardRounded)}} 
             ref={tickRef} data-did-init="handleTickInit" 
             data-credits="false">
-        <div id:flipClockDiv data-layout="horizontal fit">
+        <div id="flipclockdiv" data-layout="horizontal fit">
           <span data-key="hours0" data-transform="pad(0)" data-view="flip"></span>
           <span data-key="hours1" data-transform="pad(0)" data-view="flip"></span>
           {/* <span data-key="sep" data-transform="pad(0)" data-view="flip"></span> */}
