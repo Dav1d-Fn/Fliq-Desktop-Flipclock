@@ -12,7 +12,7 @@ async fn open_colorpicker_window(app: tauri::AppHandle) {
         "Colorpicker", /* the unique window label */
         tauri::WebviewUrl::App(file_path.into()),
     )
-    .inner_size(275.0, 310.0)
+    .inner_size(500.0, 400.0)
     .title("Colorpicker")
     .build()
     .unwrap();

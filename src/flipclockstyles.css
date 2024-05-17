@@ -2,34 +2,39 @@
    --flipcard-bg-color: black;
    --seperator-color: black;
    --text-color: white;
+   --flipcard-rounded: 0.3em;
 }
 
 .tick {
-  font-size:1rem; white-space:nowrap; font-family:arial,sans-serif;
+  font-size: 1rem; 
+  white-space: nowrap; 
+  font-family: arial,sans-serif;
 }
 
-.tick-flip,.tick-text-inline {
-  font-size:2.5em;
+/* .tick-flip,.tick-text-inline {
+  font-size: 2.5em;
 }
 
 .tick-label {
-  margin-top:1em;font-size:1em;
+  margin-top: 1em;
+  font-size: 1em;
 }
 
 .tick-char {
-  width:1.5em;
-}
+  width: 1.5em;
+} */
 
-.tick-text-inline {
-  display:inline-block;
-  text-align:center;
+/* .tick-text-inline {
+  display: inline-block;
+  text-align: center;
   width: 0.4em;
-  min-width:0.1em;
-}
+  min-width: 0.1em;
+} */
 
-.tick-group {
-  margin:0 .5em;text-align:center;
-}
+/* .tick-group {
+  margin: 0.5em;
+  text-align: center;
+} */
 
 body {
    background-color: #eb0f0f00 !important; 
@@ -59,5 +64,5 @@ body {
 }
 
 .tick-flip {
-   border-radius:0.12em !important; 
+   border-radius:var(--flipcard-rounded) !important; 
 }
