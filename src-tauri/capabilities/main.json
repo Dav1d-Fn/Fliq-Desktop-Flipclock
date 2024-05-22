@@ -6,6 +6,22 @@
     "main"
   ],
   "permissions": [
+    {
+      "identifier": "shell:allow-execute",
+      "allow": [
+        {
+          "name": "exec-sh",
+          "cmd": "sh",
+          "args": [
+            "-c",
+            {
+              "validator": "\\S+"
+            }
+          ],
+          "sidecar": false
+        }
+      ]
+    },
     "path:default",
     "event:default",
     "window:default",
@@ -29,6 +45,9 @@
     "window:allow-set-skip-taskbar",
     "window:allow-set-size",
     "window:allow-set-resizable",
-    "window:allow-set-maximizable"
+    "window:allow-set-maximizable",
+    "window-state:allow-restore-state",
+    "window-state:allow-save-window-state",
+    "shell:allow-open"
   ]
 }

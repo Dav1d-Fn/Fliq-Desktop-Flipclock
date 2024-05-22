@@ -12,7 +12,7 @@ async fn open_stylingmenu_window(app: tauri::AppHandle) {
         "Styling", /* the unique window label */
         tauri::WebviewUrl::App(file_path.into()),
     )
-    .inner_size(500.0, 400.0)
+    .inner_size(610.0, 460.0)
     .title("Styling")
     .build()
     .unwrap();
