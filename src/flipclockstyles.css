@@ -6,12 +6,12 @@
 }
 
 .tick {
-  font-size: 1rem; 
+  font-size: 0.8em; 
   white-space: nowrap; 
   font-family: arial,sans-serif;
 }
 
-/* .tick-flip,.tick-text-inline {
+.tick-flip,.tick-text-inline {
   font-size: 2.5em;
 }
 
@@ -20,31 +20,15 @@
   font-size: 1em;
 }
 
-.tick-char {
-  width: 1.5em;
-} */
-
-/* .tick-text-inline {
+.tick-text-inline {
   display: inline-block;
   text-align: center;
-  width: 0.4em;
+  width: 0.7em;
   min-width: 0.1em;
-} */
-
-/* .tick-group {
-  margin: 0.5em;
-  text-align: center;
-} */
-
-body {
-   background-color: #eb0f0f00 !important; 
 }
 
 .tick-text-inline {
    color: var(--seperator-color) !important; 
-}
-.tick-label {
-   color: #000000 !important; 
 }
 
 .tick-flip-panel {

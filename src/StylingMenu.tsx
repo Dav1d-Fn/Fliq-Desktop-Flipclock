@@ -16,6 +16,7 @@ const clockPaddingAtom = atomWithStorage('clockPadding', 0)
 //clockWidth is an integer with represents the width of the window
 const clockWidthAtom = atomWithStorage('clockWidth', 100)
 const formatAtom = atomWithStorage("format","hhmmss")
+const seperatorStringAtom = atomWithStorage("seperatorString"," /\\,.:")
 
 export default function StylingMenu() {
     
@@ -29,9 +30,11 @@ export default function StylingMenu() {
     const [clockWidth, setClockWidth] = useAtom(clockWidthAtom);
     
     const [format, setFormat] = useAtom(formatAtom);
+    const [seperatorString, setSeperatorString] = useAtom(seperatorStringAtom);
 
     //const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => setFormat(event.currentTarget.value);
     const [tempFormat, setTempFormat] = useState(format);
+    const [tempSeperatorString, setTempSeperatorString] = useState(seperatorString);
 
 
     const dateFormat = [
@@ -55,19 +58,39 @@ export default function StylingMenu() {
         { format: 'mm', output: '00-59', description: 'The minute, 2-digits' },
         { format: 's', output: '0-59', description: 'The second' },
         { format: 'ss', output: '00-59', description: 'The second, 2-digits' },
-        { format: 'SSS', output: '', description: 'The millisecond, 3-digits' },
+        { format: 'SSS', output: '000-999', description: 'The millisecond, 3-digits' },
         { format: 'A', output: 'AM PM', description: 'The AM/PM designation' },
         { format: 'a', output: 'am pm', description: 'The lowercase AM/PM designation' },
+        { format: 'LT', output: 'hh:mm A', description: '8:02 PM' },
+        { format: 'LTS', output: 'hh:mm:ss A', description: '8:02:18 PM' },
+        { format: 'L', output: 'MM/DD/YYYY', description: '08/16/2018' },
+        { format: 'LL', output: 'MMMM D, YYYY', description: 'August 16, 2018' },
+        { format: 'LLL', output: 'MMMM D, YYYY h:mm A', description: 'August 16, 2018 8:02 PM' },
+        { format: 'LLLL', output: 'dddd, MMMM D, YYYY h:mm A', description: 'Thursday, August 16, 2018 8:02 PM' },
+        { format: 'l', output: 'M/D/YYYY', description: '8/16/2018' }, // same as 'L'
+        { format: 'll', output: 'MMM D, YYYY', description: 'Aug 16, 2018' }, // same as 'LL'
+        { format: 'lll', output: 'MMM D, YYYY h:mm A', description: 'Aug 16, 2018 8:02 PM' }, // same as 'LLL'
+        { format: 'llll', output: 'dddd, MMMM D, YYYY h:mm A', description: 'Thu, Aug 16, 2018 8:02 PM' },  // same as 'dddd, MMMM D, YYYY h:mm A'
     ];
 
     useEffect(() => {
         if (format) {
             setTempFormat(format);
         }
-    }, [format]); // Update tempFormat whenever format changes
+    }, [format]);
 
-    const handleBlur = () => {
+    const handleBlurTextInputFormat = () => {
         setFormat(tempFormat);
+    };
+
+    useEffect(() => {
+        if (seperatorString) {
+            setTempSeperatorString(seperatorString);
+        }
+    }, [seperatorString]);
+
+    const handleBlurTextInputSeperatorString = () => {
+        setSeperatorString(tempSeperatorString);
     };
     
     return (
@@ -85,28 +108,28 @@ export default function StylingMenu() {
                             <TextInput
                                 value={tempFormat}
                                 onChange={(event) => setTempFormat(event.currentTarget.value)}
-                                onBlur={handleBlur}
+                                onBlur={handleBlurTextInputFormat}
                             />
                             </div>
                         </HoverCard.Target>
                          <HoverCard.Dropdown>
 
                         <Group>
-                        <Text size="sm" fw={500}>Date/Time Format Codes</Text>
+                            <Text size="sm" fw={500}>Date/Time Format Codes</Text>
+                            <Anchor href="https://day.js.org/docs/en/display/format" target="_blank">
+                                Official Documentation (Day.JS)
+                            </Anchor>
                         </Group>
-                        <Anchor href="https://day.js.org/docs/en/display/format" target="_blank">
-                            Official Documentation (Day.JS)
-                        </Anchor>
                         <Divider my="sm" />
 
                         <List spacing="xs">
                         <SimpleGrid cols={2} spacing="xs" verticalSpacing="xs">
                         {dateFormat.map((item) => (
                             <List.Item key={item.format}>
-                                <Text>
+                                <Text size="xs">
                                     <b>{item.format}</b> - {item.output}
                                 </Text>
-                                <Text size="sm">
+                                <Text size="xs">
                                     {item.description}
                                 </Text>
                             </List.Item>
@@ -150,6 +173,14 @@ export default function StylingMenu() {
                 <Stack
                     gap="lg"
                 >
+                <div>
+                    <Text style={{marginBottom: "10px", color: "black"}} size="sm" fw={500}>Format</Text>
+                    <TextInput
+                        value={tempSeperatorString}
+                        onChange={(event) => setTempSeperatorString(event.currentTarget.value)}
+                        onBlur={handleBlurTextInputSeperatorString}
+                    />
+                </div>    
                 <div>
                     <Text style={{marginBottom: "10px", color: "black"}} size="sm" fw={500}>Clock Size</Text>
                     <Slider

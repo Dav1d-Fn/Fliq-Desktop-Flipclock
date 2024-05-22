@@ -16,8 +16,7 @@ const flipcardRoundedAtom = atomWithStorage('flipcardRounded', 20)
 //clockWidth is an integer with represents the width of the window
 const clockWidthAtom = atomWithStorage('clockWidth', 100)
 const clockPaddingAtom = atomWithStorage('clockPadding', 0)
-
-//const dateTimeStringAtom = atomWithStorage("dateTimeString","hhss")
+const seperatorStringAtom = atomWithStorage("seperatorString"," /\\,.:")
 
 export default function FlipClock({ format }) {   
 
@@ -29,7 +28,7 @@ export default function FlipClock({ format }) {
   const [flipcardRounded, setFlipcardRounded] = useAtom(flipcardRoundedAtom);
   const [clockWidth, setClockWidth] = useAtom(clockWidthAtom);
   const [clockPadding, setClockPadding] = useAtom(clockPaddingAtom);
- // const [dateTimeString, setDateTimeString] = useAtom(dateTimeStringAtom);
+ const [seperatorString, setSeperatorString] = useAtom(seperatorStringAtom);
 
   const tickRef = useRef();
   const tickInstanceRef = useRef(null);
@@ -38,27 +37,14 @@ export default function FlipClock({ format }) {
     return (percentage / 100).toString() + "em";
   }
 
-  function percentage_padding_to_vh_string (percentage) {
-    return percentage + "px";//(percentage * 0.3 + 5).toString() + "vh";
+  function percentage_px_string(percentage) {
+    return percentage + "px";
   }
 
-  function getWindowHeight() {
-    var elem = document.getElementById('flipclockdiv')
-    if(elem) {
-      return elem.clientHeight+5;
-    } else {
-      return 100;
-    }
-  } 
-
-  function percentage_box_rounded_to_px_string(percentage) {
-    return percentage + "px";//((percentage / 100) * getWindowHeight()).toString() + "px";
+  function isSeparator(char) {
+    //const separators = " /\\,.:";
+    return seperatorString.includes(char);
   }
-
-  // function getClockWidthString() { 
-  //   const calculatedWidth = clockWidth - (2*clockMargin);
-  //   return calculatedWidth.toString() + "px"; 
-  // }
   
   useEffect(() => {
  
@@ -87,7 +73,7 @@ export default function FlipClock({ format }) {
   }, []);
 
   return (
-    <div style={{padding: percentage_padding_to_vh_string(clockPadding), backgroundColor: boxBackgroundColor, borderRadius: percentage_box_rounded_to_px_string(boxRounded)}}>
+    <div style={{padding: percentage_px_string(clockPadding), backgroundColor: boxBackgroundColor, borderRadius: percentage_px_string(boxRounded)}}>
       <div style={{"--flipcard-bg-color": flipCardBackground, 
                     "--text-color": textColor, 
                     "--seperator-color": seperationColor,
@@ -96,7 +82,14 @@ export default function FlipClock({ format }) {
             data-credits="false"
             className="tick">
             <div id="flipclockdiv" data-layout="horizontal fit">
-              {dayjs().format(format).split("").map((_, index) => (
+              {dayjs().format(format).split("").map((char, index) => (
+                isSeparator(char) ?
+                <span 
+                  key={`span${index}`}
+                  data-key={`c${index}`} 
+                  className="tick-text-inline"
+                  data-view="text"
+                ></span> :
                 <span 
                   key={`span${index}`}
                   data-key={`c${index}`}
