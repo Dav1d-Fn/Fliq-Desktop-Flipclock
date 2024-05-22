@@ -2,9 +2,10 @@ import Tick from "@pqina/flip";
 import "@pqina/flip/dist/flip.min.css";
 import "./flipclockstyles.css";
 
-import React, { useEffect, useRef, useCallback } from 'react';
-import { useAtom } from "jotai";
+import React, { useEffect, useRef, useCallback, useMemo, useState } from 'react';
+import { atom, useAtom } from "jotai";
 import { atomWithStorage } from "jotai/utils";
+import dayjs from 'dayjs';
 
 const boxBackgroundColorAtom = atomWithStorage('boxBackgroundColor', '#1a1a1a00')
 const boxRoundedAtom = atomWithStorage('boxRounded', 20)
@@ -16,7 +17,9 @@ const flipcardRoundedAtom = atomWithStorage('flipcardRounded', 20)
 const clockWidthAtom = atomWithStorage('clockWidth', 100)
 const clockPaddingAtom = atomWithStorage('clockPadding', 0)
 
-export default function FlipClock() {
+//const dateTimeStringAtom = atomWithStorage("dateTimeString","hhss")
+
+export default function FlipClock({ format }) {   
 
   const [boxBackgroundColor, ] = useAtom(boxBackgroundColorAtom);
   const [boxRounded, setBoxRounded] = useAtom(boxRoundedAtom);
@@ -26,16 +29,17 @@ export default function FlipClock() {
   const [flipcardRounded, setFlipcardRounded] = useAtom(flipcardRoundedAtom);
   const [clockWidth, setClockWidth] = useAtom(clockWidthAtom);
   const [clockPadding, setClockPadding] = useAtom(clockPaddingAtom);
+ // const [dateTimeString, setDateTimeString] = useAtom(dateTimeStringAtom);
 
   const tickRef = useRef();
-  const flipClockDifRef = useRef(null)
+  const tickInstanceRef = useRef(null);
 
   function percentage_to_em_string(percentage) {
     return (percentage / 100).toString() + "em";
   }
 
   function percentage_padding_to_vh_string (percentage) {
-    return (percentage * 0.3 + 5).toString() + "vh";
+    return percentage + "px";//(percentage * 0.3 + 5).toString() + "vh";
   }
 
   function getWindowHeight() {
@@ -48,43 +52,38 @@ export default function FlipClock() {
   } 
 
   function percentage_box_rounded_to_px_string(percentage) {
-    return ((percentage / 100) * getWindowHeight()).toString() + "px";
+    return percentage + "px";//((percentage / 100) * getWindowHeight()).toString() + "px";
   }
 
-  function getClockWidthString() { 
-    const calculatedWidth = clockWidth - (2*clockMargin);
-    return calculatedWidth.toString() + "px"; 
-  }
-
+  // function getClockWidthString() { 
+  //   const calculatedWidth = clockWidth - (2*clockMargin);
+  //   return calculatedWidth.toString() + "px"; 
+  // }
+  
   useEffect(() => {
+ 
     const tick = Tick.DOM.create(tickRef.current);
-
+    Tick.DOM.parse(document.body);
     // Start interval (default is 1 second) and update clock with current time
     const intervalId = Tick.helper.interval(() => {
-      const d = Tick.helper.date();
-      var hours = d.getHours().toString();
-      var minutes = d.getMinutes().toString();
-      var seconds = d.getSeconds().toString();
-      if (hours.length === 1) hours = '0' + hours;
-      if (minutes.length === 1) minutes = '0' + minutes;
-      if (seconds.length === 1) seconds = '0' + seconds;
 
-      tick.value = {
-        sep: ':',
-        hours0: parseInt(hours.charAt(0)),
-        hours1: parseInt(hours.charAt(1)),
-        minutes0: parseInt(minutes.charAt(0)),
-        minutes1: parseInt(minutes.charAt(1)),
-        seconds0: parseInt(seconds.charAt(0)),
-        seconds1: parseInt(seconds.charAt(1))
-      };
+      const currentDateTimeString = dayjs().format(format);
+      // Function to generate keys for each character
+      const values = {};
+      for (let i = 0; i < currentDateTimeString.length; i++) {
+         values["c"+i] = currentDateTimeString.charAt(i);
+      }
+
+      tick.value = values;
+
     });
-
+    
     // Cleanup function
     return () => {
       Tick.DOM.destroy(tickRef.current);
       clearInterval(intervalId);
     };
+
   }, []);
 
   return (
@@ -93,21 +92,20 @@ export default function FlipClock() {
                     "--text-color": textColor, 
                     "--seperator-color": seperationColor,
                     "--flipcard-rounded": percentage_to_em_string(flipcardRounded)}} 
-            ref={tickRef} data-did-init="handleTickInit" 
-            data-credits="false">
-        <div id="flipclockdiv" data-layout="horizontal fit">
-          <span data-key="hours0" data-transform="pad(0)" data-view="flip"></span>
-          <span data-key="hours1" data-transform="pad(0)" data-view="flip"></span>
-          {/* <span data-key="sep" data-transform="pad(0)" data-view="flip"></span> */}
-          <span className="tick-text-inline" data-view="text" data-key="sep"></span>
-          <span data-key="minutes0" data-transform="pad(0)" data-view="flip"></span>
-          <span data-key="minutes1" data-transform="pad(0)" data-view="flip"></span>
-          {/* <span data-key="sep" data-transform="pad(0)" data-view="flip"></span> */}
-          <span className="tick-text-inline" data-view="text" data-key="sep"></span>
-          <span data-key="seconds0" data-transform="pad(0)" data-view="flip"></span>
-          <span data-key="seconds1" data-transform="pad(0)" data-view="flip"></span>
-        </div>
-
+            ref={tickRef}
+            data-credits="false"
+            className="tick">
+            <div id="flipclockdiv" data-layout="horizontal fit">
+              {dayjs().format(format).split("").map((_, index) => (
+                <span 
+                  key={`span${index}`}
+                  data-key={`c${index}`}
+                  data-transform="pad(0)"
+                  data-view="flip"
+                ></span>
+              ))
+              }
+          </div>
       </div>
     </div>
   );

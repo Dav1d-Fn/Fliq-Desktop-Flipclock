@@ -2,11 +2,11 @@ import "./styles.css"
 import '@mantine/core/styles.css'
 import "@pqina/flip/dist/flip.min.css"
 
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import FlipClock from "./FlipClock"
 
 import { invoke } from '@tauri-apps/api/core'
-import { PhysicalPosition, getCurrent, getAll, LogicalSize } from '@tauri-apps/api/window' //getCurrent gets the current window, getAll gets all windows
+import { PhysicalPosition, getCurrent, getAll, LogicalSize, PhysicalSize } from '@tauri-apps/api/window' //getCurrent gets the current window, getAll gets all windows
 import { Webview } from '@tauri-apps/api/webview';
 import { CheckMenuItem, Menu, MenuItem } from '@tauri-apps/api/menu'
 import { enable, disable } from '@tauri-apps/plugin-autostart';
@@ -20,6 +20,7 @@ const hideInTaskbarAtom = atomWithStorage('hideInTaskbar', true)
 //clockWidth is an integer with represents the width of the window
 const clockWidthAtom = atomWithStorage('clockWidth', 15)
 const clockPaddingAtom = atomWithStorage('clockPadding', 0)
+const formatAtom = atomWithStorage("format", "hhmmss")
 
 function App() {
 
@@ -28,38 +29,68 @@ function App() {
   const [clockWidth, ] = useAtom(clockWidthAtom);
   const [clockPadding, ] = useAtom(clockPaddingAtom);
 
-  restoreStateCurrent(StateFlags.ALL);
-  getCurrent().setAlwaysOnTop(true);
-  getCurrent().setSkipTaskbar(hideInTaskbar);
-  getCurrent().setResizable(false);
-  getCurrent().setMaximizable(false);
+  const [format, setFormat] = useAtom(formatAtom) // [state, setState] = useState(initialState) is a way to declare state variables in react
+  const [tempFormat, setTempFormat] = useState(format);
 
-  useEffect(() => {
+  const [key, setKey] = useState(1);
+
+  const size = new LogicalSize((clockWidth+30)*5, (clockWidth+30)*5/2);
+
+  async function initialWindowLoad() {
+    await getCurrent().setSkipTaskbar(hideInTaskbar);  
+    await getCurrent().setAlwaysOnTop(true);
+    await getCurrent().setResizable(false);
+    await getCurrent().setMaximizable(false);
+    await getCurrent().setSize(size);
+    await restoreStateCurrent(StateFlags.POSITION);
+  }
+
+  initialWindowLoad();
     
+  useEffect(() => {
+
     async function handleMouseDown(e:any) {
       if (e.button === 0) 
         await getCurrent().startDragging();
-        saveWindowState(StateFlags.ALL);
     }
 
-    document.addEventListener("mousedown", handleMouseDown);
+    const handleBeforeUnload = () => {
+      saveWindowState(StateFlags.POSITION);
+    };
 
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    const div = document.getElementById('maindiv');
+    if(div) 
+    {
+      div.addEventListener("mousedown", handleMouseDown);    
+    }
+    
     return () => {
       // Clean up the event listener
-      document.removeEventListener("mousedown", handleMouseDown);
+      if(div) 
+      {
+        div.removeEventListener("mousedown", handleMouseDown);
+      }
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      saveWindowState(StateFlags.POSITION);
     };
   }, []);
 
   useEffect(() => {
-      const size = new LogicalSize((clockWidth+30)*5, getWindowHeight());
+      const size = new LogicalSize((clockWidth+30)*5, (clockWidth+30)*5/2);
       getCurrent().setSize(size);
-      saveWindowState(StateFlags.ALL);
   }, [clockWidth, clockPadding])
 
+  useEffect(() => {
+    setTempFormat(format);
+    setKey(prevKey => prevKey + 1);
+  }, [format])
+
   function getWindowHeight() {
-    var elem = document.getElementById('flipclockdiv')
+    var elem = document.getElementById('maindiv')
     if(elem) {
-      return (elem.clientHeight+(2*clockPadding)+90);
+      return elem.clientHeight+(elem.clientHeight*0.2);
     } else {
       return 200;
     }
@@ -91,7 +122,6 @@ function App() {
     }
   }
 
-
   async function open_context_menu(e: any) {
 
     const settingsItem = await MenuItem.new({enabled:true ,text: "Styling", action: () => {open_colorpicker()}});
@@ -99,7 +129,7 @@ function App() {
     const hideInTaskbarItem = await CheckMenuItem.new({checked: hideInTaskbar, enabled: true , text: "Hide in Taskbar", action: () => { toggle_hideInTaskbar() }});
     const exitItem = await MenuItem.new({enabled:true ,text: "Exit", action: () => { getAll().forEach( window => { window.close(); }); }});
 
-    const menu = await Menu.new({items: [ settingsItem, autostartItem, hideInTaskbarItem, exitItem]});
+    const menu = await Menu.new({items: [settingsItem, autostartItem, hideInTaskbarItem, exitItem]});
 
     const position: PhysicalPosition = new PhysicalPosition(e.clientX, e.clientY);
     await menu.popup(position); 
@@ -107,8 +137,8 @@ function App() {
   }
 
   return (
-      <div onContextMenu={e => open_context_menu(e)}>
-        <FlipClock/>
+      <div id="maindiv" onContextMenu={e => open_context_menu(e)}>
+        <FlipClock key={key} format={tempFormat}/>
       </div>
   );
 
