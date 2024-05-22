@@ -21,6 +21,7 @@ const hideInTaskbarAtom = atomWithStorage('hideInTaskbar', true)
 const clockWidthAtom = atomWithStorage('clockWidth', 15)
 const clockPaddingAtom = atomWithStorage('clockPadding', 0)
 const formatAtom = atomWithStorage("format", "hhmmss")
+const seperatorStringAtom = atomWithStorage("seperatorString"," /\\,.:")
 
 function App() {
 
@@ -28,9 +29,9 @@ function App() {
   const [hideInTaskbar, setHideInTaskbar] = useAtom(hideInTaskbarAtom);
   const [clockWidth, ] = useAtom(clockWidthAtom);
   const [clockPadding, ] = useAtom(clockPaddingAtom);
-
-  const [format, setFormat] = useAtom(formatAtom) // [state, setState] = useState(initialState) is a way to declare state variables in react
-  const [tempFormat, setTempFormat] = useState(format);
+  const [format,] = useAtom(formatAtom);
+  const [seperatorString,] = useAtom(seperatorStringAtom);
+  
 
   const [key, setKey] = useState(1);
 
@@ -83,18 +84,8 @@ function App() {
   }, [clockWidth, clockPadding])
 
   useEffect(() => {
-    setTempFormat(format);
     setKey(prevKey => prevKey + 1);
-  }, [format])
-
-  function getWindowHeight() {
-    var elem = document.getElementById('maindiv')
-    if(elem) {
-      return elem.clientHeight+(elem.clientHeight*0.2);
-    } else {
-      return 200;
-    }
-  }
+  }, [format, seperatorString])
 
   async function open_colorpicker() {
     if(!Webview.getByLabel('Styling'))
@@ -138,7 +129,7 @@ function App() {
 
   return (
       <div id="maindiv" onContextMenu={e => open_context_menu(e)}>
-        <FlipClock key={key} format={tempFormat}/>
+        <FlipClock key={key} format={format}/>
       </div>
   );
 
