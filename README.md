@@ -1,6 +1,8 @@
 # Desktop FlipClock Application
 
-![Flipclock Preview](https://github.com/Dav1d-Fn/desktop-flipclock/assets/28605357/ba2a5423-5064-40f9-94a0-5d2849336b0a)
+<div style="text-align: center;"> 
+  <img width="400" src="https://github.com/Dav1d-Fn/desktop-flipclock/assets/28605357/ba2a5423-5064-40f9-94a0-5d2849336b0a"/>
+</div>
 
 ## Overview
 
