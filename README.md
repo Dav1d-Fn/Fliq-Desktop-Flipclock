@@ -1,11 +1,11 @@
 # Desktop FlipClock Application
 
-![FlipClock Preview](placeholder-for-gif.gif)
+![FlipClock Preview](ClockGif.gif)
 
 ## Overview
 
 FlipClock is a sleek and customizable desktop clock application that displays the current
-time in a flip clock style. It is built using [React](https://reactjs.org/) and [Tauri v2](https://tauri.app/), and is 
+time in a flip clock style. It is built using [React](https://reactjs.org/) and [Tauri v2](https://v2.tauri.app/), and is 
 available for Windows, Linux, and MacOS. 
 
 ## Features
@@ -49,6 +49,7 @@ We are grateful for the hard work of the developers of these libraries!
 
 I have exciting features planned for future updates:
 
+- **Clock Styles**: Additional display styles for the clock.
 - **Weather Information**: Display current weather conditions and forecasts.
 - **Calendar Information**: Integrate calendar events and reminders.
 - **Tasks**: Add and manage tasks directly from the flip clock interface.
