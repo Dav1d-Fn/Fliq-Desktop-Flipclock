@@ -3,6 +3,7 @@ fn greet(name: &str) -> String {
     format!("Hello, {}! You've been greeted from Rust!", name)
 }
 
+// Window definition for the styling menu
 #[tauri::command]
 async fn open_stylingmenu_window(app: tauri::AppHandle) {
     let file_path: &str = "stylingMenu.html";
@@ -13,11 +14,13 @@ async fn open_stylingmenu_window(app: tauri::AppHandle) {
         tauri::WebviewUrl::App(file_path.into()),
     )
     .inner_size(610.0, 460.0)
+    .resizable(false)
     .title("Styling")
     .build()
     .unwrap();
 }
 
+// Main Window
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()

@@ -14,6 +14,9 @@
         "transparent": true,
         "shadow": false,
         "title": "Desktop Flipclock",
+        "maximizable": false,
+        "resizable": false,
+        "alwaysOnTop": true,
         "width": 300,
         "height": 150
       }

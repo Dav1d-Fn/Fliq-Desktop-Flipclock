@@ -1,6 +1,6 @@
 import Tick from "@pqina/flip";
 import "@pqina/flip/dist/flip.min.css";
-import "./flipclockstyles.css";
+import "../styles/flipclockstyles.css";
 
 import React, { useEffect, useRef, useCallback, useMemo, useState } from 'react';
 import { atom, useAtom } from "jotai";
@@ -13,7 +13,6 @@ const textColorAtom = atomWithStorage('textColor', '#ffffffff')
 const seperationColorAtom = atomWithStorage('seperationColor', '#000000ff')
 const flipCardBackgroundAtom = atomWithStorage('flipCardBackground', '#000000ff')
 const flipcardRoundedAtom = atomWithStorage('flipcardRounded', 20)
-//clockWidth is an integer with represents the width of the window
 const clockWidthAtom = atomWithStorage('clockWidth', 100)
 const clockPaddingAtom = atomWithStorage('clockPadding', 0)
 const seperatorStringAtom = atomWithStorage("seperatorString"," /\\,.:")
@@ -28,7 +27,7 @@ export default function FlipClock({ format }) {
   const [flipcardRounded, setFlipcardRounded] = useAtom(flipcardRoundedAtom);
   const [clockWidth, setClockWidth] = useAtom(clockWidthAtom);
   const [clockPadding, setClockPadding] = useAtom(clockPaddingAtom);
- const [seperatorString, setSeperatorString] = useAtom(seperatorStringAtom);
+  const [seperatorString, setSeperatorString] = useAtom(seperatorStringAtom);
 
   const tickRef = useRef();
   const tickInstanceRef = useRef(null);
@@ -36,13 +35,14 @@ export default function FlipClock({ format }) {
   function percentage_to_em_string(percentage) {
     return (percentage / 100).toString() + "em";
   }
-
+  
   function percentage_px_string(percentage) {
     return percentage + "px";
   }
 
+  // Function to check if character is a separator, 
+  // to determine if it should be displayed as a flip or text
   function isSeparator(char) {
-    //const separators = " /\\,.:";
     return seperatorString.includes(char);
   }
   
@@ -94,6 +94,7 @@ export default function FlipClock({ format }) {
                   key={`span${index}`}
                   data-key={`c${index}`}
                   data-transform="pad(0)"
+                  //data-style="font:highres"
                   data-view="flip"
                 ></span>
               ))
