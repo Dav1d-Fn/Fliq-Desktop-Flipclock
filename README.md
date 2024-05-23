@@ -1,6 +1,5 @@
 # Desktop FlipClock Application
 
-![FlipClock Preview](ClockGif.gif)
 
 ## Overview
 
