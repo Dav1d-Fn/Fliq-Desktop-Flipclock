@@ -3,25 +3,10 @@
   "identifier": "main-capability",
   "description": "Capability for the main window",
   "windows": [
-    "main"
+    "main",
+    "Styling"
   ],
   "permissions": [
-    {
-      "identifier": "shell:allow-execute",
-      "allow": [
-        {
-          "name": "exec-sh",
-          "cmd": "sh",
-          "args": [
-            "-c",
-            {
-              "validator": "\\S+"
-            }
-          ],
-          "sidecar": false
-        }
-      ]
-    },
     "path:default",
     "event:default",
     "window:default",

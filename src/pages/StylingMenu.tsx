@@ -1,8 +1,9 @@
-import "./styles.css";
+import "../styles/styles.css";
 import '@mantine/core/styles.css';
 
 import { atomWithStorage } from 'jotai/utils'
-import { MantineProvider, ColorInput, SimpleGrid, Slider, Text, TextInput, Stack, HoverCard, Button, Divider, List, Group, Anchor } from "@mantine/core";
+import { open } from '@tauri-apps/plugin-shell';
+import { MantineProvider, ColorInput, SimpleGrid, Slider, Text, TextInput, Stack, HoverCard, Divider, List, Group, Anchor } from "@mantine/core";
 import { useAtom } from "jotai";
 import { useEffect, useState } from "react";
 
@@ -13,9 +14,8 @@ const textColorAtom = atomWithStorage('textColor', '#ffffffff')
 const seperationColorAtom = atomWithStorage('seperationColor', '#000000ff')
 const flipcardRoundedAtom = atomWithStorage('flipcardRounded', 20)
 const clockPaddingAtom = atomWithStorage('clockPadding', 0)
-//clockWidth is an integer with represents the width of the window
 const clockWidthAtom = atomWithStorage('clockWidth', 100)
-const formatAtom = atomWithStorage("format","hhmmss")
+const formatAtom = atomWithStorage("format","HH:mm:ss")
 const seperatorStringAtom = atomWithStorage("seperatorString"," /\\,.:")
 
 export default function StylingMenu() {
@@ -28,14 +28,11 @@ export default function StylingMenu() {
     const [flipcardRounded, setFlipcardRounded] = useAtom(flipcardRoundedAtom);
     const [clockPadding, setClockPadding] = useAtom(clockPaddingAtom);
     const [clockWidth, setClockWidth] = useAtom(clockWidthAtom);
-    
     const [format, setFormat] = useAtom(formatAtom);
     const [seperatorString, setSeperatorString] = useAtom(seperatorStringAtom);
 
-    //const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => setFormat(event.currentTarget.value);
     const [tempFormat, setTempFormat] = useState(format);
     const [tempSeperatorString, setTempSeperatorString] = useState(seperatorString);
-
 
     const dateFormat = [
         { format: 'YY', output: '18', description: 'Two-digit year' },
@@ -67,27 +64,32 @@ export default function StylingMenu() {
         { format: 'LL', output: 'MMMM D, YYYY', description: 'August 16, 2018' },
         { format: 'LLL', output: 'MMMM D, YYYY h:mm A', description: 'August 16, 2018 8:02 PM' },
         { format: 'LLLL', output: 'dddd, MMMM D, YYYY h:mm A', description: 'Thursday, August 16, 2018 8:02 PM' },
-        { format: 'l', output: 'M/D/YYYY', description: '8/16/2018' }, // same as 'L'
-        { format: 'll', output: 'MMM D, YYYY', description: 'Aug 16, 2018' }, // same as 'LL'
-        { format: 'lll', output: 'MMM D, YYYY h:mm A', description: 'Aug 16, 2018 8:02 PM' }, // same as 'LLL'
-        { format: 'llll', output: 'dddd, MMMM D, YYYY h:mm A', description: 'Thu, Aug 16, 2018 8:02 PM' },  // same as 'dddd, MMMM D, YYYY h:mm A'
+        { format: 'l', output: 'M/D/YYYY', description: '8/16/2018' },
+        { format: 'll', output: 'MMM D, YYYY', description: 'Aug 16, 2018' },
+        { format: 'lll', output: 'MMM D, YYYY h:mm A', description: 'Aug 16, 2018 8:02 PM' }, 
+        { format: 'llll', output: 'dddd, MMMM D, YYYY h:mm A', description: 'Thu, Aug 16, 2018 8:02 PM' },
     ];
 
+    async function openLink(url: string) {
+        await open(url);
+    }
+
+    //load initial states of temporary states
     useEffect(() => {
         if (format) {
             setTempFormat(format);
         }
     }, [format]);
 
-    const handleBlurTextInputFormat = () => {
-        setFormat(tempFormat);
-    };
-
     useEffect(() => {
         if (seperatorString) {
             setTempSeperatorString(seperatorString);
         }
     }, [seperatorString]);
+
+    const handleBlurTextInputFormat = () => {
+        setFormat(tempFormat);
+    };
 
     const handleBlurTextInputSeperatorString = () => {
         setSeperatorString(tempSeperatorString);
@@ -116,7 +118,7 @@ export default function StylingMenu() {
 
                         <Group>
                             <Text size="sm" fw={500}>Date/Time Format Codes</Text>
-                            <Anchor href="https://day.js.org/docs/en/display/format" target="_blank">
+                            <Anchor onClick={() => openLink("https://day.js.org/docs/en/display/format")} style={{marginLeft: "100px"}}>
                                 Official Documentation (Day.JS)
                             </Anchor>
                         </Group>
@@ -174,7 +176,7 @@ export default function StylingMenu() {
                     gap="lg"
                 >
                 <div>
-                    <Text style={{marginBottom: "10px", color: "black"}} size="sm" fw={500}>Format</Text>
+                    <Text style={{marginBottom: "10px", color: "black"}} size="sm" fw={500}>Seperator Selection</Text>
                     <TextInput
                         value={tempSeperatorString}
                         onChange={(event) => setTempSeperatorString(event.currentTarget.value)}
@@ -237,6 +239,9 @@ export default function StylingMenu() {
                         ]}
                     />
                 </div>
+                <Anchor onClick={() => openLink("https://github.com/Dav1d-Fn/desktop-flipclock")} style={{marginTop: "30px", textAlign: "right"}}>
+                    Project Page (Github)
+                </Anchor>
                 </Stack>
             </SimpleGrid>
         </MantineProvider>

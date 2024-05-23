@@ -1,26 +1,28 @@
-import "./styles.css"
+import "../styles/styles.css"
 import '@mantine/core/styles.css'
 import "@pqina/flip/dist/flip.min.css"
 
 import { useEffect, useState } from "react"
 import FlipClock from "./FlipClock"
 
+//import Tauri APIs
 import { invoke } from '@tauri-apps/api/core'
-import { PhysicalPosition, getCurrent, getAll, LogicalSize, PhysicalSize } from '@tauri-apps/api/window' //getCurrent gets the current window, getAll gets all windows
+import { PhysicalPosition, getCurrent, getAll, LogicalSize} from '@tauri-apps/api/window' //getCurrent gets the current window, getAll gets all windows
 import { Webview } from '@tauri-apps/api/webview';
 import { CheckMenuItem, Menu, MenuItem } from '@tauri-apps/api/menu'
 import { enable, disable } from '@tauri-apps/plugin-autostart';
 import { saveWindowState, StateFlags, restoreStateCurrent } from '@tauri-apps/plugin-window-state';
 
+//import Jotai for state management
 import { atomWithStorage } from "jotai/utils"
 import { useAtom } from "jotai"
 
+//initialise Jotai Storage
 const autostartAtom = atomWithStorage('autostart', false)
 const hideInTaskbarAtom = atomWithStorage('hideInTaskbar', true)
-//clockWidth is an integer with represents the width of the window
 const clockWidthAtom = atomWithStorage('clockWidth', 15)
 const clockPaddingAtom = atomWithStorage('clockPadding', 0)
-const formatAtom = atomWithStorage("format", "hhmmss")
+const formatAtom = atomWithStorage("format", "HH:mm:ss")
 const seperatorStringAtom = atomWithStorage("seperatorString"," /\\,.:")
 
 function App() {
@@ -39,9 +41,6 @@ function App() {
 
   async function initialWindowLoad() {
     await getCurrent().setSkipTaskbar(hideInTaskbar);  
-    await getCurrent().setAlwaysOnTop(true);
-    await getCurrent().setResizable(false);
-    await getCurrent().setMaximizable(false);
     await getCurrent().setSize(size);
     await restoreStateCurrent(StateFlags.POSITION);
   }
@@ -50,16 +49,19 @@ function App() {
     
   useEffect(() => {
 
+    //initialise Event Listeners
+    
+    //Save Window Position on unload
+    const handleBeforeUnload = () => {
+      saveWindowState(StateFlags.POSITION);
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    //Start dragging on left mouse click
     async function handleMouseDown(e:any) {
       if (e.button === 0) 
         await getCurrent().startDragging();
     }
-
-    const handleBeforeUnload = () => {
-      saveWindowState(StateFlags.POSITION);
-    };
-
-    window.addEventListener('beforeunload', handleBeforeUnload);
 
     const div = document.getElementById('maindiv');
     if(div) 
@@ -78,21 +80,25 @@ function App() {
     };
   }, []);
 
+  //Adjust the window size when the clock size changes
   useEffect(() => {
       const size = new LogicalSize((clockWidth+30)*5, (clockWidth+30)*5/2);
       getCurrent().setSize(size);
   }, [clockWidth, clockPadding])
 
+  //Re-render the clock when the format changes
   useEffect(() => {
     setKey(prevKey => prevKey + 1);
   }, [format, seperatorString])
 
-  async function open_colorpicker() {
+  //Open the styling window
+  async function open_stylingmenu() {
     if(!Webview.getByLabel('Styling'))
       await invoke("open_stylingmenu_window") ; 
     console.log("Window was opened") ; 
   }
 
+  //Toggle the autostart setting
   async function toggle_autostart() {
     if(autostart) {
       disable()
@@ -103,6 +109,7 @@ function App() {
     }
   }
 
+  //Toggle the hideInTaskbar setting
   async function toggle_hideInTaskbar() {
     if(hideInTaskbar) {
       getCurrent().setSkipTaskbar(false);
@@ -113,9 +120,10 @@ function App() {
     }
   }
 
+  //Definition of Context Menu
   async function open_context_menu(e: any) {
 
-    const settingsItem = await MenuItem.new({enabled:true ,text: "Styling", action: () => {open_colorpicker()}});
+    const settingsItem = await MenuItem.new({enabled:true ,text: "Styling", action: () => {open_stylingmenu()}});
     const autostartItem = await CheckMenuItem.new({checked: autostart, enabled: true , text: "Autostart", action: () => { toggle_autostart() }});
     const hideInTaskbarItem = await CheckMenuItem.new({checked: hideInTaskbar, enabled: true , text: "Hide in Taskbar", action: () => { toggle_hideInTaskbar() }});
     const exitItem = await MenuItem.new({enabled:true ,text: "Exit", action: () => { getAll().forEach( window => { window.close(); }); }});
