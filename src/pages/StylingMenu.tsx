@@ -7,14 +7,14 @@ import { MantineProvider, ColorInput, SimpleGrid, Slider, Text, TextInput, Stack
 import { useAtom } from "jotai";
 import { useEffect, useState } from "react";
 
-const boxBackgroundColorAtom = atomWithStorage('boxBackgroundColor', '#1a1a1a00')
+const boxBackgroundColorAtom = atomWithStorage('boxBackgroundColor', '#121212ab')
 const boxRoundedAtom = atomWithStorage('boxRounded', 20)
-const flipCardBackgroundAtom = atomWithStorage('flipCardBackground', '#000000ff')
+const flipCardBackgroundAtom = atomWithStorage('flipCardBackground', '#1c1c1cff')
 const textColorAtom = atomWithStorage('textColor', '#ffffffff')
-const seperationColorAtom = atomWithStorage('seperationColor', '#000000ff')
+const seperationColorAtom = atomWithStorage('seperationColor', '#ffffffff')
 const flipcardRoundedAtom = atomWithStorage('flipcardRounded', 20)
-const clockPaddingAtom = atomWithStorage('clockPadding', 0)
-const clockWidthAtom = atomWithStorage('clockWidth', 100)
+const clockPaddingAtom = atomWithStorage('clockPadding', 20)
+const clockWidthAtom = atomWithStorage('clockWidth', 20)
 const formatAtom = atomWithStorage("format","HH:mm:ss")
 const seperatorStringAtom = atomWithStorage("seperatorString"," /\\,.:")
 
@@ -233,13 +233,13 @@ export default function StylingMenu() {
                         color="blue"
                         size="lg"
                         marks={[
-                            { value: 20, label: '20%' },
-                            { value: 50, label: '50%' },
-                            { value: 80, label: '80%' },
+                            { value: 20, label: '20px' },
+                            { value: 50, label: '50px' },
+                            { value: 80, label: '80px' },
                         ]}
                     />
                 </div>
-                <Anchor onClick={() => openLink("https://github.com/Dav1d-Fn/desktop-flipclock")} style={{marginTop: "30px", textAlign: "right"}}>
+                <Anchor onClick={() => openLink("https://github.com/Dav1d-Fn/desktop-flipclock")} style={{marginTop: "20px", textAlign: "right"}}>
                     Project Page (Github)
                 </Anchor>
                 </Stack>
