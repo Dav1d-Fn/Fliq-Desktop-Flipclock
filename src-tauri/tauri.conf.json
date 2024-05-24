@@ -1,6 +1,6 @@
 {
   "productName": "Fliq - Clock",
-  "version": "v1.0.0",
+  "version": "1.0.0",
   "identifier": "com.flipclock.dev",
   "build": {
     "beforeDevCommand": "npm run dev",

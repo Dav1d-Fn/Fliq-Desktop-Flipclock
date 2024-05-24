@@ -17,7 +17,6 @@ currently available for Windows.
 - **Custom DateTime Format**: Configure the date and time format according to your preference.
 - **Hide in Taskbar**: Option to hide the application from the taskbar for a cleaner look.
 - **Always on Top**: Keep the flip clock always on top of other windows.
-- **Cross-Platform**: Works seamlessly on Windows, Linux, and MacOS.
 
 ## Installation 💻
 
