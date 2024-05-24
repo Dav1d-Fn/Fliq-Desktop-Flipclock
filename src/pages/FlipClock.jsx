@@ -7,14 +7,14 @@ import { atom, useAtom } from "jotai";
 import { atomWithStorage } from "jotai/utils";
 import dayjs from 'dayjs';
 
-const boxBackgroundColorAtom = atomWithStorage('boxBackgroundColor', '#1a1a1a00')
+const boxBackgroundColorAtom = atomWithStorage('boxBackgroundColor', '#121212ab')
 const boxRoundedAtom = atomWithStorage('boxRounded', 20)
 const textColorAtom = atomWithStorage('textColor', '#ffffffff')
-const seperationColorAtom = atomWithStorage('seperationColor', '#000000ff')
-const flipCardBackgroundAtom = atomWithStorage('flipCardBackground', '#000000ff')
+const seperationColorAtom = atomWithStorage('seperationColor', '#ffffffff')
+const flipCardBackgroundAtom = atomWithStorage('flipCardBackground', '#1c1c1cff')
 const flipcardRoundedAtom = atomWithStorage('flipcardRounded', 20)
-const clockWidthAtom = atomWithStorage('clockWidth', 100)
-const clockPaddingAtom = atomWithStorage('clockPadding', 0)
+const clockWidthAtom = atomWithStorage('clockWidth', 20)
+const clockPaddingAtom = atomWithStorage('clockPadding', 20)
 const seperatorStringAtom = atomWithStorage("seperatorString"," /\\,.:")
 
 export default function FlipClock({ format }) {   
@@ -36,8 +36,8 @@ export default function FlipClock({ format }) {
     return (percentage / 100).toString() + "em";
   }
   
-  function percentage_px_string(percentage) {
-    return percentage + "px";
+  function value_px_string(value) {
+    return value + "px";
   }
 
   // Function to check if character is a separator, 
@@ -73,7 +73,7 @@ export default function FlipClock({ format }) {
   }, []);
 
   return (
-    <div style={{padding: percentage_px_string(clockPadding), backgroundColor: boxBackgroundColor, borderRadius: percentage_px_string(boxRounded)}}>
+    <div style={{padding: value_px_string(clockPadding), backgroundColor: boxBackgroundColor, borderRadius: value_px_string(boxRounded)}}>
       <div style={{"--flipcard-bg-color": flipCardBackground, 
                     "--text-color": textColor, 
                     "--seperator-color": seperationColor,

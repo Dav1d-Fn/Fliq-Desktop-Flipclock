@@ -20,8 +20,8 @@ import { useAtom } from "jotai"
 //initialise Jotai Storage
 const autostartAtom = atomWithStorage('autostart', false)
 const hideInTaskbarAtom = atomWithStorage('hideInTaskbar', true)
-const clockWidthAtom = atomWithStorage('clockWidth', 15)
-const clockPaddingAtom = atomWithStorage('clockPadding', 0)
+const clockWidthAtom = atomWithStorage('clockWidth', 20)
+const clockPaddingAtom = atomWithStorage('clockPadding', 20)
 const formatAtom = atomWithStorage("format", "HH:mm:ss")
 const seperatorStringAtom = atomWithStorage("seperatorString"," /\\,.:")
 
@@ -89,7 +89,7 @@ function App() {
   //Re-render the clock when the format changes
   useEffect(() => {
     setKey(prevKey => prevKey + 1);
-  }, [format, seperatorString])
+  }, [format, seperatorString, clockWidth, clockPadding])
 
   //Open the styling window
   async function open_stylingmenu() {
