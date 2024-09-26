@@ -56,7 +56,6 @@ function App() {
         console.log(`height: ${rect.height}`);
 
         const size = new LogicalSize(clockWidth, rect.height);
-        //const size = new LogicalSize((clockWidth+30)*5, (clockWidth+30)*5/2);
         getCurrent().setSize(size);
       }
   }
@@ -99,7 +98,6 @@ function App() {
   //Adjust the window size when the clock size changes
   useEffect(() => {
       const size = new LogicalSize(clockWidth, clockWidth);
-      //const size = new LogicalSize((clockWidth+30)*5, (clockWidth+30)*5/2);
       getCurrent().setSize(size);
 
       const elem = document.querySelector("#flipclockdivwithpadding");
@@ -108,7 +106,6 @@ function App() {
         console.log(`height: ${rect.height}`);
 
         const size = new LogicalSize(clockWidth, rect.height);
-        //const size = new LogicalSize((clockWidth+30)*5, (clockWidth+30)*5/2);
         getCurrent().setSize(size);
       }
 
