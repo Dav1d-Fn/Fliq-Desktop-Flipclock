@@ -14,7 +14,7 @@ const textColorAtom = atomWithStorage('textColor', '#ffffffff')
 const seperationColorAtom = atomWithStorage('seperationColor', '#ffffffff')
 const flipcardRoundedAtom = atomWithStorage('flipcardRounded', 20)
 const clockPaddingAtom = atomWithStorage('clockPadding', 20)
-const clockWidthAtom = atomWithStorage('clockWidth', 20)
+const clockWidthAtom = atomWithStorage('clockWidth', 250)
 const formatAtom = atomWithStorage("format","HH:mm:ss")
 const seperatorStringAtom = atomWithStorage("seperatorString"," /\\,.:")
 
@@ -33,6 +33,10 @@ export default function StylingMenu() {
 
     const [tempFormat, setTempFormat] = useState(format);
     const [tempSeperatorString, setTempSeperatorString] = useState(seperatorString);
+
+    // local states for fluent slider experience
+    const [sliderValueClockWith, setSliderValueClockWith] = useState(clockWidth);
+    const [sliderValuePadding, setSliderValuePadding] = useState(clockPadding);
 
     const dateFormat = [
         { format: 'YY', output: '18', description: 'Two-digit year' },
@@ -68,24 +72,11 @@ export default function StylingMenu() {
         { format: 'll', output: 'MMM D, YYYY', description: 'Aug 16, 2018' },
         { format: 'lll', output: 'MMM D, YYYY h:mm A', description: 'Aug 16, 2018 8:02 PM' }, 
         { format: 'llll', output: 'dddd, MMMM D, YYYY h:mm A', description: 'Thu, Aug 16, 2018 8:02 PM' },
-    ];
+    ]; 
 
     async function openLink(url: string) {
         await open(url);
     }
-
-    //load initial states of temporary states
-    useEffect(() => {
-        if (format) {
-            setTempFormat(format);
-        }
-    }, [format]);
-
-    useEffect(() => {
-        if (seperatorString) {
-            setTempSeperatorString(seperatorString);
-        }
-    }, [seperatorString]);
 
     const handleBlurTextInputFormat = () => {
         setFormat(tempFormat);
@@ -94,6 +85,24 @@ export default function StylingMenu() {
     const handleBlurTextInputSeperatorString = () => {
         setSeperatorString(tempSeperatorString);
     };
+    
+    //load initial states of temporary states
+    useEffect(() => {
+          if (format) { 
+          setTempFormat(format);
+      }
+    }, [format]);
+
+    useEffect(() => {
+      if (seperatorString) {
+          setTempSeperatorString(seperatorString);
+      }
+    }, [seperatorString]);
+
+    useEffect(() => {
+      setSliderValueClockWith(clockWidth);  
+      setSliderValuePadding(clockPadding);
+    }, [clockWidth,clockPadding]);
     
     return (
     <div style={{ marginLeft: '30px', marginRight: '30px', marginTop: '15px'  }}>
@@ -186,14 +195,17 @@ export default function StylingMenu() {
                 <div>
                     <Text style={{marginBottom: "10px", color: "black"}} size="sm" fw={500}>Clock Size</Text>
                     <Slider
-                        value={clockWidth} 
-                        onChange={setClockWidth} 
+                        value={sliderValueClockWith} 
+                        onChange={setSliderValueClockWith}
+                        onChangeEnd={setClockWidth} 
                         color="blue"
                         size="lg"
+                        min={150}
+                        max={500}
                         marks={[
-                            { value: 20, label: '20%' },
-                            { value: 50, label: '50%' },
-                            { value: 80, label: '80%' },
+                            { value: 200, label: '150px' },
+                            { value: 300, label: '300px' },
+                            { value: 450, label: '450px' },
                         ]}
                     />
                 </div>
@@ -218,7 +230,7 @@ export default function StylingMenu() {
                         onChange={setBoxRounded}
                         color="blue"
                         size="lg"
-                        marks={[
+                        marks={[ 
                             { value: 20, label: '20px' },
                             { value: 50, label: '50px' },
                             { value: 80, label: '80px' },
@@ -228,8 +240,9 @@ export default function StylingMenu() {
                 <div>
                     <Text style={{marginBottom: "10px", color: "black"}} size="sm" fw={500}>Box Margin</Text>
                     <Slider
-                        value={clockPadding} 
-                        onChange={setClockPadding} 
+                        value={sliderValuePadding}
+                        onChange={setSliderValuePadding} 
+                        onChangeEnd={setClockPadding} 
                         color="blue"
                         size="lg"
                         marks={[

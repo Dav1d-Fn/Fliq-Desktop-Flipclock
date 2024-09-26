@@ -19,7 +19,7 @@ async fn open_stylingmenu_window(app: tauri::AppHandle) {
     .build()
     .unwrap();
 }
-
+ 
 // Main Window
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {

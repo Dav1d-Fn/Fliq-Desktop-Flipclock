@@ -13,7 +13,7 @@ export default function Flip({value}) {
 
     return () =>  Tick.DOM.destroy(tickRef.current);
   },[])
-
+ 
   useEffect(()=>{
     if (!tickInstance.current) return;
     tickInstance.current.value = value;

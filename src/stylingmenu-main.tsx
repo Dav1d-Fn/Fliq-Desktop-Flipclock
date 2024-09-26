@@ -4,4 +4,4 @@ import StylingMenu from "./pages/StylingMenu";
 
 ReactDOM.createRoot(document.getElementById("colorpicker-root") as HTMLElement).render(
    <StylingMenu/>
-); 
+);  
