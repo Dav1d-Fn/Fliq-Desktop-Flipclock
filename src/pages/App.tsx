@@ -20,7 +20,8 @@ import { useAtom } from "jotai"
 //initialise Jotai Storage
 const autostartAtom = atomWithStorage('autostart', false)
 const hideInTaskbarAtom = atomWithStorage('hideInTaskbar', true)
-const clockWidthAtom = atomWithStorage('clockWidth', 20)
+const alwaysOnTopAtom = atomWithStorage('alwaysOnTop', true)
+const clockWidthAtom = atomWithStorage('clockWidth', 250)
 const clockPaddingAtom = atomWithStorage('clockPadding', 20)
 const formatAtom = atomWithStorage("format", "HH:mm:ss")
 const seperatorStringAtom = atomWithStorage("seperatorString"," /\\,.:")
@@ -29,20 +30,35 @@ function App() {
 
   const [autostart, setAutostart] = useAtom(autostartAtom);
   const [hideInTaskbar, setHideInTaskbar] = useAtom(hideInTaskbarAtom);
-  const [clockWidth, ] = useAtom(clockWidthAtom);
+  const [alwaysOnTop, setAlwaysOnTop] = useAtom(alwaysOnTopAtom);
+  const [clockWidth, setClockWidth] = useAtom(clockWidthAtom);
   const [clockPadding, ] = useAtom(clockPaddingAtom);
   const [format,] = useAtom(formatAtom);
   const [seperatorString,] = useAtom(seperatorStringAtom);
   
-
   const [key, setKey] = useState(1);
 
-  const size = new LogicalSize((clockWidth+30)*5, (clockWidth+30)*5/2);
+  if(clockWidth < 150) {
+    setClockWidth(150);
+  } 
+ 
+  const size = new LogicalSize(clockWidth, clockWidth);
 
   async function initialWindowLoad() {
     await getCurrent().setSkipTaskbar(hideInTaskbar);  
+    await getCurrent().setAlwaysOnTop(alwaysOnTop);
     await getCurrent().setSize(size);
     await restoreStateCurrent(StateFlags.POSITION);
+
+    const elem = document.querySelector("#flipclockdivwithpadding");
+      if(elem) {
+        const rect = elem.getBoundingClientRect();
+        console.log(`height: ${rect.height}`);
+
+        const size = new LogicalSize(clockWidth, rect.height);
+        //const size = new LogicalSize((clockWidth+30)*5, (clockWidth+30)*5/2);
+        getCurrent().setSize(size);
+      }
   }
 
   initialWindowLoad();
@@ -82,8 +98,21 @@ function App() {
 
   //Adjust the window size when the clock size changes
   useEffect(() => {
-      const size = new LogicalSize((clockWidth+30)*5, (clockWidth+30)*5/2);
+      const size = new LogicalSize(clockWidth, clockWidth);
+      //const size = new LogicalSize((clockWidth+30)*5, (clockWidth+30)*5/2);
       getCurrent().setSize(size);
+
+      const elem = document.querySelector("#flipclockdivwithpadding");
+      if(elem) {
+        const rect = elem.getBoundingClientRect();
+        console.log(`height: ${rect.height}`);
+
+        const size = new LogicalSize(clockWidth, rect.height);
+        //const size = new LogicalSize((clockWidth+30)*5, (clockWidth+30)*5/2);
+        getCurrent().setSize(size);
+      }
+
+      
   }, [clockWidth, clockPadding])
 
   //Re-render the clock when the format changes
@@ -120,15 +149,27 @@ function App() {
     }
   }
 
+  //Toggle the alwaysOnTop setting
+  async function toggle_alwaysOnTop() {
+    if(alwaysOnTop) {
+      getCurrent().setAlwaysOnTop(false);
+      setAlwaysOnTop(false)
+    } else {
+      getCurrent().setAlwaysOnTop(true);
+      setAlwaysOnTop(true)
+    }
+  }
+
   //Definition of Context Menu
   async function open_context_menu(e: any) {
 
     const settingsItem = await MenuItem.new({enabled:true ,text: "Styling", action: () => {open_stylingmenu()}});
     const autostartItem = await CheckMenuItem.new({checked: autostart, enabled: true , text: "Autostart", action: () => { toggle_autostart() }});
     const hideInTaskbarItem = await CheckMenuItem.new({checked: hideInTaskbar, enabled: true , text: "Hide in Taskbar", action: () => { toggle_hideInTaskbar() }});
+    const alwaysOnTopItem = await CheckMenuItem.new({checked: alwaysOnTop, enabled: true , text: "Always on Top", action: () => { toggle_alwaysOnTop() }});
     const exitItem = await MenuItem.new({enabled:true ,text: "Exit", action: () => { getAll().forEach( window => { window.close(); }); }});
 
-    const menu = await Menu.new({items: [settingsItem, autostartItem, hideInTaskbarItem, exitItem]});
+    const menu = await Menu.new({items: [settingsItem, autostartItem, hideInTaskbarItem, alwaysOnTopItem, exitItem]});
 
     const position: PhysicalPosition = new PhysicalPosition(e.clientX, e.clientY);
     await menu.popup(position); 

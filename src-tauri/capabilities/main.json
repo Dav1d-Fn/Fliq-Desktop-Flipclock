@@ -2,10 +2,7 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "main-capability",
   "description": "Capability for the main window",
-  "windows": [
-    "main",
-    "Styling"
-  ],
+  "windows": ["main", "Styling"],
   "permissions": [
     "path:default",
     "event:default",

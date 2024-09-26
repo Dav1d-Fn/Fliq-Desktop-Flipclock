@@ -1,6 +1,6 @@
 {
   "productName": "Fliq - Clock",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "identifier": "com.flipclock.dev",
   "build": {
     "beforeDevCommand": "npm run dev",
@@ -8,7 +8,8 @@
     "beforeBuildCommand": "npm run build",
     "frontendDist": "../dist"
   },
-  "app": {"windows": [
+  "app": {
+    "windows": [
       {
         "decorations": false,
         "transparent": true,
@@ -27,9 +28,9 @@
   },
   "bundle": {
     "windows": {
-        "webviewInstallMode": {
-          "type": "downloadBootstrapper"
-        }
+      "webviewInstallMode": {
+        "type": "downloadBootstrapper"
+      }
     },
     "active": true,
     "targets": "all",
