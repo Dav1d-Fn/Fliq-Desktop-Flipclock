@@ -56,9 +56,10 @@ export default function StylingMenu() {
     setTempFormat(format);
     setTempSecondRowTimeFormat(secondRowTimeFormat);
     setTempSeparatorString(separatorString);
+    setTempWeatherLocation(weatherLocation);
     setTextSizeSlider(clockTextSize);
     setPaddingSlider(clockPadding);
-  }, [format, separatorString, clockTextSize, clockPadding, secondRowTimeFormat]);
+  }, [format, separatorString, clockTextSize, clockPadding, secondRowTimeFormat, weatherLocation]);
 
   // Render für jede Option im Dropdown
   const renderFontOption: SelectProps['renderOption'] = ({ option }) => (
