@@ -1,72 +1,67 @@
 :root {
    --flipcard-bg-color: black;
    --seperator-color: black;
-   --text-color: white;
+   --clock-text-color: white;
+   --clock-text-size: 15px;
+   --second-row-clock-text-size: 12px;
    --flipcard-rounded: 0.3em;
+   --text-color: white,
+   --text-font: "Arial, sans-serif",
+}
+ 
+ #flipclock-container {
+   display: flex;       
+   flex-direction: column;   
+   align-items: center; 
+   justify-content: center;
+   text-align: center;
+   width: fit-content;
+   height: fit-content;
+ }
+ 
+
+#flipclock {
+   display: inline-flex;
+   gap: 2px;
+   font-size: var(--clock-text-size);
 }
 
-#dots-size .tick-dots-dot {
-    width: 50px;
-    height: 50px;
-    margin: 2px;
-    border-radius: 25%;
-    background-color: rgb(0, 0, 0);
+#flipclock-second-row {
+   display: inline-flex;
+   gap: 2px;
+   font-size: var(--second-row-clock-text-size);
 }
 
-.tick-flip {
-   border-radius:0.12em !important; 
+/* Settings For all other Text Elements */
+.normal-text-settings {
+   color: var(--text-color) !important; 
+   font-family: var(--text-font) !important;
+}
+
+/* Settings For Fliptime Seperators */
+.tick-text-inline {
+   color: var(--seperator-color) !important; 
+   font-family: var(--text-font) !important;
+}
+
+/* Settings For Fliptime Element */
+.tick-flip-panel {
+   color: var(--clock-text-color) !important;
+   font-family: var(--text-font) !important;
 }
 
 .tick {
-  font-size: 1em; 
-  white-space: nowrap; 
   font-family: arial,sans-serif;
-}
-
-.tick-flip,.tick-text-inline {
-  font-size: 2.5em;
-}
-
-.tick-char {
-  width:1.5em;
-}
-
-.tick-label {
-  margin-top: 1em;
-  font-size: 1em;
-}
-
-.tick-text-inline+.tick-text-inline {
-  margin-left:-.325em;
-}
-
-.tick-text-inline {
-  display: inline-block;
-  text-align: center;
-  width: 0.7em;
-  min-width: 0.1em;
-}
-
-.tick-text-inline {
-   color: var(--seperator-color) !important; 
-}
-
-.tick-flip-panel {
-   color: var(--text-color) !important; 
 }
 
 .tick-flip {
    font-family: 'Roboto', sans-serif !important; 
 }
 
-.tick-flip-panel-text-wrapper {
-   line-height: 1.45 !important; 
-} 
-
 .tick-flip-panel {
    background-color: var(--flipcard-bg-color) !important; 
 }
 
 .tick-flip {
-   border-radius:var(--flipcard-rounded) !important; 
+   border-radius: var(--flipcard-rounded) !important; 
 }

@@ -14,50 +14,70 @@ import { enable, disable } from '@tauri-apps/plugin-autostart';
 import { saveWindowState, StateFlags, restoreStateCurrent } from '@tauri-apps/plugin-window-state';
 
 //import Jotai for state management
-import { atomWithStorage } from "jotai/utils"
+import { ATOMS } from "./atoms";
 import { useAtom } from "jotai"
-
-//initialise Jotai Storage
-const autostartAtom = atomWithStorage('autostart', false)
-const hideInTaskbarAtom = atomWithStorage('hideInTaskbar', true)
-const alwaysOnTopAtom = atomWithStorage('alwaysOnTop', true)
-const clockWidthAtom = atomWithStorage('clockWidth', 250)
-const clockPaddingAtom = atomWithStorage('clockPadding', 20)
-const formatAtom = atomWithStorage("format", "HH:mm:ss")
-const seperatorStringAtom = atomWithStorage("seperatorString"," /\\,.:")
 
 function App() {
 
-  const [autostart, setAutostart] = useAtom(autostartAtom);
-  const [hideInTaskbar, setHideInTaskbar] = useAtom(hideInTaskbarAtom);
-  const [alwaysOnTop, setAlwaysOnTop] = useAtom(alwaysOnTopAtom);
-  const [clockWidth, setClockWidth] = useAtom(clockWidthAtom);
-  const [clockPadding, ] = useAtom(clockPaddingAtom);
-  const [format,] = useAtom(formatAtom);
-  const [seperatorString,] = useAtom(seperatorStringAtom);
+  const [autostart, setAutostart] = useAtom(ATOMS.AUTOSTART);
+  const [hideInTaskbar, setHideInTaskbar] = useAtom(ATOMS.HIDE_IN_TASKBAR);
+  const [alwaysOnTop, setAlwaysOnTop] = useAtom(ATOMS.ALWAYS_ON_TOP);
+  const [clockPadding] = useAtom(ATOMS.CLOCK_PADDING);
+  const [boxRadius, ] = useAtom(ATOMS.BOX_RADIUS);
+  const [format] = useAtom(ATOMS.TIME_FORMAT);
+  const [separatorString] = useAtom(ATOMS.SEPARATOR_STRING);
+  const [clockSeparatorColor, ] = useAtom(ATOMS.CLOCK_SEPARATOR_COLOR);
+  const [flipcardRadius, ] = useAtom(ATOMS.FLIPCARD_RADIUS);
+  const [clockTextSize, ] = useAtom(ATOMS.CLOCK_TEXT_SIZE);
+  const [language, ] = useAtom(ATOMS.LANGUAGE);
+
+  // colors
+  const [clockTextColor, ] = useAtom(ATOMS.CLOCK_TEXT_COLOR);
+  const [boxBgColor, ] = useAtom(ATOMS.BOX_BACKGROUND);
+  const [flipcardBg, ] = useAtom(ATOMS.FLIPCARD_BACKGROUND);
+
+  // Weather related
+  const [weatherLocation, ] = useAtom(ATOMS.WEATHER_LOCATION);
+  const [weatherUnit, ] = useAtom(ATOMS.WEATHER_UNIT);
+  const [sunTimes, ] = useAtom(ATOMS.SUN_TIMES);
+
+  // Text related settings
+  const [textFont, ] = useAtom(ATOMS.TEXT_FONT);
+  const [textColor, ] = useAtom(ATOMS.TEXT_COLOR);
+
+  // Second row settings (if applicable)
+  const [secondRowEnabled, ] = useAtom(ATOMS.SECOND_ROW_ENABLED);
+  const [secondRowClockTextSize, ] = useAtom(ATOMS.SECOND_ROW_CLOCK_TEXT_SIZE);
+  const [secondRowTimeFormat, ] = useAtom(ATOMS.SECOND_ROW_TIME_FORMAT);
+  const [secondRowGap, ] = useAtom(ATOMS.SECOND_ROW_GAP);
+
+  // Weather related
+  const [weatherData, ] = useAtom(ATOMS.WEATHER_DATA);
   
   const [key, setKey] = useState(1);
-
-  if(clockWidth < 150) {
-    setClockWidth(150);
-  } 
- 
-  const size = new LogicalSize(clockWidth, clockWidth);
 
   async function initialWindowLoad() {
     await getCurrent().setSkipTaskbar(hideInTaskbar);  
     await getCurrent().setAlwaysOnTop(alwaysOnTop);
-    await getCurrent().setSize(size);
+    //await getCurrent().setSize(size);
     await restoreStateCurrent(StateFlags.POSITION);
 
-    const elem = document.querySelector("#flipclockdivwithpadding");
-      if(elem) {
-        const rect = elem.getBoundingClientRect();
-        console.log(`height: ${rect.height}`);
+    // Get the container element instead of the inner clock
+    const container = document.querySelector("#flipclock-container");
 
-        const size = new LogicalSize(clockWidth, rect.height);
+    if (container) {
+      // Get actual element size
+      const rect = container.getBoundingClientRect();
+      
+      // Ensure LogicalSize and getCurrent exist before using them
+      if (typeof LogicalSize !== "undefined" && typeof getCurrent === "function") {
+        const size = new LogicalSize( rect.width + 2, rect.height + 2);
         getCurrent().setSize(size);
+      } else {
+        console.warn("LogicalSize or getCurrent is not defined");
       }
+    }
+
   }
 
   initialWindowLoad();
@@ -97,25 +117,29 @@ function App() {
 
   //Adjust the window size when the clock size changes
   useEffect(() => {
-      const size = new LogicalSize(clockWidth, clockWidth);
-      getCurrent().setSize(size);
+      // Get the container element instead of the inner clock
+      const container = document.querySelector("#flipclock-container");
 
-      const elem = document.querySelector("#flipclockdivwithpadding");
-      if(elem) {
-        const rect = elem.getBoundingClientRect();
-        console.log(`height: ${rect.height}`);
+      if (container) {
+        // Get actual element size
+        const rect = container.getBoundingClientRect();
 
-        const size = new LogicalSize(clockWidth, rect.height);
-        getCurrent().setSize(size);
+        // Ensure LogicalSize and getCurrent exist before using them
+        if (typeof LogicalSize !== "undefined" && typeof getCurrent === "function") {
+          const size = new LogicalSize( rect.width + 2, rect.height +2);
+          getCurrent().setSize(size);
+        } else {
+          console.warn("LogicalSize or getCurrent is not defined");
+        }
       }
-
-      
-  }, [clockWidth, clockPadding])
+      console.log("Clock size changed, adjusting window size to:", clockTextSize, secondRowClockTextSize, clockPadding); // Debug
+  }, [clockTextSize, secondRowClockTextSize, clockPadding])
 
   //Re-render the clock when the format changes
   useEffect(() => {
     setKey(prevKey => prevKey + 1);
-  }, [format, seperatorString, clockWidth, clockPadding])
+    //console.log("Clock format changed, re-rendering clock with key:", key); // Debug
+  }, [format, separatorString, clockTextSize, clockPadding, language, secondRowEnabled, secondRowClockTextSize, secondRowTimeFormat, secondRowGap, clockTextColor, boxBgColor, flipcardBg, flipcardRadius, boxRadius, clockSeparatorColor, sunTimes, weatherData, weatherLocation, weatherUnit, textFont, textColor]);
 
   //Open the styling window
   async function open_stylingmenu() {
@@ -175,7 +199,7 @@ function App() {
 
   return (
       <div id="maindiv" onContextMenu={e => open_context_menu(e)}>
-        <FlipClock key={key} format={format}/>
+        <FlipClock key={key} format={format} secondRowTimeFormat={secondRowTimeFormat}/>
       </div>
   );
 
