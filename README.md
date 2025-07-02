@@ -55,6 +55,7 @@ Built with [React](https://reactjs.org/) and [Tauri v2](https://v2.tauri.app/), 
 
 ```txt
 $FLIPTIME(HH:mm) $TEXT(—) $WEATHER(tempEmoji)
+```
 
 ---
 
