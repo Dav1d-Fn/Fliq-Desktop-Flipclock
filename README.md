@@ -53,7 +53,7 @@ Built with [React](https://reactjs.org/) and [Tauri v2](https://v2.tauri.app/), 
 
 ## Example Templates 🧩
 
-```txt
+```
 $FLIPTIME(HH:mm) $TEXT(—) $WEATHER(tempEmoji)
 ```
 
