@@ -7,7 +7,8 @@ import FlipClock from "./FlipClock"
 
 //import Tauri APIs
 import { invoke } from '@tauri-apps/api/core'
-import { PhysicalPosition, getCurrent, getAll, LogicalSize} from '@tauri-apps/api/window' //getCurrent gets the current window, getAll gets all windows
+import { getCurrentWindow, getAllWindows } from '@tauri-apps/api/window'
+import { PhysicalPosition, LogicalSize } from '@tauri-apps/api/dpi'
 import { Webview } from '@tauri-apps/api/webview';
 import { CheckMenuItem, Menu, MenuItem } from '@tauri-apps/api/menu'
 import { enable, disable } from '@tauri-apps/plugin-autostart';
@@ -57,9 +58,9 @@ function App() {
   const [key, setKey] = useState(1);
 
   async function initialWindowLoad() {
-    await getCurrent().setSkipTaskbar(hideInTaskbar);  
-    await getCurrent().setAlwaysOnTop(alwaysOnTop);
-    //await getCurrent().setSize(size);
+    await getCurrentWindow().setSkipTaskbar(hideInTaskbar);  
+    await getCurrentWindow().setAlwaysOnTop(alwaysOnTop);
+    //await getCurrentWindow().setSize(size);
     await restoreStateCurrent(StateFlags.POSITION);
 
     // Get the container element instead of the inner clock
@@ -70,9 +71,9 @@ function App() {
       const rect = container.getBoundingClientRect();
       
       // Ensure LogicalSize and getCurrent exist before using them
-      if (typeof LogicalSize !== "undefined" && typeof getCurrent === "function") {
+      if (typeof LogicalSize !== "undefined" && typeof getCurrentWindow === "function") {
         const size = new LogicalSize( rect.width + 2, rect.height + 2);
-        getCurrent().setSize(size);
+        getCurrentWindow().setSize(size);
       } else {
         console.warn("LogicalSize or getCurrent is not defined");
       }
@@ -95,7 +96,7 @@ function App() {
     //Start dragging on left mouse click
     function handleMouseDown(e:any) {
       if (e.button === 0)
-        getCurrent().startDragging();
+        getCurrentWindow().startDragging();
     }
 
     const div = document.getElementById('maindiv');
@@ -125,9 +126,9 @@ function App() {
         const rect = container.getBoundingClientRect();
 
         // Ensure LogicalSize and getCurrent exist before using them
-        if (typeof LogicalSize !== "undefined" && typeof getCurrent === "function") {
+        if (typeof LogicalSize !== "undefined" && typeof getCurrentWindow === "function") {
           const size = new LogicalSize( rect.width + 2, rect.height +2);
-          getCurrent().setSize(size);
+          getCurrentWindow().setSize(size);
         } else {
           console.warn("LogicalSize or getCurrent is not defined");
         }
@@ -143,9 +144,11 @@ function App() {
 
   //Open the styling window
   async function open_stylingmenu() {
-    if(!Webview.getByLabel('Styling'))
-      await invoke("open_stylingmenu_window") ; 
-    console.log("Window was opened") ; 
+    const existing = await Webview.getByLabel('Styling');
+    if (!existing) {
+      await invoke("open_stylingmenu_window");
+    }
+    console.log("Window was opened");
   }
 
   //Toggle the autostart setting
@@ -162,10 +165,10 @@ function App() {
   //Toggle the hideInTaskbar setting
   async function toggle_hideInTaskbar() {
     if(hideInTaskbar) {
-      getCurrent().setSkipTaskbar(false);
+      getCurrentWindow().setSkipTaskbar(false);
       setHideInTaskbar(false)
     } else {
-      getCurrent().setSkipTaskbar(true);
+      getCurrentWindow().setSkipTaskbar(true);
       setHideInTaskbar(true)
     }
   }
@@ -173,10 +176,10 @@ function App() {
   //Toggle the alwaysOnTop setting
   async function toggle_alwaysOnTop() {
     if(alwaysOnTop) {
-      getCurrent().setAlwaysOnTop(false);
+      getCurrentWindow().setAlwaysOnTop(false);
       setAlwaysOnTop(false)
     } else {
-      getCurrent().setAlwaysOnTop(true);
+      getCurrentWindow().setAlwaysOnTop(true);
       setAlwaysOnTop(true)
     }
   }
@@ -188,15 +191,11 @@ function App() {
     const autostartItem = await CheckMenuItem.new({checked: autostart, enabled: true , text: "Autostart", action: () => { toggle_autostart() }});
     const hideInTaskbarItem = await CheckMenuItem.new({checked: hideInTaskbar, enabled: true , text: "Hide in Taskbar", action: () => { toggle_hideInTaskbar() }});
     const alwaysOnTopItem = await CheckMenuItem.new({checked: alwaysOnTop, enabled: true , text: "Always on Top", action: () => { toggle_alwaysOnTop() }});
-    const exitItem = await MenuItem.new({enabled:true ,text: "Exit", action: () => { getAll().forEach( window => { window.close(); }); }});
+    const exitItem = await MenuItem.new({enabled:true ,text: "Exit", action: async () => { (await getAllWindows()).forEach( window => { window.close(); }); }});
 
     const menu = await Menu.new({items: [settingsItem, autostartItem, hideInTaskbarItem, alwaysOnTopItem, exitItem]});
 
-    const dpr = window.devicePixelRatio ?? 1;
-    const position: PhysicalPosition = new PhysicalPosition(
-      Math.round(e.screenX * dpr),
-      Math.round(e.screenY * dpr)
-    );
+    const position: PhysicalPosition = new PhysicalPosition(e.clientX, e.clientY);
     await menu.popup(position);
 
   }

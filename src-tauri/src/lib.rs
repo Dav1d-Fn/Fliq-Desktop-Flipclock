@@ -5,19 +5,25 @@ fn greet(name: &str) -> String {
 
 // Window definition for the styling menu
 #[tauri::command]
-async fn open_stylingmenu_window(app: tauri::AppHandle) {
-    let file_path: &str = "stylingMenu.html";
+async fn open_stylingmenu_window(app: tauri::AppHandle) -> Result<(), String> {
+    use tauri::Manager;
 
-    let _stylingmenu_window = tauri::WebviewWindowBuilder::new(
+    if let Some(existing) = app.get_webview_window("Styling") {
+        let _ = existing.set_focus();
+        return Ok(());
+    }
+
+    tauri::WebviewWindowBuilder::new(
         &app,
         "Styling", /* the unique window label */
-        tauri::WebviewUrl::App(file_path.into()),
+        tauri::WebviewUrl::App("stylingMenu.html".into()),
     )
     .inner_size(900.0, 500.0)
     .resizable(true)
     .title("Styling")
     .build()
-    .unwrap();
+    .map(|_| ())
+    .map_err(|e| e.to_string())
 }
  
 // Main Window
