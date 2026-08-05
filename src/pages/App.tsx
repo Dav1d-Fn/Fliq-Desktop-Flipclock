@@ -183,21 +183,24 @@ function App() {
       // bevor die erste Korrektur wirkt -- die Uhr schiesst weg und die IPC-Flut reisst die
       // Wayland-Verbindung mit.
       //
-      // Zweitens, und das ist der Grund fuer DAMPING: die Schleife hat mindestens einen Frame
-      // Totzeit. Der volle Fehler wird angewendet, bevor die vorige Korrektur sichtbar ist,
-      // also nochmal gesehen und nochmal angewendet -- ein Regler mit Verstaerkung 1 und Totzeit
-      // schwingt. In einer Bildschirmaufnahme mit 60 fps gemessen: Schrittfolge +36, +17, -2,
-      // +22, +2 px, also Ueberschwingen mit Rueckkorrektur statt gleichmaessigem Nachlaufen.
+      // Zweitens: die Verstaerkung bleibt 1.0. Das ist gemessen, nicht geraten.
       //
-      // Mit Verstaerkung < 1 konvergiert die Schleife monoton statt zu schwingen. Der Preis ist
-      // ein leichtes, gleichmaessiges Nachlaufen bei schneller Bewegung -- deutlich angenehmer
-      // als Stottern. Beim Loslassen wird einmal mit voller Verstaerkung nachgezogen, damit die
-      // Endposition exakt sitzt.
+      // Ein Trace ueber 512 ms (137 Pointer-Events, 24 Korrekturen) zeigt: der Fehler waechst
+      // konstant um ~50 px pro Frame -- also exakt um die Mausbewegung, waehrend die
+      // kommandierten Verschiebungen (-30, -52, -75, -102, -129, -157, -181) NICHTS bewirken.
+      // Dann springt der Fehler auf einen Schlag um 600 px; die Summe der bis dahin
+      // kommandierten Deltas betrug 728 px. KWin wendet Margin-Aenderungen an einer
+      // Layer-Surface also nicht pro Frame an, sondern sammelt sie und laesst sie ~200 ms
+      // spaeter in einem Schub landen.
       //
-      // ponytail: fester Wert statt Regelung. Wenn es auf einer anderen Maschine zaeh oder
-      // wieder zappelig wirkt, ist DAMPING die Stellschraube -- kleiner = ruhiger, groesser =
-      // direkter. Ab 1.0 schwingt es wieder.
-      const DAMPING = 0.5;
+      // Daraus folgt: eine Verstaerkung < 1 macht es SCHLECHTER, nicht besser. Wenn der
+      // Compositor ohnehin nur schubweise nachzieht, laesst halbe Verstaerkung die Uhr beim
+      // Nachholen zu kurz landen und den Rueckstand weiter wachsen. Mit 1.0 entspricht die
+      // kommandierte Position jederzeit der Cursorposition, der Schub landet also richtig.
+      //
+      // ponytail: die Ruckeligkeit ist damit NICHT behoben -- sie liegt im Compositor, nicht
+      // hier. Fluessiges Live-Ziehen ist ueber Margins auf KWin nicht erreichbar.
+      const DAMPING = 1.0;
 
       // Auf den Greifpunkt initialisiert, nicht auf 0: dann ist die Schluss-Korrektur unten
       // ein Nulldurchgang, falls gedrueckt und ohne Bewegung wieder losgelassen wurde.
