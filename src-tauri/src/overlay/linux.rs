@@ -93,24 +93,41 @@ extern "C" {
 /// `to_glib_none()`. Beide sind hier lokal und wuerden am Ende der Funktion fallen — ein
 /// zurueckgegebener Zeiger waere ab da formal baumelnd. Als Closure-Argument ist er gueltig,
 /// solange `f` laeuft.
-fn with_raw_gtk_window<R>(
-    window: &tauri::WebviewWindow,
-    f: impl FnOnce(*mut c_void) -> R,
-) -> Option<R> {
+///
+/// `f` gibt bewusst nichts zurueck: ein generischer Rueckgabetyp koennte den Rohzeiger selbst
+/// nach draussen reichen und die Eindaemmung aushebeln, die dieser Helfer verspricht. `Some(())`
+/// heisst nur "es gab ein GtkWindow und `f` lief".
+fn with_raw_gtk_window(window: &tauri::WebviewWindow, f: impl FnOnce(*mut c_void)) -> Option<()> {
     use gtk::glib::translate::ToGlibPtr;
     use gtk::prelude::Cast;
 
     let gtk_win = window.gtk_window().ok()?;
     let stash = gtk_win.upcast_ref::<gtk::Window>().to_glib_none();
     let ptr: *mut gtk::ffi::GtkWindow = stash.0;
-    Some(f(ptr as *mut c_void))
+    f(ptr as *mut c_void);
+    Some(())
 }
 
 /// Konfiguriert das Fenster fuer den gewaehlten Modus. Muss laufen, **bevor** das Fenster
 /// realisiert wird — deshalb startet das Hauptfenster mit `"visible": false`.
-pub fn apply(window: &tauri::WebviewWindow, mode: OverlayMode, margin_x: i32, margin_y: i32) {
+///
+/// Gibt den Modus zurueck, der **tatsaechlich** eingerichtet wurde. `mode` sagt, was versucht
+/// wird; der Rueckgabewert sagt, was daraus wurde. Jeder Fallback liefert `X11`, damit der
+/// Zustand, den das Frontend spaeter sieht, nicht luegt: ein als `layer-shell` gemeldetes,
+/// in Wahrheit aber X11-Fenster wuerde das Ziehen per `startDragging` unterdruecken und
+/// stattdessen auf `set_margin` setzen, das dort wirkungslos ist — die Uhr waere unbewegbar.
+#[must_use]
+pub fn apply(
+    window: &tauri::WebviewWindow,
+    mode: OverlayMode,
+    margin_x: i32,
+    margin_y: i32,
+) -> OverlayMode {
     match mode {
-        OverlayMode::X11 => apply_x11(window),
+        OverlayMode::X11 => {
+            apply_x11(window);
+            OverlayMode::X11
+        }
         OverlayMode::LayerShell => {
             // SAFETY: parameterloser Query-Call in libgtk-layer-shell, kein Zeiger im Spiel.
             if unsafe { gtk_layer_is_supported() } == 0 {
@@ -119,7 +136,7 @@ pub fn apply(window: &tauri::WebviewWindow, mode: OverlayMode, margin_x: i32, ma
                 // besser als ein unsichtbares.
                 eprintln!("fliq: layer-shell laut GTK nicht unterstuetzt, nutze X11-Verhalten");
                 apply_x11(window);
-                return;
+                return OverlayMode::X11;
             }
 
             // SAFETY: `ptr` ist ein gueltiges GtkWindow und bleibt es fuer die Dauer der
@@ -139,7 +156,9 @@ pub fn apply(window: &tauri::WebviewWindow, mode: OverlayMode, margin_x: i32, ma
 
             if configured.is_none() {
                 eprintln!("fliq: kein GtkWindow erreichbar, Overlay nicht konfiguriert");
+                return OverlayMode::X11;
             }
+            OverlayMode::LayerShell
         }
     }
 }
