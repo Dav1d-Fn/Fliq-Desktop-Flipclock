@@ -44,13 +44,22 @@ impl Default for LinuxConfig {
     }
 }
 
+/// Pure path logic, no env access — testable without touching process-global state.
+/// `xdg` must be absolute to count; a relative `XDG_CONFIG_HOME` is ignored per spec,
+/// falling through to `$HOME/.config`.
+fn resolve_default_path(xdg: Option<PathBuf>, home: Option<PathBuf>) -> Option<PathBuf> {
+    let base = xdg
+        .filter(|p| p.is_absolute())
+        .or_else(|| home.map(|h| h.join(".config")))?;
+    Some(base.join("com.flipclock.dev").join("linux.json"))
+}
+
 impl LinuxConfig {
     pub fn default_path() -> Option<PathBuf> {
-        let base = std::env::var_os("XDG_CONFIG_HOME")
-            .map(PathBuf::from)
-            .filter(|p| p.is_absolute())
-            .or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".config")))?;
-        Some(base.join("com.flipclock.dev").join("linux.json"))
+        resolve_default_path(
+            std::env::var_os("XDG_CONFIG_HOME").map(PathBuf::from),
+            std::env::var_os("HOME").map(PathBuf::from),
+        )
     }
 
     /// Liest die Konfiguration. Fehlt die Datei oder ist sie kaputt, gelten die Defaults —
@@ -125,5 +134,34 @@ mod tests {
     fn mode_preference_serializes_kebab_case() {
         let json = serde_json::to_string(&ModePreference::LayerShell).unwrap();
         assert_eq!(json, "\"layer-shell\"");
+    }
+
+    #[test]
+    fn overlay_mode_as_str_matches_frontend_contract() {
+        assert_eq!(OverlayMode::LayerShell.as_str(), "layer-shell");
+        assert_eq!(OverlayMode::X11.as_str(), "x11");
+    }
+
+    #[test]
+    fn resolve_default_path_uses_absolute_xdg() {
+        let got = resolve_default_path(Some(PathBuf::from("/xdg")), Some(PathBuf::from("/home/u")));
+        assert_eq!(got, Some(PathBuf::from("/xdg/com.flipclock.dev/linux.json")));
+    }
+
+    #[test]
+    fn resolve_default_path_ignores_relative_xdg_falls_back_to_home() {
+        let got = resolve_default_path(Some(PathBuf::from("relative/xdg")), Some(PathBuf::from("/home/u")));
+        assert_eq!(got, Some(PathBuf::from("/home/u/.config/com.flipclock.dev/linux.json")));
+    }
+
+    #[test]
+    fn resolve_default_path_uses_home_when_xdg_absent() {
+        let got = resolve_default_path(None, Some(PathBuf::from("/home/u")));
+        assert_eq!(got, Some(PathBuf::from("/home/u/.config/com.flipclock.dev/linux.json")));
+    }
+
+    #[test]
+    fn resolve_default_path_none_when_both_absent() {
+        assert_eq!(resolve_default_path(None, None), None);
     }
 }
