@@ -139,22 +139,48 @@ function App() {
         return;
       }
 
-      // Client- statt Screen-Koordinaten: der Greifpunkt ist relativ zur Surface, und die
-      // Surface bewegt sich beim Margin-Wechsel mit. Screen-Deltas schrumpfen dadurch um genau
-      // das, was schon angewendet wurde (2*dMargin = dZeiger -> halbe Geschwindigkeit).
-      // Der Abstand Zeiger<->Greifpunkt in Client-Koordinaten ist dagegen selbstkorrigierend
-      // und bleibt richtig, egal ob die Koordinaten global sind oder nicht.
+      // Greifpunkt in Client-Koordinaten: das ist der Punkt der Uhr, der unter dem Cursor
+      // bleiben muss. Er ist eine Konstante -- ein Punkt auf dem Widget, nicht auf dem Schirm.
       const grabX = e.clientX;
       const grabY = e.clientY;
 
-      const onMove = (ev: PointerEvent) => {
-        if (ev.pointerId !== pointerId) return;
+      // Das hier ist eine Regelschleife, keine simple Umrechnung: `clientX` ist relativ zur
+      // Surface, und die Surface verschiebt sich mit dem Margin, den wir gerade setzen. Der Term
+      // (clientX - grabX) ist deshalb ein *Positionsfehler* ("wie weit ist der Cursor vom
+      // Greifpunkt weg"), kein Bewegungsdelta -- er bleibt ungleich null, bis der Compositor die
+      // Korrektur angewendet hat.
+      //
+      // Daraus folgt die eine Regel, die hier alles traegt: pro Frame darf HOECHSTENS EINE
+      // Korrektur rausgehen. Ungetaktet summiert der Handler denselben Fehler bei 500-1000
+      // Events/s hundertfach auf, bevor die erste Korrektur wirkt -- die Uhr schiesst weg,
+      // ueberschwingt zurueck, und die IPC-Flut reisst irgendwann die Wayland-Verbindung mit.
+      let pendingX = 0;
+      let pendingY = 0;
+      let hasPending = false;
+      let frame = 0;
+
+      const flush = () => {
+        frame = 0;
+        if (!hasPending) return;
+        hasPending = false;
+
+        // Zusaetzlicher Deckel: selbst wenn die Schleife einmal ueberschwingt, darf der Margin
+        // nicht ins Absurde laufen und dem Compositor eine Surface weit ausserhalb des
+        // Bildschirms zumuten.
         dragState.margin = {
-          x: Math.max(0, dragState.margin.x + (ev.clientX - grabX)),
-          y: Math.max(0, dragState.margin.y + (ev.clientY - grabY)),
+          x: Math.min(window.screen.width, Math.max(0, dragState.margin.x + (pendingX - grabX))),
+          y: Math.min(window.screen.height, Math.max(0, dragState.margin.y + (pendingY - grabY))),
         };
         invoke("set_overlay_margin", { x: dragState.margin.x, y: dragState.margin.y, persist: false })
           .catch((err) => console.error("set_overlay_margin fehlgeschlagen:", err));
+      };
+
+      const onMove = (ev: PointerEvent) => {
+        if (ev.pointerId !== pointerId) return;
+        pendingX = ev.clientX;
+        pendingY = ev.clientY;
+        hasPending = true;
+        if (!frame) frame = requestAnimationFrame(flush);
       };
 
       // pointerup (normale Freigabe) und pointercancel (Compositor entzieht die Capture, z.B.
@@ -162,12 +188,20 @@ function App() {
       // persistieren, dann aufraeumen.
       const onEnd = (ev: PointerEvent) => {
         if (ev.pointerId !== pointerId) return;
+        // Die letzte Bewegung kann noch ungetaktet anliegen -- ohne dieses flush() ginge sie
+        // verloren und die Uhr bliebe bis zu einen Frame hinter dem Cursor stehen.
+        flush();
         invoke("set_overlay_margin", { x: dragState.margin.x, y: dragState.margin.y, persist: true })
           .catch((err) => console.error("set_overlay_margin fehlgeschlagen:", err));
         cleanup();
       };
 
       const cleanup = () => {
+        if (frame) {
+          cancelAnimationFrame(frame);
+          frame = 0;
+        }
+        hasPending = false;
         target.removeEventListener("pointermove", onMove);
         target.removeEventListener("pointerup", onEnd);
         target.removeEventListener("pointercancel", onEnd);
