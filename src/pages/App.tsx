@@ -103,10 +103,29 @@ function App() {
     // stillschweigend wirkungslos.
     const dragState = { mode: "native", margin: { x: 0, y: 0 } };
 
+    // Ein Margin ausserhalb des sichtbaren Bereichs macht das Widget unauffindbar: es laeuft,
+    // ist aber nicht zu sehen, und die einzige Rettung waere, linux.json von Hand zu editieren.
+    // Das kann nicht nur ein Bug ausloesen, sondern auch der voellig normale Fall, dass jemand
+    // den Monitor wechselt, ein Display abzieht oder die Aufloesung aendert. Deshalb wird der
+    // Wert sowohl beim Laden als auch waehrend des Ziehens auf den sichtbaren Bereich begrenzt.
+    const clampMargin = (x: number, y: number) => ({
+      x: Math.min(Math.max(0, window.screen.width - window.innerWidth), Math.max(0, x)),
+      y: Math.min(Math.max(0, window.screen.height - window.innerHeight), Math.max(0, y)),
+    });
+
     const overlayStateReady = invoke<{ mode: string; margin_x: number; margin_y: number }>("get_overlay_state")
       .then((s) => {
         dragState.mode = s.mode;
-        dragState.margin = { x: s.margin_x, y: s.margin_y };
+        const safe = clampMargin(s.margin_x, s.margin_y);
+        dragState.margin = safe;
+
+        // Lag der gespeicherte Wert daneben, sofort korrigiert zurueckschreiben -- sonst holt
+        // sich der naechste Start denselben unbrauchbaren Wert wieder.
+        if (dragState.mode === "layer-shell" && (safe.x !== s.margin_x || safe.y !== s.margin_y)) {
+          console.warn(`fliq: Margin ${s.margin_x}/${s.margin_y} lag ausserhalb des Bildschirms, korrigiert auf ${safe.x}/${safe.y}`);
+          invoke("set_overlay_margin", { x: safe.x, y: safe.y, persist: true })
+            .catch((err) => console.error("set_overlay_margin fehlgeschlagen:", err));
+        }
       })
       .catch(() => { /* aeltere Builds ohne den Command: bleibt bei "native" */ });
 
@@ -164,13 +183,13 @@ function App() {
         if (!hasPending) return;
         hasPending = false;
 
-        // Zusaetzlicher Deckel: selbst wenn die Schleife einmal ueberschwingt, darf der Margin
-        // nicht ins Absurde laufen und dem Compositor eine Surface weit ausserhalb des
-        // Bildschirms zumuten.
-        dragState.margin = {
-          x: Math.min(window.screen.width, Math.max(0, dragState.margin.x + (pendingX - grabX))),
-          y: Math.min(window.screen.height, Math.max(0, dragState.margin.y + (pendingY - grabY))),
-        };
+        // Derselbe Deckel wie beim Laden: schwingt die Schleife doch einmal ueber, darf das
+        // Widget trotzdem nicht aus dem Bild wandern -- sonst waere es ohne Handarbeit an
+        // linux.json nicht mehr zurueckzuholen.
+        dragState.margin = clampMargin(
+          dragState.margin.x + (pendingX - grabX),
+          dragState.margin.y + (pendingY - grabY)
+        );
         invoke("set_overlay_margin", { x: dragState.margin.x, y: dragState.margin.y, persist: false })
           .catch((err) => console.error("set_overlay_margin fehlgeschlagen:", err));
       };
