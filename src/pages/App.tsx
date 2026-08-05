@@ -178,27 +178,49 @@ function App() {
       // Greifpunkt weg"), kein Bewegungsdelta -- er bleibt ungleich null, bis der Compositor die
       // Korrektur angewendet hat.
       //
-      // Daraus folgt die eine Regel, die hier alles traegt: pro Frame darf HOECHSTENS EINE
-      // Korrektur rausgehen. Ungetaktet summiert der Handler denselben Fehler bei 500-1000
-      // Events/s hundertfach auf, bevor die erste Korrektur wirkt -- die Uhr schiesst weg,
-      // ueberschwingt zurueck, und die IPC-Flut reisst irgendwann die Wayland-Verbindung mit.
-      let pendingX = 0;
-      let pendingY = 0;
+      // Daraus folgen ZWEI Regeln. Erstens: pro Frame darf hoechstens eine Korrektur rausgehen.
+      // Ungetaktet summiert der Handler denselben Fehler bei 500-1000 Events/s hundertfach auf,
+      // bevor die erste Korrektur wirkt -- die Uhr schiesst weg und die IPC-Flut reisst die
+      // Wayland-Verbindung mit.
+      //
+      // Zweitens, und das ist der Grund fuer DAMPING: die Schleife hat mindestens einen Frame
+      // Totzeit. Der volle Fehler wird angewendet, bevor die vorige Korrektur sichtbar ist,
+      // also nochmal gesehen und nochmal angewendet -- ein Regler mit Verstaerkung 1 und Totzeit
+      // schwingt. In einer Bildschirmaufnahme mit 60 fps gemessen: Schrittfolge +36, +17, -2,
+      // +22, +2 px, also Ueberschwingen mit Rueckkorrektur statt gleichmaessigem Nachlaufen.
+      //
+      // Mit Verstaerkung < 1 konvergiert die Schleife monoton statt zu schwingen. Der Preis ist
+      // ein leichtes, gleichmaessiges Nachlaufen bei schneller Bewegung -- deutlich angenehmer
+      // als Stottern. Beim Loslassen wird einmal mit voller Verstaerkung nachgezogen, damit die
+      // Endposition exakt sitzt.
+      //
+      // ponytail: fester Wert statt Regelung. Wenn es auf einer anderen Maschine zaeh oder
+      // wieder zappelig wirkt, ist DAMPING die Stellschraube -- kleiner = ruhiger, groesser =
+      // direkter. Ab 1.0 schwingt es wieder.
+      const DAMPING = 0.5;
+
+      // Auf den Greifpunkt initialisiert, nicht auf 0: dann ist die Schluss-Korrektur unten
+      // ein Nulldurchgang, falls gedrueckt und ohne Bewegung wieder losgelassen wurde.
+      let pendingX = grabX;
+      let pendingY = grabY;
       let hasPending = false;
       let frame = 0;
+
+      const apply = (gain: number) => {
+        // Derselbe Deckel wie beim Laden: schwingt die Schleife doch einmal ueber, darf das
+        // Widget trotzdem nicht aus dem Bild wandern -- sonst waere es ohne Handarbeit an
+        // linux.json nicht mehr zurueckzuholen.
+        dragState.margin = clampMargin(
+          dragState.margin.x + (pendingX - grabX) * gain,
+          dragState.margin.y + (pendingY - grabY) * gain
+        );
+      };
 
       const flush = () => {
         frame = 0;
         if (!hasPending) return;
         hasPending = false;
-
-        // Derselbe Deckel wie beim Laden: schwingt die Schleife doch einmal ueber, darf das
-        // Widget trotzdem nicht aus dem Bild wandern -- sonst waere es ohne Handarbeit an
-        // linux.json nicht mehr zurueckzuholen.
-        dragState.margin = clampMargin(
-          dragState.margin.x + (pendingX - grabX),
-          dragState.margin.y + (pendingY - grabY)
-        );
+        apply(DAMPING);
         invoke("set_overlay_margin", { x: dragState.margin.x, y: dragState.margin.y, persist: false })
           .catch((err) => console.error("set_overlay_margin fehlgeschlagen:", err));
       };
@@ -216,9 +238,11 @@ function App() {
       // persistieren, dann aufraeumen.
       const onEnd = (ev: PointerEvent) => {
         if (ev.pointerId !== pointerId) return;
-        // Die letzte Bewegung kann noch ungetaktet anliegen -- ohne dieses flush() ginge sie
-        // verloren und die Uhr bliebe bis zu einen Frame hinter dem Cursor stehen.
-        flush();
+        // Einmal mit VOLLER Verstaerkung nachziehen: waehrend des Ziehens laeuft die Uhr wegen
+        // des Dampings bewusst etwas hinterher, beim Loslassen soll der Greifpunkt aber exakt
+        // unter dem Cursor landen. Deckt zugleich die letzte, noch ungetaktete Bewegung ab.
+        hasPending = false;
+        apply(1);
         invoke("set_overlay_margin", { x: dragState.margin.x, y: dragState.margin.y, persist: true })
           .catch((err) => console.error("set_overlay_margin fehlgeschlagen:", err));
         cleanup();
