@@ -34,6 +34,10 @@ pub struct OverlayInfo {
     pub mode: String,
     pub margin_x: i32,
     pub margin_y: i32,
+    /// Die gespeicherte Praeferenz aus `linux.json` ("auto"/"layer-shell"/"x11"),
+    /// nicht der tatsaechlich wirksame Modus. Damit kann das Settings-Menü das
+    /// Dropdown nach einem Neustart korrekt vorbelegen.
+    pub preference: String,
 }
 
 #[tauri::command]
@@ -46,6 +50,7 @@ fn get_overlay_state(state: tauri::State<'_, OverlayState>) -> OverlayInfo {
         mode: "native".to_string(),
         margin_x: cfg.margin_x,
         margin_y: cfg.margin_y,
+        preference: cfg.overlay_mode.as_str().to_string(),
     }
 }
 
