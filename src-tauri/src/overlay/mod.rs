@@ -114,6 +114,9 @@ impl LinuxConfig {
 /// hier in Ordnung: er haelt kein Lock und der Aufrufer wartet nicht auf ihn. Bitte nicht
 /// "reparieren", indem ein `join` ergaenzt wird — das wuerde den Hang zurueckholen, den dieser
 /// Wrapper gerade vermeidet.
+// Nur `linux.rs` und die Tests rufen das auf — auf Windows/macOS sonst eine dead_code-Warnung.
+// Bleibt bewusst hier im ungegateten Modul, damit die Tests auf jeder Plattform laufen.
+#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
 fn with_timeout<F>(timeout: Duration, body: F) -> bool
 where
     F: FnOnce() -> bool + Send + 'static,

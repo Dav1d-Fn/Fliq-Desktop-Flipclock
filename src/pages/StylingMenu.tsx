@@ -264,8 +264,15 @@ export default function StylingMenu() {
                       value={overlayPref}
                       onChange={(value) => {
                         if (!value) return;
+                        // Optimistisch setzen, bei fehlgeschlagenem Write zurueckdrehen — sonst
+                        // zeigt das Dropdown eine Auswahl, die nie persistiert wurde.
+                        const previous = overlayPref;
                         setOverlayPref(value);
-                        invoke("set_overlay_mode", { mode: value });
+                        invoke("set_overlay_mode", { mode: value })
+                          .catch((err) => {
+                            console.error("set_overlay_mode fehlgeschlagen:", err);
+                            setOverlayPref(previous);
+                          });
                       }}
                       data={[
                         { value: "auto", label: "Auto (recommended)" },
