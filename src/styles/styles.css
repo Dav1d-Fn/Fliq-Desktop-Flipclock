@@ -1,10 +1,12 @@
+/* Kein `overflow: hidden` hier: diese Datei wird von beiden Entry-Points importiert, auch vom
+   Settings-Fenster (900x500, ~10 gestapelte Cards), das scrollen koennen muss. Die Regel lebt
+   in `index.html`, dem Entry-Dokument der Uhr. */
 html, body {
   background: transparent;
   margin: 0;
   padding: 0;
   border: none;
   outline: none;
-  overflow: hidden;
 }
 
 :root {
