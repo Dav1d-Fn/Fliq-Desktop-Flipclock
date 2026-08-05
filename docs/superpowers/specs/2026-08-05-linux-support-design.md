@@ -75,6 +75,8 @@ Das GTK-Fenster wird **vor dem Realize** zu einem Layer-Surface gemacht:
 
 - Layer `OVERLAY` — derselbe Layer wie Panels und OSDs, liegt über Fullscreen-Fenstern
 - Keyboard-Mode `NONE` — das Widget nimmt nie Fokus
+- Exclusive-Zone `-1` — fremde exclusive zones werden ignoriert, sonst würde ein
+  erscheinendes Panel das Widget verschieben
 - Anker `TOP | LEFT`, Position über Margins
 
 ### Modus B — XWayland / X11
@@ -82,9 +84,13 @@ Das GTK-Fenster wird **vor dem Realize** zu einem Layer-Surface gemacht:
 Zielsysteme: GNOME, XFCE, Cinnamon, echte X11-Sessions.
 
 `GDK_BACKEND=x11` wird gesetzt, bevor GTK initialisiert. Danach greifen die klassischen
-Mechanismen: `set_keep_above(true)`, `set_skip_taskbar_hint(true)`, Type-Hint `Dock`.
+Mechanismen: `set_keep_above(true)`, `set_skip_taskbar_hint(true)`, `set_skip_pager_hint(true)`.
 Ergebnis: über normalen Fenstern, **nicht** über Fullscreen-Spielen. Das ist die
 dokumentierte Grenze des Modus, kein Bug.
+
+Bewusst **kein** Window-Type-Hint `Dock`: Dock-Fenster lassen sich von den meisten
+Window-Managern nicht per `begin_move_drag` verschieben, und Ziehen ist auf diesem Pfad
+die Bedienung. `keep_above` liefert dasselbe Ergebnis ohne diesen Nebeneffekt.
 
 ### Moduserkennung
 
@@ -139,9 +145,12 @@ und rund zehn Zeilen `serde_json`. Alle übrigen Settings bleiben unverändert i
 Neue Verantwortung: Moduswahl vor GTK-Init. Liest `linux.json`, führt bei `auto` die
 Erkennung durch, setzt ggf. `GDK_BACKEND`, reicht den ermittelten Modus an `lib.rs` weiter.
 
-### `src-tauri/src/overlay.rs` (neu)
+### `src-tauri/src/overlay/` (neu)
 
-Gekapselt, damit `lib.rs` nicht zur Sammelstelle wird. Enthält:
+Gekapselt, damit `lib.rs` nicht zur Sammelstelle wird. Zwei Dateien, damit die reine Logik
+auf allen Plattformen kompiliert und ihre Tests auch im Windows-CI-Job laufen:
+`mod.rs` (Typen, Config, `detect_mode`) und `linux.rs` (FFI, Compositor-Probe, `apply`),
+letztere komplett `#[cfg(target_os = "linux")]`. Enthält:
 
 - `enum OverlayMode { LayerShell, X11 }`
 - `struct LinuxConfig { overlay_mode, margin_x, margin_y }` mit `load()` / `save()`
@@ -151,7 +160,7 @@ Gekapselt, damit `lib.rs` nicht zur Sammelstelle wird. Enthält:
 
 Verwendete C-Funktionen: `gtk_layer_init_for_window`, `gtk_layer_set_layer`,
 `gtk_layer_set_anchor`, `gtk_layer_set_margin`, `gtk_layer_set_keyboard_mode`,
-`gtk_layer_is_supported`. Rund 15 Zeilen `extern "C"` plus
+`gtk_layer_set_exclusive_zone`, `gtk_layer_is_supported`. Rund 15 Zeilen `extern "C"` plus
 `println!("cargo:rustc-link-lib=gtk-layer-shell")` in der `build.rs` — statt einer als
 unmaintained markierten Crate in ein Projekt zu ziehen, das noch Jahre laufen soll.
 
