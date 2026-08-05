@@ -99,7 +99,17 @@ fn set_overlay_mode(state: tauri::State<'_, OverlayState>, mode: String) -> Resu
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run(mode: overlay::OverlayMode, config: overlay::LinuxConfig) {
     tauri::Builder::default()
-        .plugin(tauri_plugin_window_state::Builder::default().build())
+        // `skip_initial_state("main")`: der Default `StateFlags::all()` enthaelt `VISIBLE`, und das
+        // Plugin restauriert den Zustand in `on_window_ready` — das laeuft synchron auf dem
+        // Main-Thread, *bevor* diese `setup`-Closure drankommt (tauri::app::setup baut erst die
+        // Fenster aus tauri.conf.json, dann den User-Setup-Hook). Das ruft `show()` + `set_focus()`
+        // auf einem Fenster auf, das erst noch von `overlay::linux::apply` konfiguriert werden
+        // muss, und restauriert nebenbei `SIZE`, obwohl das Frontend die Groesse ohnehin aus dem
+        // Inhalt berechnet.
+        //
+        // Das Hauptfenster bekommt seinen Startzustand deshalb ausschliesslich unten im Setup:
+        // Position restaurieren, dann `show()` — in dieser Reihenfolge und an genau einer Stelle.
+        .plugin(tauri_plugin_window_state::Builder::default().skip_initial_state("main").build())
         .plugin(tauri_plugin_autostart::init(tauri_plugin_autostart::MacosLauncher::LaunchAgent, Some(vec!["--flag1", "--flag2"])))
         .plugin(tauri_plugin_shell::init())
         .setup(move |app| {
@@ -116,6 +126,14 @@ pub fn run(mode: overlay::OverlayMode, config: overlay::LinuxConfig) {
             };
 
             if let Some(window) = window {
+                // Ersetzt den uebersprungenen Initial-Restore des Plugins, aber nur `POSITION`:
+                // ohne das erschiene das Fenster auf Windows erst an der Default-Position und
+                // spraenge dann, sobald das Frontend `restoreStateCurrent(POSITION)` aufruft.
+                // Fehler sind egal — auf Wayland gibt es keine Fensterposition, dort positioniert
+                // der Compositor bzw. die Layer-Shell-Margin.
+                use tauri_plugin_window_state::{StateFlags, WindowExt};
+                let _ = window.restore_state(StateFlags::POSITION);
+
                 // Bewusst ausserhalb des Linux-Blocks: `"visible": false` gilt fuer alle
                 // Plattformen, also muss auch `show()` ueberall laufen.
                 window.show()?;
