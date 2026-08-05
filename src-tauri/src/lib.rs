@@ -1,10 +1,5 @@
 pub mod overlay;
 
-#[tauri::command]
-fn greet(name: &str) -> String {
-    format!("Hello, {}! You've been greeted from Rust!", name)
-}
-
 // Window definition for the styling menu
 #[tauri::command]
 async fn open_stylingmenu_window(app: tauri::AppHandle) -> Result<(), String> {
