@@ -1,5 +1,7 @@
 //! Linux-spezifischer Teil des Overlays: Compositor-Probe und Fensterkonfiguration.
 
+use crate::overlay::OverlayMode;
+use std::os::raw::{c_int, c_void};
 use std::time::Duration;
 use wayland_client::{
     globals::{registry_queue_init, GlobalListContents},
@@ -44,6 +46,126 @@ pub fn layer_shell_available() -> bool {
             .contents()
             .with_list(|list| list.iter().any(|g| g.interface == "zwlr_layer_shell_v1"))
     })
+}
+
+#[repr(C)]
+#[allow(dead_code)]
+enum Layer {
+    Background = 0,
+    Bottom = 1,
+    Top = 2,
+    Overlay = 3,
+}
+
+#[repr(C)]
+#[allow(dead_code)]
+enum Edge {
+    Left = 0,
+    Right = 1,
+    Top = 2,
+    Bottom = 3,
+}
+
+#[repr(C)]
+#[allow(dead_code)]
+enum KeyboardMode {
+    None = 0,
+    Exclusive = 1,
+    OnDemand = 2,
+}
+
+// Direkte Bindung an die System-Bibliothek gtk-layer-shell (GTK3).
+// Die Rust-Crate dafuer ist auf crates.io als UNMAINTAINED markiert.
+extern "C" {
+    fn gtk_layer_is_supported() -> c_int;
+    fn gtk_layer_init_for_window(window: *mut c_void);
+    fn gtk_layer_set_layer(window: *mut c_void, layer: Layer);
+    fn gtk_layer_set_anchor(window: *mut c_void, edge: Edge, anchor_to_edge: c_int);
+    fn gtk_layer_set_margin(window: *mut c_void, edge: Edge, margin_size: c_int);
+    fn gtk_layer_set_keyboard_mode(window: *mut c_void, mode: KeyboardMode);
+    fn gtk_layer_set_exclusive_zone(window: *mut c_void, exclusive_zone: c_int);
+}
+
+/// Ruft `f` mit dem Rohzeiger auf das GtkWindow hinter einem Tauri-Fenster auf.
+///
+/// Der Zeiger wird bewusst **nicht** zurueckgegeben. Zwei Dinge muessen laenger leben als er:
+/// die `gtk_window()`-Referenz (eigene Refcount-Referenz auf das GObject) und der `Stash` aus
+/// `to_glib_none()`. Beide sind hier lokal und wuerden am Ende der Funktion fallen — ein
+/// zurueckgegebener Zeiger waere ab da formal baumelnd. Als Closure-Argument ist er gueltig,
+/// solange `f` laeuft.
+fn with_raw_gtk_window<R>(
+    window: &tauri::WebviewWindow,
+    f: impl FnOnce(*mut c_void) -> R,
+) -> Option<R> {
+    use gtk::glib::translate::ToGlibPtr;
+    use gtk::prelude::Cast;
+
+    let gtk_win = window.gtk_window().ok()?;
+    let stash = gtk_win.upcast_ref::<gtk::Window>().to_glib_none();
+    let ptr: *mut gtk::ffi::GtkWindow = stash.0;
+    Some(f(ptr as *mut c_void))
+}
+
+/// Konfiguriert das Fenster fuer den gewaehlten Modus. Muss laufen, **bevor** das Fenster
+/// realisiert wird — deshalb startet das Hauptfenster mit `"visible": false`.
+pub fn apply(window: &tauri::WebviewWindow, mode: OverlayMode, margin_x: i32, margin_y: i32) {
+    match mode {
+        OverlayMode::X11 => apply_x11(window),
+        OverlayMode::LayerShell => {
+            // SAFETY: parameterloser Query-Call in libgtk-layer-shell, kein Zeiger im Spiel.
+            if unsafe { gtk_layer_is_supported() } == 0 {
+                // Praktisch unerreichbar, weil der Registry-Probe die Unterstuetzung bereits
+                // festgestellt hat. Ein sichtbares Widget ohne Always-on-Top ist trotzdem
+                // besser als ein unsichtbares.
+                eprintln!("fliq: layer-shell laut GTK nicht unterstuetzt, nutze X11-Verhalten");
+                apply_x11(window);
+                return;
+            }
+
+            // SAFETY: `ptr` ist ein gueltiges GtkWindow und bleibt es fuer die Dauer der
+            // Closure; alle Aufrufe sind die dokumentierte Reihenfolge (init zuerst).
+            let configured = with_raw_gtk_window(window, |ptr| unsafe {
+                gtk_layer_init_for_window(ptr);
+                gtk_layer_set_layer(ptr, Layer::Overlay);
+                gtk_layer_set_keyboard_mode(ptr, KeyboardMode::None);
+                // -1 heisst: fremde exclusive zones ignorieren. Sonst verschoebe ein
+                // erscheinendes Panel das Widget.
+                gtk_layer_set_exclusive_zone(ptr, -1);
+                gtk_layer_set_anchor(ptr, Edge::Top, 1);
+                gtk_layer_set_anchor(ptr, Edge::Left, 1);
+                gtk_layer_set_margin(ptr, Edge::Top, margin_y);
+                gtk_layer_set_margin(ptr, Edge::Left, margin_x);
+            });
+
+            if configured.is_none() {
+                eprintln!("fliq: kein GtkWindow erreichbar, Overlay nicht konfiguriert");
+            }
+        }
+    }
+}
+
+fn apply_x11(window: &tauri::WebviewWindow) {
+    use gtk::prelude::GtkWindowExt;
+
+    let Ok(gtk_win) = window.gtk_window() else {
+        eprintln!("fliq: kein GtkWindow erreichbar, Overlay nicht konfiguriert");
+        return;
+    };
+    gtk_win.set_keep_above(true);
+    gtk_win.set_skip_taskbar_hint(true);
+    gtk_win.set_skip_pager_hint(true);
+    // Bewusst KEIN WindowTypeHint::Dock: Dock-Fenster lassen sich vom WM nicht ziehen,
+    // und `startDragging` ist auf diesem Pfad die Bedienung.
+}
+
+/// Verschiebt ein bereits konfiguriertes Layer-Surface. Auf dem X11-Pfad wirkungslos —
+/// dort positioniert `startDragging` das Fenster.
+pub fn set_margin(window: &tauri::WebviewWindow, margin_x: i32, margin_y: i32) {
+    // SAFETY: wie in `apply` — gueltiger GtkWindow-Zeiger fuer die Dauer der Closure.
+    let _ = with_raw_gtk_window(window, |ptr| unsafe {
+        gtk_layer_set_margin(ptr, Edge::Top, margin_y);
+        gtk_layer_set_margin(ptr, Edge::Left, margin_x);
+    });
 }
 
 #[cfg(test)]

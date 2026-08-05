@@ -12,6 +12,7 @@
     "windows": [
       {
         "decorations": false,
+        "visible": false,
         "transparent": true,
         "shadow": false,
         "title": "Fliq - Clock",
