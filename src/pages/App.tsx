@@ -96,8 +96,8 @@ function App() {
     // Im Layer-Shell-Modus positioniert der Compositor das Fenster; startDragging gibt es
     // dort nicht. Der Drag wird deshalb in Anker-Margins uebersetzt.
     //
-    // mode/margin leben auf einem Objekt statt auf `let`-Bindings, damit handleMouseDown sie
-    // bei jedem Aufruf frisch liest. Zusaetzlich wartet handleMouseDown auf overlayStateReady,
+    // mode/margin leben auf einem Objekt statt auf `let`-Bindings, damit handlePointerDown sie
+    // bei jedem Aufruf frisch liest. Zusaetzlich wartet handlePointerDown auf overlayStateReady,
     // damit ein Drag, der vor der Antwort von get_overlay_state beginnt, nicht faelschlich mit
     // dem Default "native" laeuft -- im Layer-Shell-Modus waere startDragging() dort
     // stillschweigend wirkungslos.
@@ -110,17 +110,29 @@ function App() {
       })
       .catch(() => { /* aeltere Builds ohne den Command: bleibt bei "native" */ });
 
-    // Entfernt die Drag-Listener, falls ein Drag gerade laeuft. Wird sowohl bei pointerup
-    // als auch beim Cleanup dieses Effects aufgerufen, damit ein Unmount mitten im Drag
-    // keinen weiterlaufenden pointermove-Listener (und damit invoke-Aufrufe) hinterlaesst.
-    let removeDragListeners: (() => void) | null = null;
+    // Ein Eintrag pro pointerId, damit ein zweites Zeigegeraet (z.B. Touch neben Maus) den
+    // Drag eines ersten nicht ueberschreibt -- jeder Drag traegt seine eigene Teardown-Funktion
+    // ein und entfernt nur die eigene. Der Cleanup dieses Effects raeumt alle noch aktiven
+    // Drags auf (z.B. bei Unmount waehrend eines Drags).
+    const activeDrags = new Map<number, () => void>();
 
-    async function handleMouseDown(e: MouseEvent) {
+    async function handlePointerDown(e: PointerEvent) {
       if (e.button !== 0) return;
+
+      const target = e.currentTarget as HTMLElement;
+      const pointerId = e.pointerId;
+
+      // Capture sofort und synchron im pointerdown-Handler anfordern, nicht erst nach dem
+      // await unten. Ab hier bekommt `target` pointermove/pointerup/pointercancel unabhaengig
+      // davon, ob der Cursor die Fensterflaeche verlaesst -- auf Wayland liefert der Compositor
+      // sonst nach Verlassen der Surface keine Pointer-Events mehr, und ein ausserhalb
+      // losgelassener Drag bliebe sonst fuer immer haengen (Listener + laufende invoke-Aufrufe).
+      target.setPointerCapture(pointerId);
 
       await overlayStateReady;
 
       if (dragState.mode !== "layer-shell") {
+        target.releasePointerCapture(pointerId);
         getCurrentWindow().startDragging();
         return;
       }
@@ -130,6 +142,7 @@ function App() {
       const base = { ...dragState.margin };
 
       const onMove = (ev: PointerEvent) => {
+        if (ev.pointerId !== pointerId) return;
         dragState.margin = {
           x: Math.max(0, base.x + (ev.screenX - startX)),
           y: Math.max(0, base.y + (ev.screenY - startY)),
@@ -137,34 +150,45 @@ function App() {
         invoke("set_overlay_margin", { x: dragState.margin.x, y: dragState.margin.y, persist: false });
       };
 
-      const onUp = () => {
+      // pointerup (normale Freigabe) und pointercancel (Compositor entzieht die Capture, z.B.
+      // ein Systemgesture uebernimmt) beenden den Drag gleich: einmal mit dem finalen Margin
+      // persistieren, dann aufraeumen.
+      const onEnd = (ev: PointerEvent) => {
+        if (ev.pointerId !== pointerId) return;
         invoke("set_overlay_margin", { x: dragState.margin.x, y: dragState.margin.y, persist: true });
-        removeDragListeners?.();
+        cleanup();
       };
 
-      removeDragListeners = () => {
-        window.removeEventListener("pointermove", onMove);
-        window.removeEventListener("pointerup", onUp);
-        removeDragListeners = null;
+      const cleanup = () => {
+        target.removeEventListener("pointermove", onMove);
+        target.removeEventListener("pointerup", onEnd);
+        target.removeEventListener("pointercancel", onEnd);
+        if (target.hasPointerCapture(pointerId)) {
+          target.releasePointerCapture(pointerId);
+        }
+        activeDrags.delete(pointerId);
       };
 
-      window.addEventListener("pointermove", onMove);
-      window.addEventListener("pointerup", onUp);
+      activeDrags.set(pointerId, cleanup);
+
+      target.addEventListener("pointermove", onMove);
+      target.addEventListener("pointerup", onEnd);
+      target.addEventListener("pointercancel", onEnd);
     }
 
     const div = document.getElementById('maindiv');
     if(div)
     {
-      div.addEventListener("mousedown", handleMouseDown);
+      div.addEventListener("pointerdown", handlePointerDown);
     }
 
     return () => {
       // Clean up the event listener
       if(div)
       {
-        div.removeEventListener("mousedown", handleMouseDown);
+        div.removeEventListener("pointerdown", handlePointerDown);
       }
-      removeDragListeners?.();
+      Array.from(activeDrags.values()).forEach((cleanup) => cleanup());
       window.removeEventListener('beforeunload', handleBeforeUnload);
       saveWindowState(StateFlags.POSITION);
     };
