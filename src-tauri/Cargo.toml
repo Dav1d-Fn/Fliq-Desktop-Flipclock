@@ -22,3 +22,6 @@ serde_json = "1"
 tauri-plugin-autostart = "2.0.0-beta.5"
 tauri-plugin-window-state = "2.0.0-beta"
 
+[target.'cfg(target_os = "linux")'.dependencies]
+gtk = { version = "0.18" }
+

@@ -27,7 +27,19 @@ pub fn run() {
         .plugin(tauri_plugin_window_state::Builder::default().build())
         .plugin(tauri_plugin_autostart::init(tauri_plugin_autostart::MacosLauncher::LaunchAgent, Some(vec!["--flag1", "--flag2"])))
         .plugin(tauri_plugin_shell::init())
-        .invoke_handler(tauri::generate_handler![greet])
+        .setup(|app| {
+            #[cfg(target_os = "linux")]
+            {
+                use tauri::Manager;
+                use gtk::prelude::GtkWindowExt;
+                if let Some(window) = app.get_webview_window("main") {
+                    if let Ok(gtk_win) = window.gtk_window() {
+                        gtk_win.set_type_hint(gtk::gdk::WindowTypeHint::Utility);
+                    }
+                }
+            }
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![open_stylingmenu_window])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
