@@ -16,6 +16,17 @@ pub enum ModePreference {
     X11,
 }
 
+impl ModePreference {
+    /// String an der Frontend-Grenze, gleiche Werte wie `set_overlay_mode` erwartet.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            ModePreference::Auto => "auto",
+            ModePreference::LayerShell => "layer-shell",
+            ModePreference::X11 => "x11",
+        }
+    }
+}
+
 /// Was nach der Erkennung feststeht. Kein `Auto` mehr möglich.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum OverlayMode {
