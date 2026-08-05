@@ -139,17 +139,22 @@ function App() {
         return;
       }
 
-      const startX = e.screenX;
-      const startY = e.screenY;
-      const base = { ...dragState.margin };
+      // Client- statt Screen-Koordinaten: der Greifpunkt ist relativ zur Surface, und die
+      // Surface bewegt sich beim Margin-Wechsel mit. Screen-Deltas schrumpfen dadurch um genau
+      // das, was schon angewendet wurde (2*dMargin = dZeiger -> halbe Geschwindigkeit).
+      // Der Abstand Zeiger<->Greifpunkt in Client-Koordinaten ist dagegen selbstkorrigierend
+      // und bleibt richtig, egal ob die Koordinaten global sind oder nicht.
+      const grabX = e.clientX;
+      const grabY = e.clientY;
 
       const onMove = (ev: PointerEvent) => {
         if (ev.pointerId !== pointerId) return;
         dragState.margin = {
-          x: Math.max(0, base.x + (ev.screenX - startX)),
-          y: Math.max(0, base.y + (ev.screenY - startY)),
+          x: Math.max(0, dragState.margin.x + (ev.clientX - grabX)),
+          y: Math.max(0, dragState.margin.y + (ev.clientY - grabY)),
         };
-        invoke("set_overlay_margin", { x: dragState.margin.x, y: dragState.margin.y, persist: false });
+        invoke("set_overlay_margin", { x: dragState.margin.x, y: dragState.margin.y, persist: false })
+          .catch((err) => console.error("set_overlay_margin fehlgeschlagen:", err));
       };
 
       // pointerup (normale Freigabe) und pointercancel (Compositor entzieht die Capture, z.B.
@@ -157,7 +162,8 @@ function App() {
       // persistieren, dann aufraeumen.
       const onEnd = (ev: PointerEvent) => {
         if (ev.pointerId !== pointerId) return;
-        invoke("set_overlay_margin", { x: dragState.margin.x, y: dragState.margin.y, persist: true });
+        invoke("set_overlay_margin", { x: dragState.margin.x, y: dragState.margin.y, persist: true })
+          .catch((err) => console.error("set_overlay_margin fehlgeschlagen:", err));
         cleanup();
       };
 
