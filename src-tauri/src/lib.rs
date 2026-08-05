@@ -29,6 +29,67 @@ pub struct OverlayState {
     pub config: std::sync::Mutex<overlay::LinuxConfig>,
 }
 
+#[derive(serde::Serialize)]
+pub struct OverlayInfo {
+    pub mode: String,
+    pub margin_x: i32,
+    pub margin_y: i32,
+}
+
+#[tauri::command]
+fn get_overlay_state(state: tauri::State<'_, OverlayState>) -> OverlayInfo {
+    let cfg = state.config.lock().unwrap();
+    OverlayInfo {
+        #[cfg(target_os = "linux")]
+        mode: state.mode.as_str().to_string(),
+        #[cfg(not(target_os = "linux"))]
+        mode: "native".to_string(),
+        margin_x: cfg.margin_x,
+        margin_y: cfg.margin_y,
+    }
+}
+
+/// Waehrend des Ziehens mit `persist: false` — sonst gaebe es einen Datei-Write pro
+/// Mausbewegung. Beim Loslassen einmal mit `persist: true`.
+#[tauri::command]
+fn set_overlay_margin(
+    _window: tauri::WebviewWindow,
+    state: tauri::State<'_, OverlayState>,
+    x: i32,
+    y: i32,
+    persist: bool,
+) {
+    {
+        let mut cfg = state.config.lock().unwrap();
+        cfg.margin_x = x;
+        cfg.margin_y = y;
+        if persist {
+            if let Err(e) = cfg.save() {
+                eprintln!("fliq: konnte linux.json nicht schreiben: {e}");
+            }
+        }
+    }
+
+    #[cfg(target_os = "linux")]
+    if state.mode == overlay::OverlayMode::LayerShell {
+        overlay::linux::set_margin(&_window, x, y);
+    }
+}
+
+/// Wirkt erst nach einem Neustart — das GDK-Backend steht beim Start fest.
+#[tauri::command]
+fn set_overlay_mode(state: tauri::State<'_, OverlayState>, mode: String) -> Result<(), String> {
+    let pref = match mode.as_str() {
+        "auto" => overlay::ModePreference::Auto,
+        "layer-shell" => overlay::ModePreference::LayerShell,
+        "x11" => overlay::ModePreference::X11,
+        other => return Err(format!("unbekannter Overlay-Modus: {other}")),
+    };
+    let mut cfg = state.config.lock().unwrap();
+    cfg.overlay_mode = pref;
+    cfg.save().map_err(|e| e.to_string())
+}
+
 // Main Window
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run(mode: overlay::OverlayMode, config: overlay::LinuxConfig) {
@@ -58,7 +119,12 @@ pub fn run(mode: overlay::OverlayMode, config: overlay::LinuxConfig) {
             app.manage(OverlayState { mode, config: std::sync::Mutex::new(config) });
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![open_stylingmenu_window])
+        .invoke_handler(tauri::generate_handler![
+            open_stylingmenu_window,
+            get_overlay_state,
+            set_overlay_margin,
+            set_overlay_mode
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
