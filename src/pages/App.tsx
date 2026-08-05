@@ -93,9 +93,9 @@ function App() {
     window.addEventListener('beforeunload', handleBeforeUnload);
 
     //Start dragging on left mouse click
-    async function handleMouseDown(e:any) {
-      if (e.button === 0) 
-        await getCurrent().startDragging();
+    function handleMouseDown(e:any) {
+      if (e.button === 0)
+        getCurrent().startDragging();
     }
 
     const div = document.getElementById('maindiv');
@@ -192,13 +192,17 @@ function App() {
 
     const menu = await Menu.new({items: [settingsItem, autostartItem, hideInTaskbarItem, alwaysOnTopItem, exitItem]});
 
-    const position: PhysicalPosition = new PhysicalPosition(e.clientX, e.clientY);
-    await menu.popup(position); 
+    const dpr = window.devicePixelRatio ?? 1;
+    const position: PhysicalPosition = new PhysicalPosition(
+      Math.round(e.screenX * dpr),
+      Math.round(e.screenY * dpr)
+    );
+    await menu.popup(position);
 
   }
 
   return (
-      <div id="maindiv" onContextMenu={e => open_context_menu(e)}>
+      <div id="maindiv" onContextMenu={e => { e.preventDefault(); e.stopPropagation(); open_context_menu(e); }}>
         <FlipClock key={key} format={format} secondRowTimeFormat={secondRowTimeFormat}/>
       </div>
   );
