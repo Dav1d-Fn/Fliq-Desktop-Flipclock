@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
+use std::sync::mpsc;
+use std::time::Duration;
 
 #[cfg(target_os = "linux")]
 pub mod linux;
@@ -88,6 +90,28 @@ impl LinuxConfig {
             None => Ok(()),
         }
     }
+}
+
+/// Fuehrt `body` auf einem eigenen Thread aus und wartet hoechstens `timeout` auf ein
+/// Ergebnis. Sowohl ein Timeout als auch ein getrennter Channel (Thread ist gepanict) zaehlen
+/// als `false`. Reine Nebenlaeufigkeits-Logik — nichts hier ist plattformspezifisch, deshalb
+/// lebt sie hier in `mod.rs` statt im `#[cfg(target_os = "linux")]`-gated `linux`-Modul, damit
+/// sie auf jeder Plattform kompiliert und getestet wird.
+///
+/// Der Worker-Thread wird absichtlich nie gejoint. Haengt `body` fuer immer (z. B. ein totes
+/// Socket, das nie antwortet), leakt der Thread fuer die Lebensdauer des Prozesses — das ist
+/// hier in Ordnung: er haelt kein Lock und der Aufrufer wartet nicht auf ihn. Bitte nicht
+/// "reparieren", indem ein `join` ergaenzt wird — das wuerde den Hang zurueckholen, den dieser
+/// Wrapper gerade vermeidet.
+fn with_timeout<F>(timeout: Duration, body: F) -> bool
+where
+    F: FnOnce() -> bool + Send + 'static,
+{
+    let (tx, rx) = mpsc::channel();
+    std::thread::spawn(move || {
+        let _ = tx.send(body());
+    });
+    rx.recv_timeout(timeout).unwrap_or(false)
 }
 
 /// Reine Entscheidungslogik, damit sie ohne Compositor testbar ist.
@@ -238,5 +262,23 @@ mod tests {
     fn auto_picks_x11_when_session_type_is_unknown() {
         assert_eq!(detect_mode(ModePreference::Auto, None, false), OverlayMode::X11);
         assert_eq!(detect_mode(ModePreference::Auto, Some("tty"), true), OverlayMode::X11);
+    }
+
+    /// Reine Timeout-Logik, kein Compositor noetig: eine haengende `body` darf den Aufrufer
+    /// nicht mit aufhalten.
+    #[test]
+    fn with_timeout_returns_false_when_body_hangs_past_deadline() {
+        let got = with_timeout(Duration::from_millis(20), || {
+            std::thread::sleep(Duration::from_secs(5));
+            true
+        });
+        assert_eq!(got, false);
+    }
+
+    /// Der Normalfall: eine `body`, die rechtzeitig antwortet, kommt unveraendert durch.
+    #[test]
+    fn with_timeout_returns_prompt_result() {
+        let got = with_timeout(Duration::from_millis(500), || true);
+        assert_eq!(got, true);
     }
 }
