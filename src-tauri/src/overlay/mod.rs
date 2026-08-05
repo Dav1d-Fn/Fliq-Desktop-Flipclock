@@ -90,6 +90,41 @@ impl LinuxConfig {
     }
 }
 
+/// Reine Entscheidungslogik, damit sie ohne Compositor testbar ist.
+///
+/// `session_type` ist der Wert von `XDG_SESSION_TYPE`.
+/// `layer_shell_available` sagt, ob die Wayland-Registry `zwlr_layer_shell_v1` anbietet.
+pub fn detect_mode(
+    pref: ModePreference,
+    session_type: Option<&str>,
+    layer_shell_available: bool,
+) -> OverlayMode {
+    let on_wayland = session_type == Some("wayland");
+
+    match pref {
+        // Ohne Wayland-Session gibt es keine Layer-Shell — die Praeferenz darf nicht in
+        // einen unsichtbaren Zustand fuehren, also X11 erzwingen.
+        ModePreference::LayerShell if on_wayland => OverlayMode::LayerShell,
+        ModePreference::LayerShell => OverlayMode::X11,
+        ModePreference::X11 => OverlayMode::X11,
+        ModePreference::Auto if on_wayland && layer_shell_available => OverlayMode::LayerShell,
+        ModePreference::Auto => OverlayMode::X11,
+    }
+}
+
+/// IO-Huelle um [`detect_mode`]. Auf Nicht-Linux immer X11 — dort wird der Wert ohnehin
+/// nicht benutzt.
+pub fn detect_mode_from_env(pref: ModePreference) -> OverlayMode {
+    let session_type = std::env::var("XDG_SESSION_TYPE").ok();
+
+    #[cfg(target_os = "linux")]
+    let available = session_type.as_deref() == Some("wayland") && linux::layer_shell_available();
+    #[cfg(not(target_os = "linux"))]
+    let available = false;
+
+    detect_mode(pref, session_type.as_deref(), available)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -163,5 +198,45 @@ mod tests {
     #[test]
     fn resolve_default_path_none_when_both_absent() {
         assert_eq!(resolve_default_path(None, None), None);
+    }
+
+    #[test]
+    fn explicit_x11_preference_wins_everywhere() {
+        assert_eq!(detect_mode(ModePreference::X11, Some("wayland"), true), OverlayMode::X11);
+        assert_eq!(detect_mode(ModePreference::X11, Some("x11"), false), OverlayMode::X11);
+    }
+
+    #[test]
+    fn explicit_layer_shell_preference_is_honoured_on_wayland() {
+        assert_eq!(detect_mode(ModePreference::LayerShell, Some("wayland"), true), OverlayMode::LayerShell);
+    }
+
+    #[test]
+    fn explicit_layer_shell_preference_falls_back_on_x11_session() {
+        // Layer-Shell in einer X11-Session ist unmoeglich; die Praeferenz darf nicht in einen
+        // unsichtbaren Zustand fuehren.
+        assert_eq!(detect_mode(ModePreference::LayerShell, Some("x11"), false), OverlayMode::X11);
+    }
+
+    #[test]
+    fn auto_picks_layer_shell_when_wayland_and_protocol_present() {
+        assert_eq!(detect_mode(ModePreference::Auto, Some("wayland"), true), OverlayMode::LayerShell);
+    }
+
+    #[test]
+    fn auto_picks_x11_when_wayland_but_protocol_missing() {
+        // GNOME: Wayland-Session, aber kein zwlr_layer_shell_v1.
+        assert_eq!(detect_mode(ModePreference::Auto, Some("wayland"), false), OverlayMode::X11);
+    }
+
+    #[test]
+    fn auto_picks_x11_on_x11_session() {
+        assert_eq!(detect_mode(ModePreference::Auto, Some("x11"), false), OverlayMode::X11);
+    }
+
+    #[test]
+    fn auto_picks_x11_when_session_type_is_unknown() {
+        assert_eq!(detect_mode(ModePreference::Auto, None, false), OverlayMode::X11);
+        assert_eq!(detect_mode(ModePreference::Auto, Some("tty"), true), OverlayMode::X11);
     }
 }
