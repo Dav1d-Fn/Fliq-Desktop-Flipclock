@@ -49,6 +49,43 @@ Built with [React](https://reactjs.org/) and [Tauri v2](https://v2.tauri.app/), 
 1. Download the latest `.exe` installer from the [Releases](https://github.com/Dav1d-Fn/Fliq-Desktop-Flipclock/releases) page.
 2. Run the installer and follow the on-screen instructions.
 
+### Linux 🐧
+
+Download the latest package from the [Releases](https://github.com/Dav1d-Fn/Fliq-Desktop-Flipclock/releases) page:
+
+- **Fedora / openSUSE:** `.rpm`
+- **Debian / Ubuntu / Mint:** `.deb`
+- **Anything else:** `.AppImage` — make it executable and run it
+
+#### What works where
+
+Wayland does not let an application keep itself on top by itself. Fliq therefore picks one
+of two modes at startup, and what you get depends on your desktop:
+
+| Desktop | Frameless & transparent | Above normal windows | Above fullscreen games |
+|---|---|---|---|
+| KDE Plasma (Wayland) | ✅ | ✅ | ✅ |
+| Sway / Hyprland | ✅ | ✅ | ✅ |
+| GNOME (Wayland) | ✅ | ✅ | ❌ |
+| Any X11 session | ✅ | ✅ | ❌ |
+
+Above fullscreen requires the `wlr-layer-shell` protocol, which GNOME does not implement.
+If auto-detection picks the wrong mode, override it under **Styling → General Settings →
+Overlay Mode**.
+
+#### Building from source
+
+```bash
+# Fedora
+sudo dnf install webkit2gtk4.1-devel gtk3-devel gtk-layer-shell-devel libappindicator-gtk3-devel librsvg2-devel
+
+# Debian / Ubuntu
+sudo apt install libwebkit2gtk-4.1-dev libgtk-3-dev libgtk-layer-shell-dev libayatana-appindicator3-dev librsvg2-dev
+
+npm install
+npm run tauri build
+```
+
 ---
 
 ## Example Templates 🧩
