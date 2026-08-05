@@ -113,10 +113,19 @@ function App() {
       y: Math.min(Math.max(0, window.screen.height - window.innerHeight), Math.max(0, y)),
     });
 
+    // Beim Laden gilt bewusst eine SCHWAECHERE Regel als beim Ziehen: hier greift nur ein
+    // Rettungsnetz, keine Layout-Politik. Wer die Uhr absichtlich halb ueber den Rand geschoben
+    // hat, soll sie dort wiederfinden -- korrigiert wird nur, was vollstaendig ausserhalb liegt
+    // und damit gar nicht mehr auffindbar waere.
+    const rescueMargin = (x: number, y: number) => ({
+      x: x < 0 || x >= window.screen.width ? 40 : x,
+      y: y < 0 || y >= window.screen.height ? 40 : y,
+    });
+
     const overlayStateReady = invoke<{ mode: string; margin_x: number; margin_y: number }>("get_overlay_state")
       .then((s) => {
         dragState.mode = s.mode;
-        const safe = clampMargin(s.margin_x, s.margin_y);
+        const safe = rescueMargin(s.margin_x, s.margin_y);
         dragState.margin = safe;
 
         // Lag der gespeicherte Wert daneben, sofort korrigiert zurueckschreiben -- sonst holt
