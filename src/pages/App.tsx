@@ -93,24 +93,78 @@ function App() {
     };
     window.addEventListener('beforeunload', handleBeforeUnload);
 
-    //Start dragging on left mouse click
-    function handleMouseDown(e:any) {
-      if (e.button === 0)
+    // Im Layer-Shell-Modus positioniert der Compositor das Fenster; startDragging gibt es
+    // dort nicht. Der Drag wird deshalb in Anker-Margins uebersetzt.
+    //
+    // mode/margin leben auf einem Objekt statt auf `let`-Bindings, damit handleMouseDown sie
+    // bei jedem Aufruf frisch liest. Zusaetzlich wartet handleMouseDown auf overlayStateReady,
+    // damit ein Drag, der vor der Antwort von get_overlay_state beginnt, nicht faelschlich mit
+    // dem Default "native" laeuft -- im Layer-Shell-Modus waere startDragging() dort
+    // stillschweigend wirkungslos.
+    const dragState = { mode: "native", margin: { x: 0, y: 0 } };
+
+    const overlayStateReady = invoke<{ mode: string; margin_x: number; margin_y: number }>("get_overlay_state")
+      .then((s) => {
+        dragState.mode = s.mode;
+        dragState.margin = { x: s.margin_x, y: s.margin_y };
+      })
+      .catch(() => { /* aeltere Builds ohne den Command: bleibt bei "native" */ });
+
+    // Entfernt die Drag-Listener, falls ein Drag gerade laeuft. Wird sowohl bei pointerup
+    // als auch beim Cleanup dieses Effects aufgerufen, damit ein Unmount mitten im Drag
+    // keinen weiterlaufenden pointermove-Listener (und damit invoke-Aufrufe) hinterlaesst.
+    let removeDragListeners: (() => void) | null = null;
+
+    async function handleMouseDown(e: MouseEvent) {
+      if (e.button !== 0) return;
+
+      await overlayStateReady;
+
+      if (dragState.mode !== "layer-shell") {
         getCurrentWindow().startDragging();
+        return;
+      }
+
+      const startX = e.screenX;
+      const startY = e.screenY;
+      const base = { ...dragState.margin };
+
+      const onMove = (ev: PointerEvent) => {
+        dragState.margin = {
+          x: Math.max(0, base.x + (ev.screenX - startX)),
+          y: Math.max(0, base.y + (ev.screenY - startY)),
+        };
+        invoke("set_overlay_margin", { x: dragState.margin.x, y: dragState.margin.y, persist: false });
+      };
+
+      const onUp = () => {
+        invoke("set_overlay_margin", { x: dragState.margin.x, y: dragState.margin.y, persist: true });
+        removeDragListeners?.();
+      };
+
+      removeDragListeners = () => {
+        window.removeEventListener("pointermove", onMove);
+        window.removeEventListener("pointerup", onUp);
+        removeDragListeners = null;
+      };
+
+      window.addEventListener("pointermove", onMove);
+      window.addEventListener("pointerup", onUp);
     }
 
     const div = document.getElementById('maindiv');
-    if(div) 
+    if(div)
     {
-      div.addEventListener("mousedown", handleMouseDown);    
+      div.addEventListener("mousedown", handleMouseDown);
     }
-    
+
     return () => {
       // Clean up the event listener
-      if(div) 
+      if(div)
       {
         div.removeEventListener("mousedown", handleMouseDown);
       }
+      removeDragListeners?.();
       window.removeEventListener('beforeunload', handleBeforeUnload);
       saveWindowState(StateFlags.POSITION);
     };
