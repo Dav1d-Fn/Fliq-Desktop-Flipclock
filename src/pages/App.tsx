@@ -132,7 +132,9 @@ function App() {
       await overlayStateReady;
 
       if (dragState.mode !== "layer-shell") {
-        target.releasePointerCapture(pointerId);
+        if (target.hasPointerCapture(pointerId)) {
+          target.releasePointerCapture(pointerId);
+        }
         getCurrentWindow().startDragging();
         return;
       }
