@@ -32,6 +32,14 @@
         "type": "downloadBootstrapper"
       }
     },
+    "linux": {
+      "deb": {
+        "depends": ["libgtk-layer-shell0"]
+      },
+      "rpm": {
+        "depends": ["gtk-layer-shell"]
+      }
+    },
     "active": true,
     "targets": "all",
     "icon": [
