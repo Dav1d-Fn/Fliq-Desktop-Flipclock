@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "ghost-capability",
+  "description": "Die Ghost-Fenster (ein durchklickbares Vollbild-Overlay je Monitor) hoeren waehrend eines Drags auf 'ghost-rect' und setzen daraufhin die Groesse eines <div>. Mehr tun sie nicht, mehr duerfen sie nicht: kein Fenster-, Menue-, Autostart- oder Shell-Zugriff. Der Glob muss zu ghost::LABELS passen -- ohne passende Capability verweigert die ACL plugin:event|listen, und das faellt nur als abgelehnte JS-Promise auf, nicht auf stderr.",
+  "windows": ["ghost-*"],
+  "permissions": ["core:event:default"]
+}
