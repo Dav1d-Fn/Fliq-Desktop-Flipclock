@@ -35,6 +35,7 @@ export default defineConfig(async () => ({
       input: {
         main: 'index.html',
         windows: "stylingMenu.html",
+        ghost: "ghost.html",
       }
     }
   }

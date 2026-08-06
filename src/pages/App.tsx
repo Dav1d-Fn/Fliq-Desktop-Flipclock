@@ -7,6 +7,7 @@ import FlipClock from "./FlipClock"
 
 //import Tauri APIs
 import { invoke } from '@tauri-apps/api/core'
+import { emitTo } from '@tauri-apps/api/event'
 import { getCurrentWindow, getAllWindows } from '@tauri-apps/api/window'
 import { PhysicalPosition, LogicalSize } from '@tauri-apps/api/dpi'
 import { Webview } from '@tauri-apps/api/webview';
@@ -94,7 +95,10 @@ function App() {
     window.addEventListener('beforeunload', handleBeforeUnload);
 
     // Im Layer-Shell-Modus positioniert der Compositor das Fenster; startDragging gibt es
-    // dort nicht. Der Drag wird deshalb in Anker-Margins uebersetzt.
+    // dort nicht. Der Drag zeigt deshalb einen Umriss in einem separaten, durchklickbaren
+    // Vollbild-Fenster ("Ghost") und setzt den echten Margin erst beim Loslassen -- einmal.
+    // KWin wendet Margin-Aenderungen an einer Layer-Surface nicht pro Frame an, sondern
+    // schubweise mit ~200 ms Verzug; Live-Ziehen ueber Margins ist dort nicht erreichbar.
     //
     // mode/margin leben auf einem Objekt statt auf `let`-Bindings, damit handlePointerDown sie
     // bei jedem Aufruf frisch liest. Zusaetzlich wartet handlePointerDown auf overlayStateReady,
@@ -105,9 +109,8 @@ function App() {
 
     // Ein Margin ausserhalb des sichtbaren Bereichs macht das Widget unauffindbar: es laeuft,
     // ist aber nicht zu sehen, und die einzige Rettung waere, linux.json von Hand zu editieren.
-    // Das kann nicht nur ein Bug ausloesen, sondern auch der voellig normale Fall, dass jemand
-    // den Monitor wechselt, ein Display abzieht oder die Aufloesung aendert. Deshalb wird der
-    // Wert sowohl beim Laden als auch waehrend des Ziehens auf den sichtbaren Bereich begrenzt.
+    // Angewendet wird das auf genau EINEN Wert: den finalen beim Loslassen. Waehrend des
+    // Ziehens bewegt sich nur der Umriss im Ghost, und der darf ruhig ueber den Rand laufen.
     const clampMargin = (x: number, y: number) => ({
       x: Math.min(Math.max(0, window.screen.width - window.innerWidth), Math.max(0, x)),
       y: Math.min(Math.max(0, window.screen.height - window.innerHeight), Math.max(0, y)),
@@ -167,73 +170,42 @@ function App() {
         return;
       }
 
-      // Greifpunkt in Client-Koordinaten: das ist der Punkt der Uhr, der unter dem Cursor
-      // bleiben muss. Er ist eine Konstante -- ein Punkt auf dem Widget, nicht auf dem Schirm.
-      const grabX = e.clientX;
-      const grabY = e.clientY;
+      // Die Uhr-Surface bewegt sich waehrend des Ziehens nicht mehr, also ist das Bezugssystem
+      // stabil und die Rechnung eine gerade Umrechnung, keine Regelschleife:
+      //   neuePosition = startMargin + (screenX - startScreenX)
+      const startScreenX = e.screenX;
+      const startScreenY = e.screenY;
+      const start = dragState.margin;
 
-      // Das hier ist eine Regelschleife, keine simple Umrechnung: `clientX` ist relativ zur
-      // Surface, und die Surface verschiebt sich mit dem Margin, den wir gerade setzen. Der Term
-      // (clientX - grabX) ist deshalb ein *Positionsfehler* ("wie weit ist der Cursor vom
-      // Greifpunkt weg"), kein Bewegungsdelta -- er bleibt ungleich null, bis der Compositor die
-      // Korrektur angewendet hat.
-      //
-      // Daraus folgen ZWEI Regeln. Erstens: pro Frame darf hoechstens eine Korrektur rausgehen.
-      // Ungetaktet summiert der Handler denselben Fehler bei 500-1000 Events/s hundertfach auf,
-      // bevor die erste Korrektur wirkt -- die Uhr schiesst weg und die IPC-Flut reisst die
-      // Wayland-Verbindung mit.
-      //
-      // Zweitens: die Verstaerkung bleibt 1.0. Das ist gemessen, nicht geraten.
-      //
-      // Ein Trace ueber 512 ms (137 Pointer-Events, 24 Korrekturen) zeigt: der Fehler waechst
-      // konstant um ~50 px pro Frame -- also exakt um die Mausbewegung, waehrend die
-      // kommandierten Verschiebungen (-30, -52, -75, -102, -129, -157, -181) NICHTS bewirken.
-      // Dann springt der Fehler auf einen Schlag um 600 px; die Summe der bis dahin
-      // kommandierten Deltas betrug 728 px. KWin wendet Margin-Aenderungen an einer
-      // Layer-Surface also nicht pro Frame an, sondern sammelt sie und laesst sie ~200 ms
-      // spaeter in einem Schub landen.
-      //
-      // Daraus folgt: eine Verstaerkung < 1 macht es SCHLECHTER, nicht besser. Wenn der
-      // Compositor ohnehin nur schubweise nachzieht, laesst halbe Verstaerkung die Uhr beim
-      // Nachholen zu kurz landen und den Rueckstand weiter wachsen. Mit 1.0 entspricht die
-      // kommandierte Position jederzeit der Cursorposition, der Schub landet also richtig.
-      //
-      // ponytail: die Ruckeligkeit ist damit NICHT behoben -- sie liegt im Compositor, nicht
-      // hier. Fluessiges Live-Ziehen ist ueber Margins auf KWin nicht erreichbar.
-      const DAMPING = 1.0;
+      // Kontur der Uhr fuer den Umriss. `innerWidth/innerHeight` ist die Surface -- genau das,
+      // was der Margin positioniert. Der Radius kommt aus dem berechneten Style, weil er im
+      // Uhrfenster in `vmin` gesetzt ist und `vmin` im Ghost (Bildschirmgroesse) etwas voellig
+      // anderes bedeutete.
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      const container = document.querySelector("#flipclock-container");
+      const radius = container ? parseFloat(getComputedStyle(container).borderRadius) || 0 : 0;
 
-      // Auf den Greifpunkt initialisiert, nicht auf 0: dann ist die Schluss-Korrektur unten
-      // ein Nulldurchgang, falls gedrueckt und ohne Bewegung wieder losgelassen wurde.
-      let pendingX = grabX;
-      let pendingY = grabY;
-      let hasPending = false;
+      let x = start.x;
+      let y = start.y;
       let frame = 0;
 
-      const apply = (gain: number) => {
-        // Derselbe Deckel wie beim Laden: schwingt die Schleife doch einmal ueber, darf das
-        // Widget trotzdem nicht aus dem Bild wandern -- sonst waere es ohne Handarbeit an
-        // linux.json nicht mehr zurueckzuholen.
-        dragState.margin = clampMargin(
-          dragState.margin.x + (pendingX - grabX) * gain,
-          dragState.margin.y + (pendingY - grabY) * gain
-        );
+      // Ueber den Event-Bus, nicht per Command: Events bleiben im Prozess. Getaktet auf
+      // requestAnimationFrame -- schneller als der Ghost malen kann, bringt nichts.
+      const paintOutline = () => {
+        frame = 0;
+        emitTo("ghost", "ghost-rect", { x, y, w, h, radius })
+          .catch((err) => console.error("ghost-rect fehlgeschlagen:", err));
       };
 
-      const flush = () => {
-        frame = 0;
-        if (!hasPending) return;
-        hasPending = false;
-        apply(DAMPING);
-        invoke("set_overlay_margin", { x: dragState.margin.x, y: dragState.margin.y, persist: false })
-          .catch((err) => console.error("set_overlay_margin fehlgeschlagen:", err));
-      };
+      invoke("ghost_show", { x, y, w, h, radius })
+        .catch((err) => console.error("ghost_show fehlgeschlagen:", err));
 
       const onMove = (ev: PointerEvent) => {
         if (ev.pointerId !== pointerId) return;
-        pendingX = ev.clientX;
-        pendingY = ev.clientY;
-        hasPending = true;
-        if (!frame) frame = requestAnimationFrame(flush);
+        x = start.x + (ev.screenX - startScreenX);
+        y = start.y + (ev.screenY - startScreenY);
+        if (!frame) frame = requestAnimationFrame(paintOutline);
       };
 
       // pointerup (normale Freigabe) und pointercancel (Compositor entzieht die Capture, z.B.
@@ -241,22 +213,21 @@ function App() {
       // persistieren, dann aufraeumen.
       const onEnd = (ev: PointerEvent) => {
         if (ev.pointerId !== pointerId) return;
-        // Einmal mit VOLLER Verstaerkung nachziehen: waehrend des Ziehens laeuft die Uhr wegen
-        // des Dampings bewusst etwas hinterher, beim Loslassen soll der Greifpunkt aber exakt
-        // unter dem Cursor landen. Deckt zugleich die letzte, noch ungetaktete Bewegung ab.
-        hasPending = false;
-        apply(1);
+        dragState.margin = clampMargin(x, y);
         invoke("set_overlay_margin", { x: dragState.margin.x, y: dragState.margin.y, persist: true })
           .catch((err) => console.error("set_overlay_margin fehlgeschlagen:", err));
         cleanup();
       };
 
+      // Laeuft auf jedem Weg, der den Drag beendet: pointerup, pointercancel und der
+      // Effect-Cleanup beim Unmount. Zusaetzlich blendet Rust den Ghost nach einem
+      // Sicherheits-Timeout aus, falls dieser Webview vorher stirbt.
       const cleanup = () => {
         if (frame) {
           cancelAnimationFrame(frame);
           frame = 0;
         }
-        hasPending = false;
+        invoke("ghost_hide").catch((err) => console.error("ghost_hide fehlgeschlagen:", err));
         target.removeEventListener("pointermove", onMove);
         target.removeEventListener("pointerup", onEnd);
         target.removeEventListener("pointercancel", onEnd);
