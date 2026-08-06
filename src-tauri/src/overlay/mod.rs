@@ -250,20 +250,33 @@ mod tests {
 
     #[test]
     fn resolve_default_path_uses_absolute_xdg() {
-        let got = resolve_default_path(Some(PathBuf::from("/xdg")), Some(PathBuf::from("/home/u")));
-        assert_eq!(got, Some(PathBuf::from("/xdg/com.flipclock.dev/linux.json")));
+        // `env::temp_dir()` is guaranteed absolute on every target; a hardcoded "/xdg" is not
+        // absolute on Windows (no drive letter), which is what made this test Unix-only.
+        let xdg = std::env::temp_dir().join("xdg");
+        let home = std::env::temp_dir().join("home_u");
+        let got = resolve_default_path(Some(xdg.clone()), Some(home));
+        assert_eq!(got, Some(xdg.join("com.flipclock.dev").join("linux.json")));
     }
 
     #[test]
     fn resolve_default_path_ignores_relative_xdg_falls_back_to_home() {
-        let got = resolve_default_path(Some(PathBuf::from("relative/xdg")), Some(PathBuf::from("/home/u")));
-        assert_eq!(got, Some(PathBuf::from("/home/u/.config/com.flipclock.dev/linux.json")));
+        let xdg = PathBuf::from("relative").join("xdg"); // relative on every platform
+        let home = std::env::temp_dir().join("home_u");
+        let got = resolve_default_path(Some(xdg), Some(home.clone()));
+        assert_eq!(
+            got,
+            Some(home.join(".config").join("com.flipclock.dev").join("linux.json"))
+        );
     }
 
     #[test]
     fn resolve_default_path_uses_home_when_xdg_absent() {
-        let got = resolve_default_path(None, Some(PathBuf::from("/home/u")));
-        assert_eq!(got, Some(PathBuf::from("/home/u/.config/com.flipclock.dev/linux.json")));
+        let home = std::env::temp_dir().join("home_u");
+        let got = resolve_default_path(None, Some(home.clone()));
+        assert_eq!(
+            got,
+            Some(home.join(".config").join("com.flipclock.dev").join("linux.json"))
+        );
     }
 
     #[test]
