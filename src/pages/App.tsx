@@ -251,10 +251,11 @@ function App() {
       const originX = (startMon?.x ?? 0) + start.x;
       const originY = (startMon?.y ?? 0) + start.y;
 
-      // Kontur der Uhr fuer den Umriss. `innerWidth/innerHeight` waere die Surface -- die kann
-      // unter Wayland-Layer-Shell zur Laufzeit nicht resizt werden und bleibt auf der
-      // Startgroesse aus tauri.conf.json, waehrend die sichtbare Uhr kleiner ist. Groesse UND
-      // Lage kommen deshalb aus `getBoundingClientRect()` des Containers: die Lage, weil der
+      // Kontur der Uhr fuer den Umriss. `innerWidth/innerHeight` waere die Surface -- die ist
+      // durch `setSize` zwar in etwa so gross wie die Uhr, aber nicht genau: sie hat unter
+      // GTK/WebKitGTK eine Mindestgroesse (gemessen 200 px Hoehe), bei kleiner Schrift steht
+      // also transparenter Rand um die Uhr. Groesse UND Lage kommen deshalb aus
+      // `getBoundingClientRect()` des Containers: die Lage, weil der
       // Margin die Surface positioniert, nicht den Inhalt -- sitzt der Container mit Versatz im
       // Fenster, muss der Umriss um denselben Versatz verschoben gezeichnet werden. Der Radius
       // kommt weiterhin aus dem berechneten Style, weil er im Uhrfenster in `vmin` gesetzt ist
