@@ -23,8 +23,16 @@
     <div id="outline"></div>
     <script type="module">
       import { listen } from "@tauri-apps/api/event";
+      import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 
       const el = document.getElementById("outline");
+
+      // Ohne `target` registrierte `listen()` als `EventTarget::Any`, und ein Any-Listener
+      // empfaengt JEDES `ghost-rect` -- auch die, die an einen anderen Ghost adressiert sind.
+      // Mit einem Ghost pro Monitor bekaeme damit jeder erst den echten Umriss und gleich
+      // darauf das Nullrechteck des naechsten; sichtbar bliebe nichts. Mit dem eigenen Label
+      // als Ziel filtert Tauri, und `emitTo`/`emit_to` treffen genau einen.
+      const label = getCurrentWebviewWindow().label;
 
       // Eine einzige Nachrichtenform, egal ob sie beim Einblenden aus Rust kommt oder pro Frame
       // aus dem Uhrfenster: alle Felder werden jedes Mal gesetzt.
@@ -41,7 +49,7 @@
         el.style.height = `${r.h}px`;
         el.style.borderRadius = `${r.radius}px`;
         el.style.transform = `translate(${r.x}px, ${r.y}px)`;
-      }).catch((e) => console.error("ghost: listen fehlgeschlagen", e));
+      }, { target: label }).catch((e) => console.error("ghost: listen fehlgeschlagen", e));
     </script>
   </body>
 </html>
