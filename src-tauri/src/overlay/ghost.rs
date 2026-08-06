@@ -25,6 +25,11 @@ use tauri::{Emitter, Manager};
 /// bildschirmfuellendes Overlay ohne laufenden Drag wieder, also lieber eine Obergrenze als
 /// eine Luecke. Wer mehr als acht Schirme hat, sieht auf den weiteren keinen Umriss; alles
 /// andere funktioniert dort weiter.
+///
+/// Die Labels muessen zum Glob `ghost-*` in `capabilities/main.json` passen. Ohne passende
+/// Capability verweigert die ACL `plugin:event|listen`, `ghost.html` bekommt nie ein
+/// `ghost-rect` — und weil das nur die JS-Promise ablehnt, ohne eine Zeile auf stderr,
+/// sieht das exakt aus wie ein Ghost, der gar nicht erst angelegt wurde.
 pub const LABELS: [&str; 8] = [
     "ghost-0", "ghost-1", "ghost-2", "ghost-3", "ghost-4", "ghost-5", "ghost-6", "ghost-7",
 ];
