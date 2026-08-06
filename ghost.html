@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <title>fliq ghost</title>
+    <style>
+      /* Vollflaechige, aber komplett transparente Surface. Sichtbar ist nur der Umriss. */
+      html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+
+      #outline {
+        position: fixed; top: 0; left: 0;
+        box-sizing: border-box;
+        /* Heller gestrichelter Rand mit dunklem Saum: bleibt auf hellen wie dunklen
+           Hintergruenden lesbar, ohne den Inhalt darunter zu verdecken. */
+        border: 2px dashed rgba(255, 255, 255, 0.95);
+        box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.55), inset 0 0 0 1px rgba(0, 0, 0, 0.55);
+        background: rgba(255, 255, 255, 0.07);
+        will-change: transform;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="outline"></div>
+    <script type="module">
+      import { listen } from "@tauri-apps/api/event";
+      import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
+
+      const el = document.getElementById("outline");
+
+      // Ohne `target` registrierte `listen()` als `EventTarget::Any`, und ein Any-Listener
+      // empfaengt JEDES `ghost-rect` -- auch die, die an einen anderen Ghost adressiert sind.
+      // Mit einem Ghost pro Monitor bekaeme damit jeder erst den echten Umriss und gleich
+      // darauf das Nullrechteck des naechsten; sichtbar bliebe nichts. Mit dem eigenen Label
+      // als Ziel filtert Tauri, und `emitTo`/`emit_to` treffen genau einen.
+      const label = getCurrentWebviewWindow().label;
+
+      // Eine einzige Nachrichtenform, egal ob sie beim Einblenden aus Rust kommt oder pro Frame
+      // aus dem Uhrfenster: alle Felder werden jedes Mal gesetzt.
+      //
+      // Monitor-Skalierung wird als 1 angenommen (auf der Zielmaschine zutreffend). Bei
+      // scale != 1 saesse der Umriss versetzt, weil die Margins der Uhr in Ausgabepixeln
+      // zaehlen, die CSS-Pixel hier aber nicht. Bekannte Vereinfachung, hier nicht geloest.
+      listen("ghost-rect", ({ payload: r }) => {
+        // Breite oder Hoehe 0 heisst "der Umriss liegt gerade auf einem anderen Output".
+        // Ausgeblendet statt weggelassen, damit dieses Fenster sichtbar und bereit bleibt --
+        // ein hide()/show() pro Grenzuebertritt kostete 25-56 ms, ein Event kostet nichts.
+        el.style.display = r.w > 0 && r.h > 0 ? "block" : "none";
+        el.style.width = `${r.w}px`;
+        el.style.height = `${r.h}px`;
+        el.style.borderRadius = `${r.radius}px`;
+        el.style.transform = `translate(${r.x}px, ${r.y}px)`;
+      }, { target: label }).catch((e) => console.error("ghost: listen fehlgeschlagen", e));
+    </script>
+  </body>
+</html>

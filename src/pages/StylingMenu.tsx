@@ -8,6 +8,7 @@ import { ATOMS } from "./atoms";
 import { ReactNode, useEffect, useState } from "react";
 import { IconBrandGithub, IconChevronDown, IconChevronRight, IconExternalLink, IconReload } from "@tabler/icons-react";
 import { useDisclosure } from "@mantine/hooks";
+import { invoke } from "@tauri-apps/api/core";
 
 /**
  * StylingMenu component - Handles all visual customization settings
@@ -50,6 +51,19 @@ export default function StylingMenu() {
   // Local states for smooth slider interactions
   const [textSizeSlider, setTextSizeSlider] = useState(clockTextSize);
   const [paddingSlider, setPaddingSlider] = useState(clockPadding);
+
+  // Overlay-Modus: nur unter Linux relevant. "native" heisst Windows/macOS.
+  const [platformMode, setPlatformMode] = useState<string>("native");
+  const [overlayPref, setOverlayPref] = useState<string>("auto");
+
+  useEffect(() => {
+    invoke<{ mode: string; preference: string }>("get_overlay_state")
+      .then((s) => {
+        setPlatformMode(s.mode);
+        setOverlayPref(s.preference);
+      })
+      .catch(() => setPlatformMode("native"));
+  }, []);
 
   /** Sync local states with atom values on mount */
   useEffect(() => {
@@ -239,7 +253,37 @@ export default function StylingMenu() {
                   aria-label="Separator color picker"
                   labelProps={{ style: { marginBottom: 12 } }}
                 />
-              </Group>  
+              </Group>
+              {platformMode !== "native" && (
+                <>
+                  <Space h="xs" />
+                  <Group grow mt={"md"}>
+                    <Select
+                      label="Overlay Mode (Linux)"
+                      description="Layer-Shell stays above fullscreen windows but needs KDE, Sway or Hyprland. X11 Compatibility works everywhere. Takes effect after a restart."
+                      value={overlayPref}
+                      onChange={(value) => {
+                        if (!value) return;
+                        // Optimistisch setzen, bei fehlgeschlagenem Write zurueckdrehen — sonst
+                        // zeigt das Dropdown eine Auswahl, die nie persistiert wurde.
+                        const previous = overlayPref;
+                        setOverlayPref(value);
+                        invoke("set_overlay_mode", { mode: value })
+                          .catch((err) => {
+                            console.error("set_overlay_mode fehlgeschlagen:", err);
+                            setOverlayPref(previous);
+                          });
+                      }}
+                      data={[
+                        { value: "auto", label: "Auto (recommended)" },
+                        { value: "layer-shell", label: "Layer-Shell" },
+                        { value: "x11", label: "X11 Compatibility" },
+                      ]}
+                      labelProps={{ style: { marginBottom: 12 } }}
+                    />
+                  </Group>
+                </>
+              )}
             </Card>
             {/* Display Format Help Card */}
             {DisplayFormatHelpCard()}
