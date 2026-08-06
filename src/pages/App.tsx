@@ -109,14 +109,15 @@ function App() {
 
     // Ein Margin ausserhalb des sichtbaren Bereichs macht das Widget unauffindbar: es laeuft,
     // ist aber nicht zu sehen, und die einzige Rettung waere, linux.json von Hand zu editieren.
-    // Angewendet wird das auf genau EINEN Wert: den finalen beim Loslassen. Waehrend des
-    // Ziehens bewegt sich nur der Umriss im Ghost, und der darf ruhig ueber den Rand laufen.
+    // Auf den MARGIN angewendet wird das an genau einer Stelle: dem finalen Wert beim
+    // Loslassen. Waehrend des Ziehens begrenzt es nur, was der Ghost zeichnet -- damit der
+    // Umriss dort stehenbleibt, wo die Uhr gleich landen wird, statt darueber hinauszulaufen.
     const clampMargin = (x: number, y: number) => ({
       x: Math.min(Math.max(0, window.screen.width - window.innerWidth), Math.max(0, x)),
       y: Math.min(Math.max(0, window.screen.height - window.innerHeight), Math.max(0, y)),
     });
 
-    // Beim Laden gilt bewusst eine SCHWAECHERE Regel als beim Ziehen: hier greift nur ein
+    // Beim Laden gilt bewusst eine SCHWAECHERE Regel als beim Loslassen: hier greift nur ein
     // Rettungsnetz, keine Layout-Politik. Wer die Uhr absichtlich halb ueber den Rand geschoben
     // hat, soll sie dort wiederfinden -- korrigiert wird nur, was vollstaendig ausserhalb liegt
     // und damit gar nicht mehr auffindbar waere.
@@ -162,6 +163,15 @@ function App() {
 
       await overlayStateReady;
 
+      // Wer waehrend dieses `await` schon wieder losgelassen hat, darf hier nicht weiterlaufen:
+      // die pointerup/pointercancel-Listener werden erst weiter unten registriert, es gaebe also
+      // nichts mehr, was den Ghost wieder ausblendet -- ein kurzer Klick auf die Uhr direkt nach
+      // dem Start liesse ein bildschirmfuellendes Overlay bis zum Sicherheits-Timeout stehen.
+      // Der Browser gibt die Capture bei pointerup/pointercancel implizit frei; ihr Fehlen ist
+      // damit der zuverlaessige Test. An dieser Stelle ist noch nichts angelegt, was aufzuraeumen
+      // waere: kein activeDrags-Eintrag, kein Ghost, keine Listener.
+      if (!target.hasPointerCapture(pointerId)) return;
+
       if (dragState.mode !== "layer-shell") {
         if (target.hasPointerCapture(pointerId)) {
           target.releasePointerCapture(pointerId);
@@ -201,10 +211,17 @@ function App() {
       invoke("ghost_show", { x, y, w, h, radius })
         .catch((err) => console.error("ghost_show fehlgeschlagen:", err));
 
+      // Geklemmt wird, was GEZEICHNET wird -- nicht der Margin-Pfad. Sonst liefe der Umriss
+      // ueber den Bildschirmrand hinaus, die Uhr landete beim Loslassen aber am Rand, und der
+      // Nutzer saehe einen Sprung. So bleibt der Umriss am Rand stehen, wo die Uhr auch landet.
       const onMove = (ev: PointerEvent) => {
         if (ev.pointerId !== pointerId) return;
-        x = start.x + (ev.screenX - startScreenX);
-        y = start.y + (ev.screenY - startScreenY);
+        const next = clampMargin(
+          start.x + (ev.screenX - startScreenX),
+          start.y + (ev.screenY - startScreenY)
+        );
+        x = next.x;
+        y = next.y;
         if (!frame) frame = requestAnimationFrame(paintOutline);
       };
 
