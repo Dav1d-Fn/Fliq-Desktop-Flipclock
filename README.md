@@ -49,6 +49,69 @@ Built with [React](https://reactjs.org/) and [Tauri v2](https://v2.tauri.app/), 
 1. Download the latest `.exe` installer from the [Releases](https://github.com/Dav1d-Fn/Fliq-Desktop-Flipclock/releases) page.
 2. Run the installer and follow the on-screen instructions.
 
+### Linux 🐧
+
+Download the matching package from the [Releases](https://github.com/Dav1d-Fn/Fliq-Desktop-Flipclock/releases) page, then:
+
+| Distro | Command |
+|---|---|
+| Fedora | `sudo dnf install ./Fliq*.rpm` |
+| openSUSE | `sudo zypper install ./Fliq*.rpm` |
+| Debian / Ubuntu / Mint | `sudo apt install ./Fliq*.deb` |
+| Arch | no AUR package — use the `.AppImage`: `chmod +x Fliq*.AppImage && ./Fliq*.AppImage` |
+| Anything else | `.AppImage`: `chmod +x Fliq*.AppImage && ./Fliq*.AppImage` |
+
+#### What works where
+
+Wayland does not let an application keep itself on top by itself. Fliq therefore picks one
+of two modes at startup, and what you get depends on your desktop:
+
+| Desktop | Frameless & transparent | Above normal windows | Above fullscreen games |
+|---|---|---|---|
+| KDE Plasma (Wayland) | ✅ | ✅ | ✅ |
+| Sway / Hyprland | ✅ | ✅ | ✅ |
+| GNOME (Wayland) | ✅ | ✅ | ❌ |
+| Any X11 session | ✅ | ✅ | ❌ |
+
+Above fullscreen requires the `wlr-layer-shell` protocol, which KDE Plasma, Sway, Hyprland and
+other wlroots-based compositors implement. **GNOME does not implement it and has stated it will
+not**, so on GNOME — and on any X11 session — the clock stays above normal windows but not
+above fullscreen ones.
+
+A few other things worth knowing:
+
+- **Dragging on Wayland** feels less smooth than dragging a normal window. The drag outline is
+  drawn by a webview whose frame clock is capped at ~62 Hz regardless of the monitor's refresh
+  rate (measured: 164.87 Hz on the test machine), and the position travels through the app
+  instead of being handled by the compositor directly. This is a property of WebKitGTK, not a
+  misconfiguration — it can't be fixed from the application.
+- **Multi-monitor:** the clock can be dragged to any monitor. The drag outline itself is only
+  drawn on up to **8 monitors** — beyond that, dragging still works, just without a preview on
+  the extra screens. A monitor plugged in while Fliq is already running gets no outline until
+  restart.
+- **X11 compatibility mode** has no drag outline at all — dragging is handled by the window
+  manager directly, same as on Windows.
+- If auto-detection picks the wrong mode, override it under **Styling → General Settings →
+  Overlay Mode** (takes effect after a restart).
+
+Only **KDE Plasma 6.7.3 on Wayland** has actually been tested. GNOME, XFCE, Cinnamon, Sway,
+Hyprland, X11 sessions, and every distro other than Fedora are expected to work but untested.
+If something's broken on your setup, please [open an issue](https://github.com/Dav1d-Fn/Fliq-Desktop-Flipclock/issues)
+with your desktop and distro.
+
+#### Building from source
+
+```bash
+# Fedora
+sudo dnf install webkit2gtk4.1-devel gtk3-devel gtk-layer-shell-devel libappindicator-gtk3-devel librsvg2-devel patchelf
+
+# Debian / Ubuntu
+sudo apt install libwebkit2gtk-4.1-dev libgtk-3-dev libgtk-layer-shell-dev libayatana-appindicator3-dev librsvg2-dev patchelf
+
+npm install
+npm run tauri build
+```
+
 ---
 
 ## Example Templates 🧩
@@ -76,7 +139,8 @@ Fliq is built on the shoulders of great open-source projects:
 
 Here’s a glimpse at what’s coming:
 
-- 🐧 **Linux & macOS Support**
+- ~~🐧 **Linux Support**~~ — done
+- ~~🍎 **macOS Support**~~ — no Mac to build or test on, don't count on this happening
 - 🎨 **Additional Clock Styles** and layouts
 - 📅 **Calendar Integration** – events & reminders
 - ✅ **Task Support** – simple to-dos directly on the clock
