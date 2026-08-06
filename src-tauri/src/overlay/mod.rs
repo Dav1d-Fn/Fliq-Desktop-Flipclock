@@ -51,11 +51,20 @@ pub struct LinuxConfig {
     pub overlay_mode: ModePreference,
     pub margin_x: i32,
     pub margin_y: i32,
+    /// Der Output, an dem die Uhr haengt (`linux::MonitorInfo::id`). `None` heisst: noch nie
+    /// gesetzt, also nimmt der Start den ersten vorhandenen.
+    ///
+    /// `#[serde(default)]` ist hier nicht Kosmetik: `linux.json`-Dateien aus Builds vor dieser
+    /// Aenderung haben den Schluessel nicht. Ohne das Attribut schluege die Deserialisierung
+    /// fehl und `load_from` fiele auf die Defaults zurueck — die gespeicherten Margins waeren
+    /// beim ersten Start nach dem Update weg.
+    #[serde(default)]
+    pub monitor: Option<String>,
 }
 
 impl Default for LinuxConfig {
     fn default() -> Self {
-        Self { overlay_mode: ModePreference::Auto, margin_x: 40, margin_y: 40 }
+        Self { overlay_mode: ModePreference::Auto, margin_x: 40, margin_y: 40, monitor: None }
     }
 }
 
@@ -181,14 +190,36 @@ mod tests {
         assert_eq!(cfg.overlay_mode, ModePreference::Auto);
         assert_eq!(cfg.margin_x, 40);
         assert_eq!(cfg.margin_y, 40);
+        assert_eq!(cfg.monitor, None);
     }
 
     #[test]
     fn save_then_load_round_trips() {
         let path = temp_path("roundtrip");
-        let cfg = LinuxConfig { overlay_mode: ModePreference::LayerShell, margin_x: 12, margin_y: 99 };
+        let cfg = LinuxConfig {
+            overlay_mode: ModePreference::LayerShell,
+            margin_x: 12,
+            margin_y: 99,
+            monitor: Some("Dell Inc. AW3423DWF".into()),
+        };
         cfg.save_to(&path).expect("save must create parent dirs and write");
         assert_eq!(LinuxConfig::load_from(&path), cfg);
+    }
+
+    /// Eine `linux.json` aus einem Build vor dem Monitor-Feld liegt auf echten Rechnern. Sie
+    /// darf nicht als "kaputt" durchfallen — sonst waeren die gespeicherten Margins beim ersten
+    /// Start nach dem Update weg und die Uhr spraenge zurueck auf 40/40.
+    #[test]
+    fn config_without_monitor_key_keeps_its_margins() {
+        let path = temp_path("old-shape");
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(&path, r#"{"overlay_mode":"layer-shell","margin_x":123,"margin_y":456}"#)
+            .unwrap();
+        let cfg = LinuxConfig::load_from(&path);
+        assert_eq!(cfg.overlay_mode, ModePreference::LayerShell);
+        assert_eq!(cfg.margin_x, 123);
+        assert_eq!(cfg.margin_y, 456);
+        assert_eq!(cfg.monitor, None);
     }
 
     #[test]
