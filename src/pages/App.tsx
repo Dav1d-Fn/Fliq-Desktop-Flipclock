@@ -187,13 +187,20 @@ function App() {
       const startScreenY = e.screenY;
       const start = dragState.margin;
 
-      // Kontur der Uhr fuer den Umriss. `innerWidth/innerHeight` ist die Surface -- genau das,
-      // was der Margin positioniert. Der Radius kommt aus dem berechneten Style, weil er im
-      // Uhrfenster in `vmin` gesetzt ist und `vmin` im Ghost (Bildschirmgroesse) etwas voellig
-      // anderes bedeutete.
-      const w = window.innerWidth;
-      const h = window.innerHeight;
+      // Kontur der Uhr fuer den Umriss. `innerWidth/innerHeight` waere die Surface -- die kann
+      // unter Wayland-Layer-Shell zur Laufzeit nicht resizt werden und bleibt auf der
+      // Startgroesse aus tauri.conf.json, waehrend die sichtbare Uhr kleiner ist. Groesse UND
+      // Lage kommen deshalb aus `getBoundingClientRect()` des Containers: die Lage, weil der
+      // Margin die Surface positioniert, nicht den Inhalt -- sitzt der Container mit Versatz im
+      // Fenster, muss der Umriss um denselben Versatz verschoben gezeichnet werden. Der Radius
+      // kommt weiterhin aus dem berechneten Style, weil er im Uhrfenster in `vmin` gesetzt ist
+      // und `vmin` im Ghost (Bildschirmgroesse) etwas voellig anderes bedeutete.
       const container = document.querySelector("#flipclock-container");
+      const containerRect = container?.getBoundingClientRect();
+      const w = containerRect ? Math.round(containerRect.width) : window.innerWidth;
+      const h = containerRect ? Math.round(containerRect.height) : window.innerHeight;
+      const offsetX = containerRect ? Math.round(containerRect.left) : 0;
+      const offsetY = containerRect ? Math.round(containerRect.top) : 0;
       const radius = container ? parseFloat(getComputedStyle(container).borderRadius) || 0 : 0;
 
       let x = start.x;
@@ -204,11 +211,11 @@ function App() {
       // requestAnimationFrame -- schneller als der Ghost malen kann, bringt nichts.
       const paintOutline = () => {
         frame = 0;
-        emitTo("ghost", "ghost-rect", { x, y, w, h, radius })
+        emitTo("ghost", "ghost-rect", { x: x + offsetX, y: y + offsetY, w, h, radius })
           .catch((err) => console.error("ghost-rect fehlgeschlagen:", err));
       };
 
-      invoke("ghost_show", { x, y, w, h, radius })
+      invoke("ghost_show", { x: x + offsetX, y: y + offsetY, w, h, radius })
         .catch((err) => console.error("ghost_show fehlgeschlagen:", err));
 
       // Geklemmt wird, was GEZEICHNET wird -- nicht der Margin-Pfad. Sonst liefe der Umriss
