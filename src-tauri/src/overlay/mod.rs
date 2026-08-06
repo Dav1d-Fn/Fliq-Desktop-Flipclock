@@ -4,6 +4,8 @@ use std::sync::mpsc;
 use std::time::Duration;
 
 #[cfg(target_os = "linux")]
+pub mod ghost;
+#[cfg(target_os = "linux")]
 pub mod linux;
 
 /// Was der Nutzer eingestellt hat. `Auto` heißt: erkennen.

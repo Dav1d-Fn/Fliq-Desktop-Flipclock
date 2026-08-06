@@ -109,7 +109,17 @@ pub fn run(mode: overlay::OverlayMode, config: overlay::LinuxConfig) {
         //
         // Das Hauptfenster bekommt seinen Startzustand deshalb ausschliesslich unten im Setup:
         // Position restaurieren, dann `show()` — in dieser Reihenfolge und an genau einer Stelle.
-        .plugin(tauri_plugin_window_state::Builder::default().skip_initial_state("main").build())
+        //
+        // `with_denylist(["ghost"])`: das Ghost-Fenster darf das Plugin nicht anfassen. Der
+        // Default `StateFlags::all()` enthaelt `VISIBLE` — gespeichert und beim naechsten Start
+        // restauriert waere das genau der Fehlerfall, gegen den diese Funktion konstruiert ist:
+        // ein bildschirmfuellendes Overlay, sichtbar ohne laufenden Drag.
+        .plugin(
+            tauri_plugin_window_state::Builder::default()
+                .skip_initial_state("main")
+                .with_denylist(&["ghost"])
+                .build(),
+        )
         .plugin(tauri_plugin_autostart::init(tauri_plugin_autostart::MacosLauncher::LaunchAgent, Some(vec!["--flag1", "--flag2"])))
         .plugin(tauri_plugin_shell::init())
         .setup(move |app| {
@@ -140,13 +150,26 @@ pub fn run(mode: overlay::OverlayMode, config: overlay::LinuxConfig) {
             }
 
             app.manage(OverlayState { mode, config: std::sync::Mutex::new(config) });
+
+            // Nur im Layer-Shell-Modus: dort positioniert der Compositor, und ein Live-Drag
+            // ueber Margins ist auf KWin unerreichbar. Der X11-Pfad zieht per `startDragging`
+            // und braucht keinen Ghost.
+            #[cfg(target_os = "linux")]
+            if mode == overlay::OverlayMode::LayerShell {
+                overlay::ghost::create(app.handle());
+            }
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
             open_stylingmenu_window,
             get_overlay_state,
             set_overlay_margin,
-            set_overlay_mode
+            set_overlay_mode,
+            #[cfg(target_os = "linux")]
+            overlay::ghost::ghost_show,
+            #[cfg(target_os = "linux")]
+            overlay::ghost::ghost_hide
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

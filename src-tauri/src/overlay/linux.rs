@@ -50,7 +50,7 @@ pub fn layer_shell_available() -> bool {
 
 #[repr(C)]
 #[allow(dead_code)]
-enum Layer {
+pub(super) enum Layer {
     Background = 0,
     Bottom = 1,
     Top = 2,
@@ -59,7 +59,7 @@ enum Layer {
 
 #[repr(C)]
 #[allow(dead_code)]
-enum Edge {
+pub(super) enum Edge {
     Left = 0,
     Right = 1,
     Top = 2,
@@ -68,7 +68,7 @@ enum Edge {
 
 #[repr(C)]
 #[allow(dead_code)]
-enum KeyboardMode {
+pub(super) enum KeyboardMode {
     None = 0,
     Exclusive = 1,
     OnDemand = 2,
@@ -78,12 +78,13 @@ enum KeyboardMode {
 // Die Rust-Crate dafuer ist auf crates.io als UNMAINTAINED markiert.
 extern "C" {
     fn gtk_layer_is_supported() -> c_int;
-    fn gtk_layer_init_for_window(window: *mut c_void);
-    fn gtk_layer_set_layer(window: *mut c_void, layer: Layer);
-    fn gtk_layer_set_anchor(window: *mut c_void, edge: Edge, anchor_to_edge: c_int);
+    pub(super) fn gtk_layer_init_for_window(window: *mut c_void);
+    pub(super) fn gtk_layer_set_layer(window: *mut c_void, layer: Layer);
+    pub(super) fn gtk_layer_set_anchor(window: *mut c_void, edge: Edge, anchor_to_edge: c_int);
     fn gtk_layer_set_margin(window: *mut c_void, edge: Edge, margin_size: c_int);
-    fn gtk_layer_set_keyboard_mode(window: *mut c_void, mode: KeyboardMode);
-    fn gtk_layer_set_exclusive_zone(window: *mut c_void, exclusive_zone: c_int);
+    pub(super) fn gtk_layer_set_keyboard_mode(window: *mut c_void, mode: KeyboardMode);
+    pub(super) fn gtk_layer_set_exclusive_zone(window: *mut c_void, exclusive_zone: c_int);
+    pub(super) fn gtk_layer_set_namespace(window: *mut c_void, name_space: *const std::os::raw::c_char);
 }
 
 /// Ruft `f` mit dem Rohzeiger auf das GtkWindow hinter einem Tauri-Fenster auf.
@@ -97,7 +98,10 @@ extern "C" {
 /// `f` gibt bewusst nichts zurueck: ein generischer Rueckgabetyp koennte den Rohzeiger selbst
 /// nach draussen reichen und die Eindaemmung aushebeln, die dieser Helfer verspricht. `Some(())`
 /// heisst nur "es gab ein GtkWindow und `f` lief".
-fn with_raw_gtk_window(window: &tauri::WebviewWindow, f: impl FnOnce(*mut c_void)) -> Option<()> {
+pub(super) fn with_raw_gtk_window(
+    window: &tauri::WebviewWindow,
+    f: impl FnOnce(*mut c_void),
+) -> Option<()> {
     use gtk::glib::translate::ToGlibPtr;
     use gtk::prelude::Cast;
 
