@@ -58,8 +58,14 @@ Download the matching package from the [Releases](https://github.com/Dav1d-Fn/Fl
 | Fedora | `sudo dnf install ./Fliq*.rpm` |
 | openSUSE | `sudo zypper install ./Fliq*.rpm` |
 | Debian / Ubuntu / Mint | `sudo apt install ./Fliq*.deb` |
-| Arch | no AUR package — use the `.AppImage`: `chmod +x Fliq*.AppImage && ./Fliq*.AppImage` |
-| Anything else | `.AppImage`: `chmod +x Fliq*.AppImage && ./Fliq*.AppImage` |
+| Arch | no AUR package — [build from source](#building-from-source) |
+| Anything else | [build from source](#building-from-source) |
+
+There is deliberately no `.AppImage`. An AppImage carries its own GTK and WebKitGTK, which then
+collide with the host's Mesa and freetype — on Fedora 44 the renderer aborts with
+`EGL_BAD_PARAMETER` before the clock is ever drawn. It also forces `GDK_BACKEND=x11`, which rules
+out layer-shell and with it the above-fullscreen behaviour that is the whole point of the Wayland
+path.
 
 #### What works where
 
