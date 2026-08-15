@@ -61,6 +61,10 @@ Download the matching package from the [Releases](https://github.com/Dav1d-Fn/Fl
 | Arch | no AUR package — [build from source](#building-from-source) |
 | Anything else | [build from source](#building-from-source) |
 
+On Fedora and openSUSE you can skip the download entirely — `dnf` and `zypper` install straight
+from a URL, so the release notes of every version carry a ready-to-paste one-liner of the form
+`sudo dnf install https://github.com/Dav1d-Fn/Fliq-Desktop-Flipclock/releases/download/v<version>/Fliq-<version>-1.x86_64.rpm`.
+
 There is deliberately no `.AppImage`. An AppImage carries its own GTK and WebKitGTK, which then
 collide with the host's Mesa and freetype — on Fedora 44 the renderer aborts with
 `EGL_BAD_PARAMETER` before the clock is ever drawn. It also forces `GDK_BACKEND=x11`, which rules

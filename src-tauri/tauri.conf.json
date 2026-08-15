@@ -1,5 +1,5 @@
 {
-  "productName": "Fliq - Clock",
+  "productName": "Fliq",
   "version": "1.3.0",
   "identifier": "com.flipclock.dev",
   "build": {
@@ -15,7 +15,7 @@
         "visible": false,
         "transparent": true,
         "shadow": false,
-        "title": "Fliq - Clock",
+        "title": "Fliq",
         "maximizable": false,
         "resizable": false,
         "alwaysOnTop": true,
