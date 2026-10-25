@@ -18,6 +18,7 @@ import { saveWindowState, StateFlags, restoreStateCurrent } from '@tauri-apps/pl
 //import Jotai for state management
 import { ATOMS } from "./atoms";
 import { useAtom } from "jotai"
+import { startTuxhub } from "../tuxhub"
 
 function App() {
 
@@ -369,6 +370,9 @@ function App() {
       saveWindowState(StateFlags.POSITION);
     };
   }, []);
+
+  // Settings page in tuxhub, if it is installed (src/tuxhub.ts)
+  useEffect(() => startTuxhub(), []);
 
   //Adjust the window size when the clock size changes
   useEffect(() => {
