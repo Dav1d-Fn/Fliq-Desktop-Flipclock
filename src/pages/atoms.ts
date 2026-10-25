@@ -17,6 +17,7 @@ export const ATOMS = {
   FLIPCARD_RADIUS: atomWithStorage("flipcardRounded", 70), // Rounding in %
   BOX_BACKGROUND: atomWithStorage("boxBackgroundColor", "#121212ab"),
   BOX_RADIUS: atomWithStorage("boxRounded", 30), // Rounding in %
+  THEME: atomWithStorage<string | null>("theme", null), // Design template; null = derive from the colors (before 1.5)
   SECOND_ROW_ENABLED: atomWithStorage("secondRowEnabled", true),
   SECOND_ROW_CLOCK_TEXT_SIZE: atomWithStorage("secondRowClockTextSize", 12), // Text Size in px
   SECOND_ROW_TIME_FORMAT: atomWithStorage("secondRowFormat", "$TIME(dddd, DD.MM) $TEXT( ) $WEATHER(feelsLikeEmoji) $TEXT( ) $WEATHER(nextSun)"),
