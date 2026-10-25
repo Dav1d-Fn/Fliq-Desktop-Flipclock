@@ -1,4 +1,6 @@
 pub mod overlay;
+#[cfg(target_os = "linux")]
+pub mod tuxhub;
 
 // Window definition for the styling menu
 #[tauri::command]
@@ -133,7 +135,11 @@ fn set_overlay_margin(
 
 /// Wirkt erst nach einem Neustart — das GDK-Backend steht beim Start fest.
 #[tauri::command]
-fn set_overlay_mode(state: tauri::State<'_, OverlayState>, mode: String) -> Result<(), String> {
+fn set_overlay_mode(
+    _app: tauri::AppHandle,
+    state: tauri::State<'_, OverlayState>,
+    mode: String,
+) -> Result<(), String> {
     let pref = match mode.as_str() {
         "auto" => overlay::ModePreference::Auto,
         "layer-shell" => overlay::ModePreference::LayerShell,
@@ -142,7 +148,12 @@ fn set_overlay_mode(state: tauri::State<'_, OverlayState>, mode: String) -> Resu
     };
     let mut cfg = state.config.lock().unwrap();
     cfg.overlay_mode = pref;
-    cfg.save().map_err(|e| e.to_string())
+    cfg.save().map_err(|e| e.to_string())?;
+
+    // Auch wenn die Aenderung aus dem Styling-Fenster kommt, soll tuxhub sie sehen.
+    #[cfg(target_os = "linux")]
+    tuxhub::changed(&_app, serde_json::json!({ "overlayMode": pref.as_str() }));
+    Ok(())
 }
 
 // Main Window
@@ -249,6 +260,8 @@ pub fn run(mode: overlay::OverlayMode, config: overlay::LinuxConfig) {
             }
 
             app.manage(OverlayState { mode, config: std::sync::Mutex::new(config) });
+            #[cfg(target_os = "linux")]
+            app.manage(tuxhub::TuxhubState::default());
 
             // Nur im Layer-Shell-Modus: dort positioniert der Compositor, und ein Live-Drag
             // ueber Margins ist auf KWin unerreichbar. Der X11-Pfad zieht per `startDragging`
@@ -272,8 +285,23 @@ pub fn run(mode: overlay::OverlayMode, config: overlay::LinuxConfig) {
             #[cfg(target_os = "linux")]
             overlay::ghost::ghost_show,
             #[cfg(target_os = "linux")]
-            overlay::ghost::ghost_hide
+            overlay::ghost::ghost_hide,
+            #[cfg(target_os = "linux")]
+            tuxhub::tuxhub_ready,
+            #[cfg(target_os = "linux")]
+            tuxhub::tuxhub_respond,
+            #[cfg(target_os = "linux")]
+            tuxhub::tuxhub_changed,
+            #[cfg(target_os = "linux")]
+            tuxhub::tuxhub_schema_changed
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(|_app, _event| {
+            // Socket wegraeumen, egal ob ueber "Exit", das letzte Fenster oder tuxhub beendet.
+            #[cfg(target_os = "linux")]
+            if let tauri::RunEvent::Exit = _event {
+                tuxhub::stop(_app);
+            }
+        });
 }
