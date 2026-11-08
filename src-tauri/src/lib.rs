@@ -72,6 +72,14 @@ fn get_monitors() -> Vec<overlay::linux::MonitorInfo> {
     overlay::linux::monitors()
 }
 
+/// Klickflaeche auf die Uhr begrenzen, siehe `overlay::linux::set_input_region`.
+/// Synchron, weil GTK main-thread-only ist.
+#[cfg(target_os = "linux")]
+#[tauri::command]
+fn set_input_region(window: tauri::WebviewWindow, x: i32, y: i32, w: i32, h: i32) {
+    overlay::linux::set_input_region(&window, x, y, w, h);
+}
+
 /// Beim Loslassen: Output und Position in einem Zug. Ersetzt auf dem Layer-Shell-Pfad das
 /// bisherige `set_overlay_margin(persist: true)`.
 ///
@@ -246,6 +254,9 @@ pub fn run(mode: overlay::OverlayMode, config: overlay::LinuxConfig) {
             }
 
             if let Some(window) = window {
+                #[cfg(target_os = "linux")]
+                overlay::linux::reload_on_crash(&window);
+
                 // Ersetzt den uebersprungenen Initial-Restore des Plugins, aber nur `POSITION`:
                 // ohne das erschiene das Fenster auf Windows erst an der Default-Position und
                 // spraenge dann, sobald das Frontend `restoreStateCurrent(POSITION)` aufruft.
@@ -282,6 +293,8 @@ pub fn run(mode: overlay::OverlayMode, config: overlay::LinuxConfig) {
             get_monitors,
             #[cfg(target_os = "linux")]
             set_overlay_placement,
+            #[cfg(target_os = "linux")]
+            set_input_region,
             #[cfg(target_os = "linux")]
             overlay::ghost::ghost_show,
             #[cfg(target_os = "linux")]
