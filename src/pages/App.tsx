@@ -20,6 +20,38 @@ import { ATOMS } from "./atoms";
 import { useAtom } from "jotai"
 import { startTuxhub } from "../tuxhub"
 
+// Globale Geometrie eines Outputs, wie get_monitors sie liefert. Der Index in dieser Liste ist
+// zugleich der Index des zugehoerigen Ghost-Fensters.
+type Monitor = { id: string; x: number; y: number; w: number; h: number; scale: number };
+
+type OverlayState = { mode: string; margin_x: number; margin_y: number; monitor: string | null };
+
+// Einmal pro Seitenaufruf. Rejected auf aelteren Builds ohne den Command.
+const overlayState = invoke<OverlayState>("get_overlay_state");
+const isLayerShell = () => overlayState.then((s) => s.mode === "layer-shell", () => false);
+
+// Only the clock itself takes clicks; the transparent rest of the window lets them through.
+// On the layer-shell path the window spans the whole output, elsewhere it cannot shrink below
+// a GTK minimum size -- either way the empty area would block whatever lies underneath.
+function updateInputRegion() {
+  const rect = document.querySelector("#flipclock-container")?.getBoundingClientRect();
+  if (!rect) return;
+  invoke("set_input_region", {
+    x: Math.floor(rect.left),
+    y: Math.floor(rect.top),
+    w: Math.ceil(rect.width),
+    h: Math.ceil(rect.height),
+  // The command only exists on Linux; elsewhere the window has no such problem.
+  }).catch(() => {});
+}
+
+// Position of the clock inside the full-output window (layer-shell path only).
+function placeClock(x: number, y: number) {
+  const div = document.getElementById("maindiv");
+  if (div) div.style.transform = `translate(${Math.round(x)}px, ${Math.round(y)}px)`;
+  updateInputRegion();
+}
+
 function App() {
 
   const [autostart, setAutostart] = useAtom(ATOMS.AUTOSTART);
@@ -65,6 +97,9 @@ function App() {
     //await getCurrentWindow().setSize(size);
     await restoreStateCurrent(StateFlags.POSITION);
 
+    // On the layer-shell path the window is as large as its output, not as the clock.
+    if (await isLayerShell()) return;
+
     // Get the container element instead of the inner clock
     const container = document.querySelector("#flipclock-container");
 
@@ -97,115 +132,96 @@ function App() {
     };
     window.addEventListener('beforeunload', handleBeforeUnload);
 
-    // Im Layer-Shell-Modus positioniert der Compositor das Fenster; startDragging gibt es
-    // dort nicht. Der Drag zeigt deshalb einen Umriss in einem separaten, durchklickbaren
-    // Vollbild-Fenster ("Ghost") und setzt den echten Margin erst beim Loslassen -- einmal.
-    // KWin wendet Margin-Aenderungen an einer Layer-Surface nicht pro Frame an, sondern
-    // schubweise mit ~200 ms Verzug; Live-Ziehen ueber Margins ist dort nicht erreichbar.
+    // Im Layer-Shell-Modus ist die Uhr-Surface so gross wie ihr Output, und die Uhr sitzt per
+    // CSS-Transform darin (`placeClock`). Ziehen verschiebt also nur ein Element -- so fluessig
+    // wie jede Webseite. Ueber die Surface ziehen konnte man die Uhr nicht: KWin wendet
+    // Margin-Aenderungen nur schubweise mit ~200 ms Verzug an.
     //
-    // mode/margin leben auf einem Objekt statt auf `let`-Bindings, damit handlePointerDown sie
-    // bei jedem Aufruf frisch liest. Zusaetzlich wartet handlePointerDown auf overlayStateReady,
-    // damit ein Drag, der vor der Antwort von get_overlay_state beginnt, nicht faelschlich mit
-    // dem Default "native" laeuft -- im Layer-Shell-Modus waere startDragging() dort
-    // stillschweigend wirkungslos.
-    // Globale Geometrie eines Outputs, wie get_monitors sie liefert. Der Index in dieser Liste
-    // ist zugleich der Index des zugehoerigen Ghost-Fensters -- beide zaehlen dieselbe
-    // GDK-Enumeration ab.
-    type Monitor = { id: string; x: number; y: number; w: number; h: number; scale: number };
+    // Ein Layer-Surface gehoert aber zu genau einem Output, die Uhr wird an dessen Rand
+    // abgeschnitten. Ragt sie beim Ziehen auf einen anderen Monitor, zeichnet der Ghost dieses
+    // Monitors (ein durchklickbares Vollbild-Fenster je Output) dort eine Kopie der Uhr. Beim
+    // Loslassen auf einem anderen Monitor wird die Uhr-Surface dorthin umgehaengt; die Kopie
+    // steht so lange an genau der Stelle und ueberbrueckt das.
+    //
+    // Auf X11/Windows/macOS ist das Fenster so gross wie die Uhr und `startDragging` zieht es.
 
-    // `margin` ist output-LOKAL, wie die Layer-Shell-Margins selbst; `monitorId` sagt, gegen
-    // welchen Output.
+    // `pos` ist output-LOKAL (Lage der Uhr in der Surface), `monitorId` sagt, auf welchem Output.
     const dragState = {
       mode: "native",
-      margin: { x: 0, y: 0 },
+      pos: { x: 0, y: 0 },
       monitors: [] as Monitor[],
       monitorId: null as string | null,
     };
 
-    const ghostLabel = (mon: Monitor | undefined) =>
-      `ghost-${mon ? dragState.monitors.indexOf(mon) : 0}`;
+    const ghostLabel = (mon: Monitor) => `ghost-${dragState.monitors.indexOf(mon)}`;
 
     // Der Output, auf dem ein globaler Punkt liegt. `undefined` bei einer Luecke zwischen den
-    // Schirmen (Layouts muessen nicht lueckenlos sein) -- der Aufrufer bleibt dann beim
-    // bisherigen, statt zu raten.
+    // Schirmen (Layouts muessen nicht lueckenlos sein).
     const monitorAt = (gx: number, gy: number) =>
       dragState.monitors.find((m) => gx >= m.x && gx < m.x + m.w && gy >= m.y && gy < m.y + m.h);
 
     const currentMonitor = () => dragState.monitors.find((m) => m.id === dragState.monitorId);
 
-    // Geklemmt und gerettet wird gegen den ZIELMONITOR, nicht gegen `window.screen`: bei
-    // mehreren Outputs ist unter Wayland unklar, worauf sich `window.screen` bezieht, und das
-    // darf hier nicht geraten werden. Nur wenn es gar keine Monitorliste gibt (X11-/nativer
-    // Pfad, wo diese Werte ohnehin nichts steuern) bleibt der alte Bezug.
-    const boundsOf = (mon: Monitor | undefined) =>
-      mon ?? { w: window.screen.width, h: window.screen.height };
+    const clockSize = () => {
+      const rect = document.querySelector("#flipclock-container")?.getBoundingClientRect();
+      return { w: rect?.width ?? 0, h: rect?.height ?? 0 };
+    };
 
-    // Ein Margin ausserhalb des sichtbaren Bereichs macht das Widget unauffindbar: es laeuft,
-    // ist aber nicht zu sehen, und die einzige Rettung waere, linux.json von Hand zu editieren.
-    // Auf den MARGIN angewendet wird das an genau einer Stelle: dem finalen Wert beim
-    // Loslassen. Waehrend des Ziehens begrenzt es nur, was der Ghost zeichnet -- damit der
-    // Umriss dort stehenbleibt, wo die Uhr gleich landen wird, statt darueber hinauszulaufen.
-    const clampMargin = (mon: Monitor | undefined, x: number, y: number) => {
-      const b = boundsOf(mon);
+    // Haelt die ganze Uhr auf ihrem Monitor. Angewendet beim Loslassen, nicht waehrend des
+    // Ziehens -- dort darf sie ueber eine Monitorgrenze ragen.
+    const clampToMonitor = (mon: Monitor, x: number, y: number) => {
+      const { w, h } = clockSize();
       return {
-        x: Math.min(Math.max(0, b.w - window.innerWidth), Math.max(0, x)),
-        y: Math.min(Math.max(0, b.h - window.innerHeight), Math.max(0, y)),
+        x: Math.round(Math.min(Math.max(0, mon.w - w), Math.max(0, x))),
+        y: Math.round(Math.min(Math.max(0, mon.h - h), Math.max(0, y))),
       };
     };
 
-    // Beim Laden gilt bewusst eine SCHWAECHERE Regel als beim Loslassen: hier greift nur ein
-    // Rettungsnetz, keine Layout-Politik. Wer die Uhr absichtlich halb ueber den Rand geschoben
-    // hat, soll sie dort wiederfinden -- korrigiert wird nur, was vollstaendig ausserhalb liegt
-    // und damit gar nicht mehr auffindbar waere. (Den Fall "gespeicherter Monitor gibt es nicht
-    // mehr" faengt Rust beim Start ab; hier bleibt nur der Fall auf einem vorhandenen Schirm.)
-    const rescueMargin = (mon: Monitor | undefined, x: number, y: number) => {
-      const b = boundsOf(mon);
+    // Beim Laden gilt bewusst eine SCHWAECHERE Regel als beim Loslassen: korrigiert wird nur,
+    // was vollstaendig ausserhalb liegt und damit gar nicht mehr auffindbar waere. (Den Fall
+    // "gespeicherter Monitor gibt es nicht mehr" faengt Rust beim Start ab.)
+    const rescuePos = (mon: Monitor | undefined, x: number, y: number) => {
+      const b = mon ?? { w: window.screen.width, h: window.screen.height };
       return { x: x < 0 || x >= b.w ? 40 : x, y: y < 0 || y >= b.h ? 40 : y };
     };
 
-    // Ein Weg fuer alles, was Position UND Output persistiert. Ohne bekannten Monitor (kein
-    // Layer-Shell, oder GDK meldet keinen) bleibt der alte Befehl -- er ist dort das, was wirkt.
     const persistPlacement = (x: number, y: number) =>
       (dragState.mode === "layer-shell" && dragState.monitorId
         ? invoke("set_overlay_placement", { monitorId: dragState.monitorId, x, y })
         : invoke("set_overlay_margin", { x, y, persist: true })
       ).catch((err) => console.error("Position speichern fehlgeschlagen:", err));
 
-    const overlayStateReady = invoke<{
-      mode: string;
-      margin_x: number;
-      margin_y: number;
-      monitor: string | null;
-    }>("get_overlay_state")
+    overlayState
       .then(async (s) => {
         dragState.mode = s.mode;
         dragState.monitorId = s.monitor;
+        if (s.mode !== "layer-shell") return;
 
-        // Nur der Layer-Shell-Pfad rechnet global; auf X11/Windows/macOS positioniert
-        // startDragging und der Command existiert dort gar nicht.
-        if (s.mode === "layer-shell") {
-          dragState.monitors = await invoke<Monitor[]>("get_monitors").catch((err) => {
-            console.error("get_monitors fehlgeschlagen:", err);
-            return [];
-          });
-        }
+        dragState.monitors = await invoke<Monitor[]>("get_monitors").catch((err) => {
+          console.error("get_monitors fehlgeschlagen:", err);
+          return [];
+        });
 
-        const safe = rescueMargin(currentMonitor(), s.margin_x, s.margin_y);
-        dragState.margin = safe;
+        const safe = rescuePos(currentMonitor(), s.margin_x, s.margin_y);
+        dragState.pos = safe;
+        placeClock(safe.x, safe.y);
 
         // Lag der gespeicherte Wert daneben, sofort korrigiert zurueckschreiben -- sonst holt
         // sich der naechste Start denselben unbrauchbaren Wert wieder.
-        if (dragState.mode === "layer-shell" && (safe.x !== s.margin_x || safe.y !== s.margin_y)) {
-          console.warn(`fliq: Margin ${s.margin_x}/${s.margin_y} lag ausserhalb des Monitors, korrigiert auf ${safe.x}/${safe.y}`);
+        if (safe.x !== s.margin_x || safe.y !== s.margin_y) {
+          console.warn(`fliq: Position ${s.margin_x}/${s.margin_y} lag ausserhalb des Monitors, korrigiert auf ${safe.x}/${safe.y}`);
           persistPlacement(safe.x, safe.y);
         }
       })
-      .catch(() => { /* aeltere Builds ohne den Command: bleibt bei "native" */ });
+      .catch(() => { /* aeltere Builds ohne den Command: bleibt bei "native" */ })
+      // Erst jetzt zeigen: vorher stuende die Uhr fuer einen Moment oben links.
+      .finally(() => {
+        const div = document.getElementById("maindiv");
+        if (div) div.style.visibility = "visible";
+      });
 
-    // Ein Eintrag pro pointerId, damit ein zweites Zeigegeraet (z.B. Touch neben Maus) den
-    // Drag eines ersten nicht ueberschreibt -- jeder Drag traegt seine eigene Teardown-Funktion
-    // ein und entfernt nur die eigene. Der Cleanup dieses Effects raeumt alle noch aktiven
-    // Drags auf (z.B. bei Unmount waehrend eines Drags).
+    // Ein Eintrag pro pointerId, damit ein zweites Zeigegeraet den Drag eines ersten nicht
+    // ueberschreibt. Der Cleanup dieses Effects raeumt alle noch aktiven Drags auf.
     const activeDrags = new Map<number, () => void>();
 
     async function handlePointerDown(e: PointerEvent) {
@@ -214,141 +230,133 @@ function App() {
       const target = e.currentTarget as HTMLElement;
       const pointerId = e.pointerId;
 
-      // Capture sofort und synchron im pointerdown-Handler anfordern, nicht erst nach dem
-      // await unten. Ab hier bekommt `target` pointermove/pointerup/pointercancel unabhaengig
-      // davon, ob der Cursor die Fensterflaeche verlaesst -- auf Wayland liefert der Compositor
-      // sonst nach Verlassen der Surface keine Pointer-Events mehr, und ein ausserhalb
-      // losgelassener Drag bliebe sonst fuer immer haengen (Listener + laufende invoke-Aufrufe).
+      // Capture sofort und synchron anfordern, nicht erst nach dem await: ab hier bekommt
+      // `target` alle Pointer-Events, auch ausserhalb der Klickflaeche und auf anderen Monitoren
+      // (Wayland gibt der Surface mit gedrueckter Taste einen impliziten Grab).
       target.setPointerCapture(pointerId);
 
-      await overlayStateReady;
+      await overlayState.catch(() => null);
 
-      // Wer waehrend dieses `await` schon wieder losgelassen hat, darf hier nicht weiterlaufen:
-      // die pointerup/pointercancel-Listener werden erst weiter unten registriert, es gaebe also
-      // nichts mehr, was den Ghost wieder ausblendet -- ein kurzer Klick auf die Uhr direkt nach
-      // dem Start liesse ein bildschirmfuellendes Overlay bis zum Sicherheits-Timeout stehen.
-      // Der Browser gibt die Capture bei pointerup/pointercancel implizit frei; ihr Fehlen ist
-      // damit der zuverlaessige Test. An dieser Stelle ist noch nichts angelegt, was aufzuraeumen
-      // waere: kein activeDrags-Eintrag, kein Ghost, keine Listener.
+      // Wer waehrend des `await` schon losgelassen hat: nichts angelegt, nichts aufzuraeumen.
       if (!target.hasPointerCapture(pointerId)) return;
 
       if (dragState.mode !== "layer-shell") {
-        if (target.hasPointerCapture(pointerId)) {
-          target.releasePointerCapture(pointerId);
-        }
+        target.releasePointerCapture(pointerId);
         getCurrentWindow().startDragging();
         return;
       }
 
-      // Die Uhr-Surface bewegt sich waehrend des Ziehens nicht mehr, also ist das Bezugssystem
-      // stabil und die Rechnung eine gerade Umrechnung, keine Regelschleife. Gerechnet wird in
-      // GLOBALEN Koordinaten, weil nur die ueber Monitorgrenzen hinweg durchgehend sind:
-      //   globalePosition = monitor.xy + startMargin + (screenX - startScreenX)
-      // Erst am Ende wird auf den Output umgerechnet, ueber dem der Umriss dann liegt. Die
-      // Zeigerdeltas taugen dafuer nur, WEIL die Uhr stehenbleibt -- ein mitziehendes Fenster
-      // verschoebe das Bezugssystem unter dem Zeiger weg.
+      // Gerechnet wird in GLOBALEN Koordinaten, weil nur die ueber Monitorgrenzen hinweg
+      // durchgehend sind. Die Zeigerdeltas taugen dafuer, weil die Surface sich waehrend des
+      // Ziehens nicht bewegt.
+      const home = currentMonitor() ?? { id: "", x: 0, y: 0, w: window.innerWidth, h: window.innerHeight, scale: 1 };
+      const others = dragState.monitors.filter((m) => m.id !== home.id);
       const startScreenX = e.screenX;
       const startScreenY = e.screenY;
-      const start = dragState.margin;
-      const startMon = currentMonitor();
-      const originX = (startMon?.x ?? 0) + start.x;
-      const originY = (startMon?.y ?? 0) + start.y;
+      const originX = home.x + dragState.pos.x;
+      const originY = home.y + dragState.pos.y;
+      const { w, h } = clockSize();
 
-      // Kontur der Uhr fuer den Umriss. `innerWidth/innerHeight` waere die Surface -- die ist
-      // durch `setSize` zwar in etwa so gross wie die Uhr, aber nicht genau: sie hat unter
-      // GTK/WebKitGTK eine Mindestgroesse (gemessen 200 px Hoehe), bei kleiner Schrift steht
-      // also transparenter Rand um die Uhr. Groesse UND Lage kommen deshalb aus
-      // `getBoundingClientRect()` des Containers: die Lage, weil der
-      // Margin die Surface positioniert, nicht den Inhalt -- sitzt der Container mit Versatz im
-      // Fenster, muss der Umriss um denselben Versatz verschoben gezeichnet werden. Der Radius
-      // kommt weiterhin aus dem berechneten Style, weil er im Uhrfenster in `vmin` gesetzt ist
-      // und `vmin` im Ghost (Bildschirmgroesse) etwas voellig anderes bedeutete.
-      const container = document.querySelector("#flipclock-container");
-      const containerRect = container?.getBoundingClientRect();
-      const w = containerRect ? Math.round(containerRect.width) : window.innerWidth;
-      const h = containerRect ? Math.round(containerRect.height) : window.innerHeight;
-      const offsetX = containerRect ? Math.round(containerRect.left) : 0;
-      const offsetY = containerRect ? Math.round(containerRect.top) : 0;
-      const radius = container ? parseFloat(getComputedStyle(container).borderRadius) || 0 : 0;
+      // Ziehen bleibt innerhalb der Huelle aller Monitore; wo genau die Uhr landet, entscheidet
+      // erst das Loslassen.
+      const all = dragState.monitors.length ? dragState.monitors : [home];
+      const minX = Math.min(...all.map((m) => m.x));
+      const minY = Math.min(...all.map((m) => m.y));
+      const maxX = Math.max(...all.map((m) => m.x + m.w)) - w;
+      const maxY = Math.max(...all.map((m) => m.y + m.h)) - h;
 
-      // x/y sind output-lokal, `mon` sagt zu welchem Output. Beide wandern mit, sobald der
-      // Umriss eine Monitorgrenze ueberquert.
-      let mon = startMon;
-      let x = start.x;
-      let y = start.y;
-      let label = ghostLabel(mon);
-      // Welcher Ghost den Umriss zuletzt bekommen hat -- der muss beim Wechsel geleert werden.
-      let painted = label;
+      let gx = originX;
+      let gy = originY;
       let frame = 0;
+      let ghostsShown = false;
+      // Welche Ghosts gerade eine Kopie zeigen -- nur an die wird "unsichtbar" geschickt.
+      const ghostVisible = new Map<string, boolean>();
 
-      // Ueber den Event-Bus, nicht per Command: Events bleiben im Prozess. Getaktet auf
-      // requestAnimationFrame -- schneller als der Ghost malen kann, bringt nichts.
-      //
-      // Beim Wechsel des Outputs zuerst den bisherigen Ghost leeren (w/h 0 => `display:none`),
-      // sonst stuenden fuer den Rest des Drags zwei Umrisse da.
-      const paintOutline = () => {
-        frame = 0;
-        if (painted && painted !== label) {
-          emitTo(painted, "ghost-rect", { x: 0, y: 0, w: 0, h: 0, radius: 0 })
-            .catch((err) => console.error("ghost-rect fehlgeschlagen:", err));
-        }
-        painted = label;
-        emitTo(label, "ghost-rect", { x: x + offsetX, y: y + offsetY, w, h, radius })
-          .catch((err) => console.error("ghost-rect fehlgeschlagen:", err));
+      const paintGhost = (mon: Monitor, visible: boolean) => {
+        const label = ghostLabel(mon);
+        if (!visible && !ghostVisible.get(label)) return;
+        ghostVisible.set(label, visible);
+        emitTo(label, "ghost-pos", { x: Math.round(gx - mon.x), y: Math.round(gy - mon.y), visible })
+          .catch((err) => console.error("ghost-pos fehlgeschlagen:", err));
       };
 
-      // Zeigt ALLE Ghosts (jeder transparent und durchklickbar) und den Umriss nur in diesem.
-      // Ab hier reicht ein Event pro Grenzuebertritt, kein show() mehr.
-      invoke("ghost_show", { label, x: x + offsetX, y: y + offsetY, w, h, radius })
+      const paint = () => {
+        frame = 0;
+        placeClock(gx - home.x, gy - home.y);
+        if (!ghostsShown) return;
+        others.forEach((m) =>
+          paintGhost(m, gx < m.x + m.w && gx + w > m.x && gy < m.y + m.h && gy + h > m.y));
+      };
+
+      // Alle Ghosts zeigen (jeder leer, transparent und durchklickbar). Erst danach Positionen
+      // schicken, sonst leerte `ghost_show` eine gerade gesetzte Kopie wieder.
+      invoke("ghost_show")
+        .then(() => {
+          ghostsShown = true;
+          if (!frame) frame = requestAnimationFrame(paint);
+        })
         .catch((err) => console.error("ghost_show fehlgeschlagen:", err));
 
-      // Geklemmt wird, was GEZEICHNET wird -- nicht der Margin-Pfad. Sonst liefe der Umriss
-      // ueber den Bildschirmrand hinaus, die Uhr landete beim Loslassen aber am Rand, und der
-      // Nutzer saehe einen Sprung. So bleibt der Umriss am Rand stehen, wo die Uhr auch landet.
       const onMove = (ev: PointerEvent) => {
         if (ev.pointerId !== pointerId) return;
-        const gx = originX + (ev.screenX - startScreenX);
-        const gy = originY + (ev.screenY - startScreenY);
-        // Massgeblich ist die linke obere Ecke: genau die positioniert der Margin, und nur so
-        // ist die lokale Koordinate auf dem Zielmonitor nie negativ.
-        mon = monitorAt(gx, gy) ?? mon;
-        label = ghostLabel(mon);
-        const next = clampMargin(mon, gx - (mon?.x ?? 0), gy - (mon?.y ?? 0));
-        x = next.x;
-        y = next.y;
-        if (!frame) frame = requestAnimationFrame(paintOutline);
+        gx = Math.min(maxX, Math.max(minX, originX + (ev.screenX - startScreenX)));
+        gy = Math.min(maxY, Math.max(minY, originY + (ev.screenY - startScreenY)));
+        if (!frame) frame = requestAnimationFrame(paint);
       };
 
-      // pointerup (normale Freigabe) und pointercancel (Compositor entzieht die Capture, z.B.
-      // ein Systemgesture uebernimmt) beenden den Drag gleich: einmal Output und Margin
-      // persistieren, dann aufraeumen.
-      const onEnd = (ev: PointerEvent) => {
+      const onEnd = async (ev: PointerEvent) => {
         if (ev.pointerId !== pointerId) return;
-        dragState.margin = clampMargin(mon, x, y);
-        if (mon) dragState.monitorId = mon.id;
-        persistPlacement(dragState.margin.x, dragState.margin.y);
-        cleanup();
-      };
-
-      // Laeuft auf jedem Weg, der den Drag beendet: pointerup, pointercancel und der
-      // Effect-Cleanup beim Unmount. Zusaetzlich blendet Rust den Ghost nach einem
-      // Sicherheits-Timeout aus, falls dieser Webview vorher stirbt.
-      const cleanup = () => {
+        detach();
         if (frame) {
           cancelAnimationFrame(frame);
           frame = 0;
         }
-        invoke("ghost_hide").catch((err) => console.error("ghost_hide fehlgeschlagen:", err));
+
+        // Zielmonitor ist der, auf dem die Mitte der Uhr liegt.
+        const dest = monitorAt(gx + w / 2, gy + h / 2) ?? monitorAt(gx, gy) ?? home;
+        const pos = clampToMonitor(dest, gx - dest.x, gy - dest.y);
+        dragState.pos = pos;
+
+        if (dest.id !== home.id && ghostsShown) {
+          // Die Kopie steht genau am Ziel, waehrend die Uhr-Surface umgehaengt wird. Die Uhr
+          // selbst ist solange unsichtbar, sonst blitzte sie auf dem alten Monitor auf.
+          gx = dest.x + pos.x;
+          gy = dest.y + pos.y;
+          paintGhost(dest, true);
+          others.filter((m) => m.id !== dest.id).forEach((m) => paintGhost(m, false));
+          const div = document.getElementById("maindiv");
+          if (div) div.style.visibility = "hidden";
+          dragState.monitorId = dest.id;
+          await persistPlacement(pos.x, pos.y);
+          placeClock(pos.x, pos.y);
+          if (div) div.style.visibility = "visible";
+          // Zwei Frames, damit die Uhr am neuen Ort gemalt ist, bevor die Kopie verschwindet.
+          await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+        } else {
+          dragState.monitorId = dest.id || dragState.monitorId;
+          placeClock(pos.x, pos.y);
+          persistPlacement(pos.x, pos.y);
+        }
+        finish();
+      };
+
+      const detach = () => {
         target.removeEventListener("pointermove", onMove);
         target.removeEventListener("pointerup", onEnd);
         target.removeEventListener("pointercancel", onEnd);
-        if (target.hasPointerCapture(pointerId)) {
-          target.releasePointerCapture(pointerId);
-        }
+        if (target.hasPointerCapture(pointerId)) target.releasePointerCapture(pointerId);
+      };
+
+      // Laeuft auf jedem Weg, der den Drag beendet. Zusaetzlich blendet Rust die Ghosts nach
+      // einem Sicherheits-Timeout aus, falls dieser Webview vorher stirbt.
+      const finish = () => {
+        detach();
+        if (frame) cancelAnimationFrame(frame);
+        invoke("ghost_hide").catch((err) => console.error("ghost_hide fehlgeschlagen:", err));
         activeDrags.delete(pointerId);
       };
 
-      activeDrags.set(pointerId, cleanup);
+      activeDrags.set(pointerId, finish);
 
       target.addEventListener("pointermove", onMove);
       target.addEventListener("pointerup", onEnd);
@@ -378,6 +386,8 @@ function App() {
 
   //Adjust the window size when the clock size changes
   useEffect(() => {
+    isLayerShell().then((layerShell) => {
+      if (layerShell) return;
       // Get the container element instead of the inner clock
       const container = document.querySelector("#flipclock-container");
 
@@ -393,27 +403,15 @@ function App() {
           console.warn("LogicalSize or getCurrent is not defined");
         }
       }
-      console.log("Clock size changed, adjusting window size to:", clockTextSize, secondRowClockTextSize, clockPadding); // Debug
+    });
   }, [clockTextSize, secondRowClockTextSize, clockPadding])
 
-  // Only the clock itself takes clicks; the transparent rest of the window lets them through.
-  // The window cannot shrink below a GTK minimum size, so without this the empty area below
-  // the clock would block whatever lies underneath. Re-attached on `key`, because the
-  // container remounts with the clock.
+  // Re-attached on `key`, because the container remounts with the clock. Position changes are
+  // covered by the drag code, which calls updateInputRegion itself.
   useEffect(() => {
     const container = document.querySelector("#flipclock-container");
     if (!container) return;
-
-    const observer = new ResizeObserver(() => {
-      const rect = container.getBoundingClientRect();
-      invoke("set_input_region", {
-        x: Math.floor(rect.left),
-        y: Math.floor(rect.top),
-        w: Math.ceil(rect.width),
-        h: Math.ceil(rect.height),
-      // The command only exists on Linux; elsewhere the window has no minimum size problem.
-      }).catch(() => {});
-    });
+    const observer = new ResizeObserver(updateInputRegion);
     observer.observe(container);
     return () => observer.disconnect();
   }, [key]);
@@ -483,7 +481,9 @@ function App() {
   }
 
   return (
-      <div id="maindiv" onContextMenu={e => { e.preventDefault(); e.stopPropagation(); open_context_menu(e); }}>
+      // Hidden until the overlay state is known (set imperatively, like the transform), otherwise
+      // the clock would flash in the top left corner of the output first.
+      <div id="maindiv" style={{ position: "absolute", left: 0, top: 0, visibility: "hidden" }} onContextMenu={e => { e.preventDefault(); e.stopPropagation(); open_context_menu(e); }}>
         <FlipClock key={key} format={format} secondRowTimeFormat={secondRowTimeFormat} onLayoutChange={() => setKey(k => k + 1)}/>
       </div>
   );

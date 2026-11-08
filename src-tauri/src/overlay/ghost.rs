@@ -1,12 +1,11 @@
-//! Der "Ghost": ein durchklickbares Layer-Surface in Outputgroesse **je Monitor**. Waehrend des
-//! Ziehens zeigt genau einer davon den Umriss der Uhr; die Uhr-Surface selbst bewegt sich nicht,
-//! ihr Margin wird erst beim Loslassen **einmal** gesetzt.
+//! Der "Ghost": ein durchklickbares Layer-Surface in Outputgroesse **je Monitor**, das waehrend
+//! des Ziehens eine Kopie der Uhr zeigen kann.
 //!
-//! Warum ueberhaupt: KWin wendet Margin-Aenderungen an einer Layer-Surface nicht pro Frame an,
-//! sondern sammelt sie und laesst sie ~200 ms spaeter in einem Schub landen (gemessen ueber
-//! 512 ms, 137 Pointer-Events, 24 Margin-Befehle). Live-Ziehen ueber Margins ist dort damit
-//! unerreichbar, unabhaengig von jedem Tuning. Das *Einblenden* einer neuen Surface ist davon
-//! nicht betroffen: gemessen 25-56 ms von `show()` bis zum ersten gemalten Frame.
+//! Warum ueberhaupt: ein Layer-Surface gehoert zu genau einem Output. Die Uhr selbst bewegt sich
+//! per CSS in ihrer vollflaechigen Surface, wird an deren Rand aber abgeschnitten. Ragt sie beim
+//! Ziehen auf einen anderen Monitor, zeichnet der Ghost dort den Rest. Das *Einblenden* einer
+//! Surface kostet gemessen 25-56 ms von `show()` bis zum ersten gemalten Frame, deshalb werden
+//! beim Drag-Start alle eingeblendet und danach nur noch per Event gesteuert.
 
 use super::linux::{
     gtk_layer_init_for_window, gtk_layer_set_anchor, gtk_layer_set_exclusive_zone,
@@ -23,12 +22,12 @@ use tauri::{Emitter, Manager};
 /// feststehen muss — da laeuft noch kein GTK, die Monitorzahl ist also noch unbekannt. Ein
 /// Ghost, den das Plugin anfassen darf, kaeme beim naechsten Start als sichtbares
 /// bildschirmfuellendes Overlay ohne laufenden Drag wieder, also lieber eine Obergrenze als
-/// eine Luecke. Wer mehr als acht Schirme hat, sieht auf den weiteren keinen Umriss; alles
+/// eine Luecke. Wer mehr als acht Schirme hat, sieht auf den weiteren keine Uhr-Kopie; alles
 /// andere funktioniert dort weiter.
 ///
 /// Die Labels muessen zum Glob `ghost-*` in `capabilities/main.json` passen. Ohne passende
 /// Capability verweigert die ACL `plugin:event|listen`, `ghost.html` bekommt nie ein
-/// `ghost-rect` — und weil das nur die JS-Promise ablehnt, ohne eine Zeile auf stderr,
+/// `ghost-pos` — und weil das nur die JS-Promise ablehnt, ohne eine Zeile auf stderr,
 /// sieht das exakt aus wie ein Ghost, der gar nicht erst angelegt wurde.
 pub const LABELS: [&str; 8] = [
     "ghost-0", "ghost-1", "ghost-2", "ghost-3", "ghost-4", "ghost-5", "ghost-6", "ghost-7",
@@ -48,7 +47,7 @@ fn all(app: &tauri::AppHandle) -> Vec<(String, tauri::WebviewWindow)> {
 /// vorher stirbt und keiner dieser Pfade mehr laeuft.
 ///
 /// ponytail: das ist zugleich eine Obergrenze fuer die Dauer EINES Ziehvorgangs. Ein Drag ueber
-/// 30 s verliert den Umriss; das Ziehen selbst laeuft weiter, denn der finale Margin kommt aus
+/// 30 s verliert die Uhr-Kopie; das Ziehen selbst laeuft weiter, denn der finale Position kommt aus
 /// den Zeigerkoordinaten, nicht aus dem Ghost. Falls das je stoert: Keepalive vom Frontend, das
 /// pro Bewegung nachlegt.
 const SAFETY_TIMEOUT: Duration = Duration::from_secs(30);
@@ -57,23 +56,19 @@ const SAFETY_TIMEOUT: Duration = Duration::from_secs(30);
 /// wenn seither nichts passiert ist — sonst wuergte er einen laengst neuen Drag ab.
 static GENERATION: AtomicU64 = AtomicU64::new(0);
 
-/// Was der Ghost zum Zeichnen braucht. Dieselbe Form emittiert das Frontend pro Frame; der
-/// Ghost setzt bei jedem Event alle Felder, damit es nur *eine* Nachrichtenform gibt.
+/// Wo der Ghost seine Kopie der Uhr zeichnet (output-lokal). Dieselbe Form emittiert das
+/// Frontend pro Frame als `ghost-pos`.
 #[derive(Clone, serde::Serialize)]
-struct Rect {
+struct Pos {
     x: i32,
     y: i32,
-    w: i32,
-    h: i32,
-    radius: f64,
+    visible: bool,
 }
 
-impl Rect {
-    /// Der Umriss liegt immer auf genau einem Output. Die uebrigen Ghosts bekommen dieses
-    /// Rechteck; `ghost.html` blendet bei Breite oder Hoehe 0 aus. Absichtlich per CSS und
-    /// nicht per `hide()`: das Ein-/Ausblenden einer Surface kostet 25-56 ms, das Ueberqueren
-    /// einer Monitorgrenze soll aber im selben Frame sichtbar sein.
-    const HIDDEN: Rect = Rect { x: 0, y: 0, w: 0, h: 0, radius: 0.0 };
+impl Pos {
+    /// Ausgeblendet per CSS, nicht per `hide()`: das Ein-/Ausblenden einer Surface kostet
+    /// 25-56 ms, das Ueberqueren einer Monitorgrenze soll aber im selben Frame sichtbar sein.
+    const HIDDEN: Pos = Pos { x: 0, y: 0, visible: false };
 }
 
 /// Legt je Monitor ein Ghost-Fenster an: unsichtbar, Outputgroesse (Vier-Kanten-Verankerung),
@@ -81,7 +76,7 @@ impl Rect {
 /// eigenen Output zugewiesen.
 ///
 /// Die Monitorliste ist eine Momentaufnahme des Starts. Ein spaeter angestecktes Display
-/// bekommt keinen Ghost — dort bliebe der Umriss aus, waehrend Ziehen und Ablegen weiter
+/// bekommt keinen Ghost — dort bliebe die Kopie aus, waehrend Ziehen und Ablegen weiter
 /// funktionieren. Ein Neustart holt es ein.
 ///
 /// Muss im `setup`-Hook laufen (GTK-Main-Thread), und das Fenster muss mit `visible(false)`
@@ -91,11 +86,11 @@ impl Rect {
 /// `show()` zu sparen): das machte aus einer seltenen, vom Nutzer ausgeloesten, kurzen
 /// Sichtbarkeit eine bedingungslose bei jedem Start. Sollte die leere Input-Region auf einem
 /// anderen Compositor je nicht greifen, waere der Preis dafuer ein bildschirmfuellender
-/// Klick-Fresser beim Programmstart — ohne `pointerup`, das ihn beendet. Der Umriss darf dafuer
+/// Klick-Fresser beim Programmstart — ohne `pointerup`, das ihn beendet. Die Kopie darf dafuer
 /// beim allerersten Drag einer Sitzung ein bis drei Frames spaet erscheinen.
 pub fn create(app: &tauri::AppHandle) {
     let Some(display) = gtk::gdk::Display::default() else {
-        eprintln!("fliq: kein GdkDisplay, Ziehen ohne Umriss");
+        eprintln!("fliq: kein GdkDisplay, Ziehen ohne Uhr-Kopie");
         return;
     };
     let count = display.n_monitors().min(LABELS.len() as i32);
@@ -128,13 +123,13 @@ fn create_one(app: &tauri::AppHandle, label: &str, monitor: &gtk::gdk::Monitor) 
     {
         Ok(w) => w,
         Err(e) => {
-            eprintln!("fliq: Ghost-Fenster {label} liess sich nicht bauen, kein Umriss dort: {e}");
+            eprintln!("fliq: Ghost-Fenster {label} liess sich nicht bauen, keine Uhr-Kopie dort: {e}");
             return;
         }
     };
 
     let Ok(gtk_win) = ghost.gtk_window() else {
-        eprintln!("fliq: kein GtkWindow am Ghost {label}, kein Umriss dort");
+        eprintln!("fliq: kein GtkWindow am Ghost {label}, keine Uhr-Kopie dort");
         let _ = ghost.close();
         return;
     };
@@ -159,7 +154,7 @@ fn create_one(app: &tauri::AppHandle, label: &str, monitor: &gtk::gdk::Monitor) 
     });
 
     if configured.is_none() {
-        eprintln!("fliq: Ghost {label} nicht konfigurierbar, kein Umriss dort");
+        eprintln!("fliq: Ghost {label} nicht konfigurierbar, keine Uhr-Kopie dort");
         let _ = ghost.close();
         return;
     }
@@ -176,20 +171,17 @@ fn create_one(app: &tauri::AppHandle, label: &str, monitor: &gtk::gdk::Monitor) 
     gtk_win.input_shape_combine_region(Some(&gtk::cairo::Region::create()));
 }
 
-/// Blendet **alle** Ghosts ein und schickt Rechteck und Kontur der Uhr an den unter `label`.
-/// Die uebrigen bekommen [`Rect::HIDDEN`] und zeigen nichts, bleiben aber bereit — beim
-/// Ueberqueren einer Monitorgrenze reicht dann ein Event, kein `show()`.
+/// Blendet **alle** Ghosts ein, jeden zunaechst leer. Waehrend des Ziehens zeichnet die echte
+/// Uhr auf ihrem eigenen Output; ragt sie ueber eine Monitorgrenze, zeichnet der Ghost des
+/// anderen Outputs dort eine Kopie (`ghost-pos` aus dem Frontend). Beim Loslassen auf einem
+/// anderen Monitor ueberbrueckt die Kopie den Moment, in dem die Uhr-Surface umgehaengt wird.
 ///
-/// Alle sind vollflaechig, transparent und durchklickbar (leere Input-Region); sichtbar ist nur
-/// der eine Umriss. `ghost_hide` und der Sicherheits-Timeout raeumen entsprechend alle ab.
-///
-/// Reihenfolge: erst das Rechteck emittieren, dann `show()`. Andersherum erschiene der Umriss
-/// fuer einen Frame an der Position des vorigen Ziehvorgangs.
+/// Reihenfolge: erst leeren, dann `show()`. Andersherum stuende fuer einen Frame die Kopie an
+/// der Stelle des vorigen Ziehvorgangs.
 #[tauri::command]
-pub fn ghost_show(app: tauri::AppHandle, label: String, x: i32, y: i32, w: i32, h: i32, radius: f64) {
+pub fn ghost_show(app: tauri::AppHandle) {
     for (l, win) in all(&app) {
-        let rect = if l == label { Rect { x, y, w, h, radius } } else { Rect::HIDDEN };
-        let _ = win.emit_to(l.as_str(), "ghost-rect", rect);
+        let _ = win.emit_to(l.as_str(), "ghost-pos", Pos::HIDDEN);
         let _ = win.show();
     }
     arm_safety_timeout(&app);

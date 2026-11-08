@@ -19,7 +19,9 @@ import 'dayjs/locale/ja';
 import 'dayjs/locale/sv';
 import 'dayjs/locale/pl';
 
-export default function FlipClock({ format, secondRowTimeFormat, onLayoutChange }) {
+// `fetchWeather: false` for the copies in the ghost windows: they get the data through the
+// shared storage, fetching it again per window would only multiply the requests.
+export default function FlipClock({ format, secondRowTimeFormat, onLayoutChange, fetchWeather = true }) {
   // State management using Jotai atoms
   const [boxBgColor, setBoxBgColor] = useAtom(ATOMS.BOX_BACKGROUND);
   const [boxRadius, setBoxRadius] = useAtom(ATOMS.BOX_RADIUS);
@@ -162,8 +164,22 @@ export default function FlipClock({ format, secondRowTimeFormat, onLayoutChange 
     return "🌡️"; // fallback
   }
 
+  // The box radius used to be in `vmin`, which only worked while the window was as small as the
+  // clock. The window now spans the whole output, so the radius is taken from the box itself.
+  const containerRef = useRef();
+  const [boxMinSide, setBoxMinSide] = useState(0);
   useEffect(() => {
-    async function fetchWeather() {
+    const observer = new ResizeObserver(([entry]) => {
+      const { width, height } = entry.target.getBoundingClientRect();
+      setBoxMinSide(Math.min(width, height));
+    });
+    observer.observe(containerRef.current);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (!fetchWeather) return;
+    async function loadWeather() {
       try {
         const res = await fetch(`https://wttr.in/${encodeURIComponent(location)}?format=j1&lang=${language}`);
         const data = await res.json();
@@ -246,9 +262,9 @@ export default function FlipClock({ format, secondRowTimeFormat, onLayoutChange 
       }
     }
 
-    fetchWeather(); // Initial fetch
+    loadWeather(); // Initial fetch
 
-    const intervalId = setInterval(fetchWeather, 60000); // alle 60 Sekunden
+    const intervalId = setInterval(loadWeather, 60000); // alle 60 Sekunden
 
     return () => clearInterval(intervalId);
   }, [location, language]);
@@ -500,10 +516,11 @@ function formatTime(date) {
   return (
     <div
       id="flipclock-container"
+      ref={containerRef}
       style={{
         padding: `${clockPadding}px`,
         backgroundColor: boxBgColor,
-        borderRadius: `${boxRadius/2}vmin`,
+        borderRadius: `${(boxRadius / 2) * boxMinSide / 100}px`,
         "--flipcard-bg-color": flipcardBg,
         "--clock-text-color": clockTextColor,
         "--seperator-color": clockSeparatorColor,

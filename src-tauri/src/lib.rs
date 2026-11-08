@@ -80,12 +80,11 @@ fn set_input_region(window: tauri::WebviewWindow, x: i32, y: i32, w: i32, h: i32
     overlay::linux::set_input_region(&window, x, y, w, h);
 }
 
-/// Beim Loslassen: Output und Position in einem Zug. Ersetzt auf dem Layer-Shell-Pfad das
-/// bisherige `set_overlay_margin(persist: true)`.
+/// Beim Loslassen: Output wechseln (falls noetig) und Position speichern.
 ///
-/// `x`/`y` sind **output-lokal** — Layer-Shell-Margins zaehlen relativ zum eigenen Output.
-/// Deshalb erst umhaengen, dann den Margin setzen: andersherum saesse der Margin fuer einen
-/// Moment am alten Schirm.
+/// `x`/`y` sind **output-lokal**: die Lage der Uhr in der vollflaechigen Surface, gesetzt per
+/// CSS im Frontend. Gespeichert unter den alten Namen `margin_x/y`, damit bestehende
+/// `linux.json` ihre Position behalten.
 #[cfg(target_os = "linux")]
 #[tauri::command]
 fn set_overlay_placement(
@@ -102,7 +101,6 @@ fn set_overlay_placement(
             eprintln!("fliq: Monitor {monitor_id} nicht gefunden, Uhr bleibt am bisherigen Output");
             return;
         }
-        overlay::linux::set_margin(&window, x, y);
     }
 
     let mut cfg = state.config.lock().unwrap();
@@ -135,10 +133,6 @@ fn set_overlay_margin(
         }
     }
 
-    #[cfg(target_os = "linux")]
-    if state.mode == overlay::OverlayMode::LayerShell {
-        overlay::linux::set_margin(&_window, x, y);
-    }
 }
 
 /// Wirkt erst nach einem Neustart — das GDK-Backend steht beim Start fest.
@@ -238,7 +232,7 @@ pub fn run(mode: overlay::OverlayMode, config: overlay::LinuxConfig) {
             // muss zum echten Fenster passen. Deshalb wird `OverlayState` erst hier registriert.
             #[cfg(target_os = "linux")]
             let mode = match &window {
-                Some(w) => overlay::linux::apply(w, mode, config.margin_x, config.margin_y),
+                Some(w) => overlay::linux::apply(w, mode),
                 None => mode,
             };
 
