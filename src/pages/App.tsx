@@ -83,7 +83,9 @@ function App() {
 
   }
 
-  initialWindowLoad();
+  // Once per mount, not on every render: App re-renders on every atom change (weather data,
+  // re-keying the clock), and each call fired four window IPC requests.
+  useEffect(() => { initialWindowLoad(); }, []);
     
   useEffect(() => {
 
@@ -394,6 +396,28 @@ function App() {
       console.log("Clock size changed, adjusting window size to:", clockTextSize, secondRowClockTextSize, clockPadding); // Debug
   }, [clockTextSize, secondRowClockTextSize, clockPadding])
 
+  // Only the clock itself takes clicks; the transparent rest of the window lets them through.
+  // The window cannot shrink below a GTK minimum size, so without this the empty area below
+  // the clock would block whatever lies underneath. Re-attached on `key`, because the
+  // container remounts with the clock.
+  useEffect(() => {
+    const container = document.querySelector("#flipclock-container");
+    if (!container) return;
+
+    const observer = new ResizeObserver(() => {
+      const rect = container.getBoundingClientRect();
+      invoke("set_input_region", {
+        x: Math.floor(rect.left),
+        y: Math.floor(rect.top),
+        w: Math.ceil(rect.width),
+        h: Math.ceil(rect.height),
+      // The command only exists on Linux; elsewhere the window has no minimum size problem.
+      }).catch(() => {});
+    });
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, [key]);
+
   //Re-render the clock when the format changes
   useEffect(() => {
     setKey(prevKey => prevKey + 1);
@@ -460,7 +484,7 @@ function App() {
 
   return (
       <div id="maindiv" onContextMenu={e => { e.preventDefault(); e.stopPropagation(); open_context_menu(e); }}>
-        <FlipClock key={key} format={format} secondRowTimeFormat={secondRowTimeFormat}/>
+        <FlipClock key={key} format={format} secondRowTimeFormat={secondRowTimeFormat} onLayoutChange={() => setKey(k => k + 1)}/>
       </div>
   );
 

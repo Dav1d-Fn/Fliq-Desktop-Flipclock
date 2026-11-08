@@ -2,8 +2,9 @@
 import "../styles/styles.css";
 import "@mantine/core/styles.css";
 import { LOCALE_OPTIONS, DATETIME_FORMATS, SLIDER_CONFIGS, WEATHER_FORMATS, TEMPERATURE_UNIT_OPTIONS, FONT_OPTIONS } from "../definitions";
-import { MantineProvider, ColorInput, Slider, Text, TextInput, Stack, Divider, Group, Anchor, Select, Switch, Textarea, Card, Space, ThemeIcon, Title, ScrollArea, Code, Badge, Table, Collapse, ActionIcon, rem, SelectProps} from "@mantine/core";
-import { useAtom } from "jotai";
+import { MantineProvider, ColorInput, Slider, Text, TextInput, Stack, Divider, Group, Anchor, Select, Switch, Textarea, Card, Space, ThemeIcon, Title, ScrollArea, Code, Badge, Table, Collapse, ActionIcon, rem, SelectProps, Button} from "@mantine/core";
+import { useAtom, getDefaultStore } from "jotai";
+import { RESET } from "jotai/utils";
 import { ATOMS } from "./atoms";
 import { ReactNode, useEffect, useState } from "react";
 import { IconBrandGithub, IconChevronDown, IconChevronRight, IconExternalLink, IconReload } from "@tabler/icons-react";
@@ -189,6 +190,22 @@ export default function StylingMenu() {
     );
   }
 
+  // RESET removes each key from localStorage; the clock window picks that up through the
+  // storage event. Autostart stays: it mirrors the system entry, not a style choice. The clock
+  // position stays too, otherwise the clock jumps away from where it was put.
+  async function resetAllSettings() {
+    if (!window.confirm("Reset all settings to their defaults?")) return;
+    const store = getDefaultStore();
+    Object.entries(ATOMS).forEach(([name, atom]) => {
+      if (name !== "AUTOSTART") store.set(atom as any, RESET);
+    });
+    if (platformMode !== "native") {
+      await invoke("set_overlay_mode", { mode: "auto" }).catch((err) => console.error("set_overlay_mode fehlgeschlagen:", err));
+    }
+    // The inputs keep local copies of the old values; reloading is the simplest way to drop them.
+    window.location.reload();
+  }
+
   return (
     <div style={{ margin: "15px 30px 0"}}>
       <MantineProvider>
@@ -284,6 +301,11 @@ export default function StylingMenu() {
                   </Group>
                 </>
               )}
+              <Group justify="flex-end" mt="lg">
+                <Button variant="light" color="red" onClick={resetAllSettings}>
+                  Reset all settings to defaults
+                </Button>
+              </Group>
             </Card>
             {/* Display Format Help Card */}
             {DisplayFormatHelpCard()}

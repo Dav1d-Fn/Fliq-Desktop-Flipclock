@@ -25,4 +25,6 @@ tauri-plugin-window-state = "2"
 [target.'cfg(target_os = "linux")'.dependencies]
 gtk = { version = "0.18" }
 wayland-client = "0.31"
+# Same major as wry uses; needed to reload the page after a web process crash.
+webkit2gtk = "2.0"
 

@@ -19,7 +19,7 @@ import 'dayjs/locale/ja';
 import 'dayjs/locale/sv';
 import 'dayjs/locale/pl';
 
-export default function FlipClock({ format, secondRowTimeFormat }) {
+export default function FlipClock({ format, secondRowTimeFormat, onLayoutChange }) {
   // State management using Jotai atoms
   const [boxBgColor, setBoxBgColor] = useAtom(ATOMS.BOX_BACKGROUND);
   const [boxRadius, setBoxRadius] = useAtom(ATOMS.BOX_RADIUS);
@@ -423,61 +423,58 @@ function formatTime(date) {
     });
   }
 
+  // Lengths of all formatted TIME/FLIPTIME strings. The spans are rendered once per mount with
+  // one slot per character, so when a length changes (e.g. at midnight "Sonntag" -> "Montag")
+  // the slots no longer match and the clock has to be rebuilt.
+  function layoutSignature() {
+    return [...parsedTemplate, ...parsedSecondRowTemplate]
+      .filter(({ type }) => type === "FLIPTIME" || type === "TIME")
+      .map(({ value }) => dayjs().format(value).length)
+      .join(",");
+  }
+
+  function collectValues(template, prefix, values) {
+    var timeKeyIndex = 0;
+    template.forEach(({ type, value }) => {
+      if (type === "FLIPTIME" || type === "TIME") {
+        // Assign each character to a key for Tick.js
+        const currentDateTimeString = dayjs().format(value);
+        for (let i = 0; i < currentDateTimeString.length; i++) {
+          values[`${prefix}${timeKeyIndex}Character${i}`] = currentDateTimeString.charAt(i);
+        }
+        timeKeyIndex++;
+      }
+    });
+  }
+
   // Effect to initialize Tick.js and update the clock every second
   useEffect(() => {
-    // Initialize Tick.js instance
     const tick = Tick.DOM.create(tickRef.current);
     Tick.DOM.parse(document.body);
-    
-    // Update the clock every second
-    const intervalId = Tick.helper.interval(() => 
-    {
+    const renderedLayout = layoutSignature();
+
+    // Own timer instead of Tick.helper.interval: that one pauses while document.hidden and only
+    // resumes on a later visibilitychange (missed after monitor sleep -> frozen clock), and it
+    // returns an object, so clearInterval never stopped it. Scheduled before the update, so an
+    // exception in one tick cannot end the loop; aligned to the full second.
+    let timer = 0;
+    const update = () => {
+      timer = setTimeout(update, 1000 - (Date.now() % 1000));
+
+      if (layoutSignature() !== renderedLayout) {
+        onLayoutChange?.();
+        return;
+      }
       const values = {};
-      var timeKeyIndex = 0;
-      parsedTemplate.forEach(({ type, value }) => {
-        
-        if (type === "FLIPTIME") {
-          // Assign each character to a key for Tick.js
-          const currentDateTimeString = dayjs().format(value);
-          for (let i = 0; i < currentDateTimeString.length; i++) {
-            values[`fliqWord${timeKeyIndex}Character${i}`] = currentDateTimeString.charAt(i);
-          }
-          timeKeyIndex++;
-        } else if (type === "TIME") {
-          // Assign each character to a key for Tick.js
-          const currentDateTimeString = dayjs().format(value);
-          for (let i = 0; i < currentDateTimeString.length; i++) {
-            values[`fliqWord${timeKeyIndex}Character${i}`] = currentDateTimeString.charAt(i);
-          }
-          timeKeyIndex++;
-        }
-      });
-      timeKeyIndex = 0;
-      parsedSecondRowTemplate.forEach(({ type, value }) => {
-        if (type === "FLIPTIME") {
-          // Assign each character to a key for Tick.js
-          const currentDateTimeString = dayjs().format(value);
-          for (let i = 0; i < currentDateTimeString.length; i++) {
-            values[`2ndRowFliqWord${timeKeyIndex}Character${i}`] = currentDateTimeString.charAt(i);
-          }
-          timeKeyIndex++;
-        } else if (type === "TIME") {
-          // Assign each character to a key for Tick.js
-          const currentDateTimeString = dayjs().format(value);
-          for (let i = 0; i < currentDateTimeString.length; i++) {
-            values[`2ndRowFliqWord${timeKeyIndex}Character${i}`] = currentDateTimeString.charAt(i);
-          }
-          timeKeyIndex++;
-        }
-      });
-
+      collectValues(parsedTemplate, "fliqWord", values);
+      collectValues(parsedSecondRowTemplate, "2ndRowFliqWord", values);
       tick.value = values;
-    });
+    };
+    timer = setTimeout(update, 0);
 
-    // Cleanup function on unmount
     return () => {
+      clearTimeout(timer);
       Tick.DOM.destroy(tickRef.current);
-      clearInterval(intervalId);
     };
   }, [format, secondRowTimeFormat]);
 

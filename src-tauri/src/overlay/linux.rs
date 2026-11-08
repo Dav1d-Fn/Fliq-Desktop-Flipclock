@@ -294,6 +294,38 @@ fn apply_x11(window: &tauri::WebviewWindow) {
     // und `startDragging` ist auf diesem Pfad die Bedienung.
 }
 
+/// Begrenzt die Klickflaeche des Fensters auf das Rechteck der Uhr (Fensterkoordinaten).
+///
+/// Das Fenster ist unter GTK/WebKitGTK oft groesser als die Uhr (Mindestgroesse, gemessen
+/// 200 px Hoehe). Der transparente Rest fing sonst Klicks ab, die eigentlich dem Fenster
+/// darunter gehoeren. Ueber das Widget statt ueber das GdkWindow, weil GTK die Form dort
+/// behaelt und bei jedem Realize neu anlegt.
+pub fn set_input_region(window: &tauri::WebviewWindow, x: i32, y: i32, w: i32, h: i32) {
+    use gtk::prelude::WidgetExt;
+
+    let Ok(gtk_win) = window.gtk_window() else {
+        return;
+    };
+    let region = gtk::cairo::Region::create_rectangle(&gtk::cairo::RectangleInt::new(x, y, w, h));
+    gtk_win.input_shape_combine_region(Some(&region));
+}
+
+/// Laedt die Seite neu, wenn der WebKit-Prozess stirbt.
+///
+/// Ohne das bleibt das Fenster mit dem letzten Bild stehen: die Uhr wirkt eingefroren und
+/// reagiert auf nichts mehr. Ausgeloest z. B. durch einen GPU-Reset (amdgpu "context is lost",
+/// 08.11.2026 im Journal, danach SIGABRT im WebKitWebProcess).
+pub fn reload_on_crash(window: &tauri::WebviewWindow) {
+    let _ = window.with_webview(|wv| {
+        use webkit2gtk::WebViewExt;
+
+        wv.inner().connect_web_process_terminated(|view, reason| {
+            eprintln!("fliq: WebKit-Prozess beendet ({reason:?}), lade neu");
+            view.reload();
+        });
+    });
+}
+
 /// Verschiebt ein bereits konfiguriertes Layer-Surface. Auf dem X11-Pfad wirkungslos —
 /// dort positioniert `startDragging` das Fenster.
 pub fn set_margin(window: &tauri::WebviewWindow, margin_x: i32, margin_y: i32) {
