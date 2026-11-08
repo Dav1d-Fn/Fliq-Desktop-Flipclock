@@ -81,14 +81,13 @@ extern "C" {
     pub(super) fn gtk_layer_init_for_window(window: *mut c_void);
     pub(super) fn gtk_layer_set_layer(window: *mut c_void, layer: Layer);
     pub(super) fn gtk_layer_set_anchor(window: *mut c_void, edge: Edge, anchor_to_edge: c_int);
-    fn gtk_layer_set_margin(window: *mut c_void, edge: Edge, margin_size: c_int);
     pub(super) fn gtk_layer_set_keyboard_mode(window: *mut c_void, mode: KeyboardMode);
     pub(super) fn gtk_layer_set_exclusive_zone(window: *mut c_void, exclusive_zone: c_int);
     pub(super) fn gtk_layer_set_namespace(window: *mut c_void, name_space: *const std::os::raw::c_char);
     /// Zweiter Parameter ist ein `GdkMonitor*`. Laut Probe (KWin/Plasma 6.7.3) wirkt der Aufruf
     /// auch an einer bereits gemappten Surface in <= 16 ms, ohne Hide/Re-Show. Das gilt
     /// ausdruecklich **nicht** fuer Margins — die sammelt KWin und laesst sie ~200 ms spaeter
-    /// in einem Schub landen. Aus dem einen folgt nichts ueber das andere.
+    /// in einem Schub landen. Deshalb positioniert die Uhr sich per CSS, nicht per Margin.
     fn gtk_layer_set_monitor(window: *mut c_void, monitor: *mut c_void);
 }
 
@@ -232,14 +231,9 @@ pub(super) fn with_raw_gtk_window(
 /// wird; der Rueckgabewert sagt, was daraus wurde. Jeder Fallback liefert `X11`, damit der
 /// Zustand, den das Frontend spaeter sieht, nicht luegt: ein als `layer-shell` gemeldetes,
 /// in Wahrheit aber X11-Fenster wuerde das Ziehen per `startDragging` unterdruecken und
-/// stattdessen auf `set_margin` setzen, das dort wirkungslos ist — die Uhr waere unbewegbar.
+/// stattdessen per CSS in einem Fenster verschieben, das gar nicht vollflaechig ist.
 #[must_use]
-pub fn apply(
-    window: &tauri::WebviewWindow,
-    mode: OverlayMode,
-    margin_x: i32,
-    margin_y: i32,
-) -> OverlayMode {
+pub fn apply(window: &tauri::WebviewWindow, mode: OverlayMode) -> OverlayMode {
     match mode {
         OverlayMode::X11 => {
             apply_x11(window);
@@ -265,10 +259,13 @@ pub fn apply(
                 // -1 heisst: fremde exclusive zones ignorieren. Sonst verschoebe ein
                 // erscheinendes Panel das Widget.
                 gtk_layer_set_exclusive_zone(ptr, -1);
-                gtk_layer_set_anchor(ptr, Edge::Top, 1);
-                gtk_layer_set_anchor(ptr, Edge::Left, 1);
-                gtk_layer_set_margin(ptr, Edge::Top, margin_y);
-                gtk_layer_set_margin(ptr, Edge::Left, margin_x);
+                // Alle vier Kanten: die Surface ist so gross wie der Output, die Uhr sitzt per
+                // CSS darin. So bewegt sie sich beim Ziehen flüssig — Margin-Aenderungen wendet
+                // KWin nur schubweise (~200 ms) an. Klicks nimmt nur die Uhr selbst an
+                // (`set_input_region`), der Rest ist durchklickbar.
+                for edge in [Edge::Top, Edge::Bottom, Edge::Left, Edge::Right] {
+                    gtk_layer_set_anchor(ptr, edge, 1);
+                }
             });
 
             if configured.is_none() {
@@ -323,16 +320,6 @@ pub fn reload_on_crash(window: &tauri::WebviewWindow) {
             eprintln!("fliq: WebKit-Prozess beendet ({reason:?}), lade neu");
             view.reload();
         });
-    });
-}
-
-/// Verschiebt ein bereits konfiguriertes Layer-Surface. Auf dem X11-Pfad wirkungslos —
-/// dort positioniert `startDragging` das Fenster.
-pub fn set_margin(window: &tauri::WebviewWindow, margin_x: i32, margin_y: i32) {
-    // SAFETY: wie in `apply` — gueltiger GtkWindow-Zeiger fuer die Dauer der Closure.
-    let _ = with_raw_gtk_window(window, |ptr| unsafe {
-        gtk_layer_set_margin(ptr, Edge::Top, margin_y);
-        gtk_layer_set_margin(ptr, Edge::Left, margin_x);
     });
 }
 
