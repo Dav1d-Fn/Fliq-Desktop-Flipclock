@@ -1,6 +1,5 @@
-/* Kein `overflow: hidden` hier: diese Datei wird von beiden Entry-Points importiert, auch vom
-   Settings-Fenster (900x500, ~10 gestapelte Cards), das scrollen koennen muss. Die Regel lebt
-   in `index.html`, dem Entry-Dokument der Uhr. */
+/* Shared by all windows. No `overflow: hidden` here: the styling window (900x500, a stack of
+   cards) has to scroll. The clock and ghost windows set it in their own HTML. */
 html, body {
   background: transparent;
   margin: 0;
@@ -25,31 +24,6 @@ html, body {
   -webkit-text-size-adjust: 100%;
 }
 
-.container {
-  margin: 0;
-  padding-top: 10vh;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  text-align: center;
-}
-
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: 0.75s;
-}
-
-.logo.tauri:hover {
-  filter: drop-shadow(0 0 2em #24c8db);
-}
-
-.row {
-  display: flex;
-  justify-content: center;
-}
-
 a {
   font-weight: 500;
   color: #646cff;
@@ -58,10 +32,6 @@ a {
 
 a:hover {
   color: #535bf2;
-}
-
-h1 {
-  text-align: center;
 }
 
 input,
@@ -93,10 +63,6 @@ button:active {
 input,
 button {
   outline: none;
-}
-
-#greet-input {
-  margin-right: 5px;
 }
 
 @media (prefers-color-scheme: dark) {

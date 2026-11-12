@@ -1,42 +1,28 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
-import { internalIpV4 } from "internal-ip";
-
-// @ts-expect-error process is a nodejs global
-const mobile = !!/android|ios/.exec(process.env.TAURI_ENV_PLATFORM);
 
 // https://vitejs.dev/config/
-export default defineConfig(async () => ({
-  plugins: [react()],
+export default defineConfig({
+    plugins: [react()],
 
-  // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
-  //
-  // 1. prevent vite from obscuring rust errors
-  clearScreen: false,
-  // 2. tauri expects a fixed port, fail if that port is not available
-  server: {
-    port: 1420,
-    strictPort: true,
-    host: mobile ? "0.0.0.0" : false,
-    hmr: mobile
-      ? {
-          protocol: "ws",
-          host: await internalIpV4(),
-          port: 1421,
-        }
-      : undefined,
-    watch: {
-      // 3. tell vite to ignore watching `src-tauri`
-      ignored: ["**/src-tauri/**"],
+    // Options for `tauri dev` / `tauri build`:
+    // keep Rust errors visible, and use the fixed port Tauri expects (fail if it is taken).
+    clearScreen: false,
+    server: {
+        port: 1420,
+        strictPort: true,
+        watch: {
+            ignored: ["**/src-tauri/**"],
+        },
     },
-  },
-  build: {
-    rollupOptions: {
-      input: {
-        main: 'index.html',
-        windows: "stylingMenu.html",
-        ghost: "ghost.html",
-      }
-    }
-  }
-}));
+    build: {
+        rollupOptions: {
+            // One HTML entry per window: the clock, the styling window, the drag ghosts.
+            input: {
+                main: "index.html",
+                styling: "stylingMenu.html",
+                ghost: "ghost.html",
+            },
+        },
+    },
+});

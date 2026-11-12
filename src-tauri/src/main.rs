@@ -7,8 +7,8 @@ fn main() {
     let config = overlay::LinuxConfig::load();
     let mode = overlay::detect_mode_from_env(config.overlay_mode);
 
-    // MUSS vor jeder GTK-Initialisierung passieren — Tauri initialisiert GTK erst in `run`.
-    // Edition 2021: `set_var` ist hier noch sicher aufrufbar.
+    // MUST happen before any GTK initialisation; Tauri initialises GTK only in `run`.
+    // Edition 2021: `set_var` is still safe to call here (single thread, nothing started yet).
     #[cfg(target_os = "linux")]
     if mode == overlay::OverlayMode::X11 {
         std::env::set_var("GDK_BACKEND", "x11");

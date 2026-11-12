@@ -8,7 +8,7 @@ pub mod ghost;
 #[cfg(target_os = "linux")]
 pub mod linux;
 
-/// Was der Nutzer eingestellt hat. `Auto` heißt: erkennen.
+/// What the user chose. `Auto` means: detect.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "kebab-case")]
 pub enum ModePreference {
@@ -19,7 +19,7 @@ pub enum ModePreference {
 }
 
 impl ModePreference {
-    /// String an der Frontend-Grenze, gleiche Werte wie `set_overlay_mode` erwartet.
+    /// String at the frontend boundary, the same values `set_overlay_mode` expects.
     pub fn as_str(self) -> &'static str {
         match self {
             ModePreference::Auto => "auto",
@@ -29,7 +29,7 @@ impl ModePreference {
     }
 }
 
-/// Was nach der Erkennung feststeht. Kein `Auto` mehr möglich.
+/// What is settled after detection. No `Auto` any more.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum OverlayMode {
     LayerShell,
@@ -37,7 +37,7 @@ pub enum OverlayMode {
 }
 
 impl OverlayMode {
-    /// String an der Frontend-Grenze.
+    /// String at the frontend boundary.
     pub fn as_str(self) -> &'static str {
         match self {
             OverlayMode::LayerShell => "layer-shell",
@@ -51,13 +51,12 @@ pub struct LinuxConfig {
     pub overlay_mode: ModePreference,
     pub margin_x: i32,
     pub margin_y: i32,
-    /// Der Output, an dem die Uhr haengt (`linux::MonitorInfo::id`). `None` heisst: noch nie
-    /// gesetzt, also nimmt der Start den ersten vorhandenen.
+    /// The output the clock is on (`linux::MonitorInfo::id`). `None` means: never set, so the
+    /// start takes the first one available.
     ///
-    /// `#[serde(default)]` ist hier nicht Kosmetik: `linux.json`-Dateien aus Builds vor dieser
-    /// Aenderung haben den Schluessel nicht. Ohne das Attribut schluege die Deserialisierung
-    /// fehl und `load_from` fiele auf die Defaults zurueck — die gespeicherten Margins waeren
-    /// beim ersten Start nach dem Update weg.
+    /// `#[serde(default)]` is not cosmetic: `linux.json` files from older builds lack the key.
+    /// Without the attribute deserialisation would fail and `load_from` would fall back to the
+    /// defaults, losing the stored position on the first start after the update.
     #[serde(default)]
     pub monitor: Option<String>,
 }
@@ -86,8 +85,8 @@ impl LinuxConfig {
         )
     }
 
-    /// Liest die Konfiguration. Fehlt die Datei oder ist sie kaputt, gelten die Defaults —
-    /// ein Panic hier hiesse: Widget startet nicht mehr.
+    /// Reads the configuration. A missing or broken file means defaults; a panic here would
+    /// mean the widget no longer starts.
     pub fn load_from(path: &Path) -> Self {
         std::fs::read_to_string(path)
             .ok()
@@ -114,19 +113,16 @@ impl LinuxConfig {
     }
 }
 
-/// Fuehrt `body` auf einem eigenen Thread aus und wartet hoechstens `timeout` auf ein
-/// Ergebnis. Sowohl ein Timeout als auch ein getrennter Channel (Thread ist gepanict) zaehlen
-/// als `false`. Reine Nebenlaeufigkeits-Logik — nichts hier ist plattformspezifisch, deshalb
-/// lebt sie hier in `mod.rs` statt im `#[cfg(target_os = "linux")]`-gated `linux`-Modul, damit
-/// sie auf jeder Plattform kompiliert und getestet wird.
+/// Runs `body` on its own thread and waits at most `timeout` for a result. Both a timeout and a
+/// disconnected channel (the thread panicked) count as `false`. Pure concurrency logic with
+/// nothing platform-specific, so it lives in `mod.rs` instead of the Linux-gated module and is
+/// compiled and tested on every platform.
 ///
-/// Der Worker-Thread wird absichtlich nie gejoint. Haengt `body` fuer immer (z. B. ein totes
-/// Socket, das nie antwortet), leakt der Thread fuer die Lebensdauer des Prozesses — das ist
-/// hier in Ordnung: er haelt kein Lock und der Aufrufer wartet nicht auf ihn. Bitte nicht
-/// "reparieren", indem ein `join` ergaenzt wird — das wuerde den Hang zurueckholen, den dieser
-/// Wrapper gerade vermeidet.
-// Nur `linux.rs` und die Tests rufen das auf — auf Windows/macOS sonst eine dead_code-Warnung.
-// Bleibt bewusst hier im ungegateten Modul, damit die Tests auf jeder Plattform laufen.
+/// The worker thread is deliberately never joined. If `body` hangs forever (a dead socket that
+/// never answers), the thread leaks for the life of the process. That is fine: it holds no lock
+/// and nobody waits for it. Do not "fix" this with a `join`, that would bring back the hang
+/// this wrapper avoids.
+// Only `linux.rs` and the tests call this; on Windows/macOS it would warn as dead code.
 #[cfg_attr(not(target_os = "linux"), allow(dead_code))]
 fn with_timeout<F>(timeout: Duration, body: F) -> bool
 where
@@ -139,10 +135,10 @@ where
     rx.recv_timeout(timeout).unwrap_or(false)
 }
 
-/// Reine Entscheidungslogik, damit sie ohne Compositor testbar ist.
+/// Pure decision logic, so it can be tested without a compositor.
 ///
-/// `session_type` ist der Wert von `XDG_SESSION_TYPE`.
-/// `layer_shell_available` sagt, ob die Wayland-Registry `zwlr_layer_shell_v1` anbietet.
+/// `session_type` is the value of `XDG_SESSION_TYPE`.
+/// `layer_shell_available` says whether the Wayland registry offers `zwlr_layer_shell_v1`.
 pub fn detect_mode(
     pref: ModePreference,
     session_type: Option<&str>,
@@ -151,8 +147,8 @@ pub fn detect_mode(
     let on_wayland = session_type == Some("wayland");
 
     match pref {
-        // Ohne Wayland-Session gibt es keine Layer-Shell — die Praeferenz darf nicht in
-        // einen unsichtbaren Zustand fuehren, also X11 erzwingen.
+        // No layer-shell without a Wayland session. The preference must not lead to an
+        // invisible clock, so X11 is forced.
         ModePreference::LayerShell if on_wayland => OverlayMode::LayerShell,
         ModePreference::LayerShell => OverlayMode::X11,
         ModePreference::X11 => OverlayMode::X11,
@@ -161,8 +157,7 @@ pub fn detect_mode(
     }
 }
 
-/// IO-Huelle um [`detect_mode`]. Auf Nicht-Linux immer X11 — dort wird der Wert ohnehin
-/// nicht benutzt.
+/// IO shell around [`detect_mode`]. Always X11 off Linux, where the value is not used anyway.
 pub fn detect_mode_from_env(pref: ModePreference) -> OverlayMode {
     let session_type = std::env::var("XDG_SESSION_TYPE").ok();
 
@@ -206,9 +201,9 @@ mod tests {
         assert_eq!(LinuxConfig::load_from(&path), cfg);
     }
 
-    /// Eine `linux.json` aus einem Build vor dem Monitor-Feld liegt auf echten Rechnern. Sie
-    /// darf nicht als "kaputt" durchfallen — sonst waeren die gespeicherten Margins beim ersten
-    /// Start nach dem Update weg und die Uhr spraenge zurueck auf 40/40.
+    /// A `linux.json` from a build before the monitor field exists on real machines. It must not
+    /// count as broken, or the stored position would be lost on the first start after the
+    /// update and the clock would jump back to 40/40.
     #[test]
     fn config_without_monitor_key_keeps_its_margins() {
         let path = temp_path("old-shape");
@@ -297,8 +292,8 @@ mod tests {
 
     #[test]
     fn explicit_layer_shell_preference_falls_back_on_x11_session() {
-        // Layer-Shell in einer X11-Session ist unmoeglich; die Praeferenz darf nicht in einen
-        // unsichtbaren Zustand fuehren.
+        // Layer-shell in an X11 session is impossible; the preference must not lead to an
+        // invisible clock.
         assert_eq!(detect_mode(ModePreference::LayerShell, Some("x11"), false), OverlayMode::X11);
     }
 
@@ -309,7 +304,7 @@ mod tests {
 
     #[test]
     fn auto_picks_x11_when_wayland_but_protocol_missing() {
-        // GNOME: Wayland-Session, aber kein zwlr_layer_shell_v1.
+        // GNOME: Wayland session, but no zwlr_layer_shell_v1.
         assert_eq!(detect_mode(ModePreference::Auto, Some("wayland"), false), OverlayMode::X11);
     }
 
@@ -324,8 +319,7 @@ mod tests {
         assert_eq!(detect_mode(ModePreference::Auto, Some("tty"), true), OverlayMode::X11);
     }
 
-    /// Reine Timeout-Logik, kein Compositor noetig: eine haengende `body` darf den Aufrufer
-    /// nicht mit aufhalten.
+    /// Pure timeout logic, no compositor needed: a hanging `body` must not hold up the caller.
     #[test]
     fn with_timeout_returns_false_when_body_hangs_past_deadline() {
         let got = with_timeout(Duration::from_millis(20), || {
@@ -335,7 +329,7 @@ mod tests {
         assert_eq!(got, false);
     }
 
-    /// Der Normalfall: eine `body`, die rechtzeitig antwortet, kommt unveraendert durch.
+    /// The normal case: a `body` that answers in time comes through unchanged.
     #[test]
     fn with_timeout_returns_prompt_result() {
         let got = with_timeout(Duration::from_millis(500), || true);

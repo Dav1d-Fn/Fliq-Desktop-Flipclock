@@ -1,8 +1,9 @@
-//! Live-Schnittstelle fuer tuxhub (Protokoll 1).
+//! Live interface for tuxhub (protocol 1).
 //!
-//! Fliq lauscht auf `$XDG_RUNTIME_DIR/tuxhub/fliq.sock`. tuxhub verbindet sich, solange Fliq
-//! laeuft, und zeigt die Einstellungen als eigene Seite an.
-//! Protokoll: https://github.com/SirSnolte/tuxhub/blob/master/docs/tool-development.md#live-interface-level-3
+//! Fliq listens on `$XDG_RUNTIME_DIR/tuxhub/fliq.sock`. tuxhub connects while Fliq runs and
+//! shows the settings as a page of its own.
+//!
+//! Protocol: https://github.com/SirSnolte/tuxhub/blob/master/docs/tool-development.md#live-interface-level-3
 
 use serde::Serialize;
 use serde_json::{json, Map, Value};
@@ -18,17 +19,17 @@ use std::time::{Duration, Instant};
 
 pub const PROTOCOL: u64 = 1;
 
-/// Workshop-ID von Fliq in tuxhub, bestimmt den Namen des Sockets.
+/// Fliq's workshop id in tuxhub, decides the socket name.
 const ID: &str = "fliq";
 
-/// Laengere Zeilen trennen die Verbindung, wie auf der Seite von tuxhub.
+/// Longer lines end the connection, as on the tuxhub side.
 const MAX_LINE: usize = 1 << 20;
 
-/// So lange wartet tuxhub auf eine Antwort. Spaeter muss sich niemand mehr merken, wohin sie
-/// gehoert haette, und ein haengender Leser haelt die anderen Verbindungen nicht laenger auf.
+/// How long tuxhub waits for an answer. After that nobody has to remember where it belonged,
+/// and a hanging reader does not hold up the other connections any longer.
 const TIMEOUT: Duration = Duration::from_secs(5);
 
-/// Eine Anfrage, die das Hauptfenster beantwortet (`schema`, `get`, `set`, `action`).
+/// A request the clock window answers (`schema`, `get`, `set`, `action`).
 #[derive(Debug, Clone, Serialize)]
 pub struct Forwarded {
     pub rid: u64,
@@ -37,22 +38,21 @@ pub struct Forwarded {
     pub params: Value,
 }
 
-/// Was der Server nicht selbst erledigt. In der App ist das Tauri, in den Tests ein Ersatz.
+/// What the server does not do itself. Tauri in the app, a stand-in in the tests.
 pub trait Frontend: Send + Sync + 'static {
     fn request(&self, req: Forwarded);
     fn quit(&self);
 }
 
-/// `None` ohne (absolutes) `XDG_RUNTIME_DIR` -- dann bietet Fliq keine Schnittstelle an.
+/// `None` without an (absolute) `XDG_RUNTIME_DIR`; Fliq then offers no interface.
 pub fn socket_path(runtime_dir: Option<PathBuf>) -> Option<PathBuf> {
     runtime_dir
         .filter(|p| p.is_absolute())
         .map(|p| p.join("tuxhub").join(format!("{ID}.sock")))
 }
 
-/// Ordner `0700`, Socket `0600`. Einen Socket, an dem niemand mehr lauscht (Absturz), ersetzt
-/// das; lauscht dort noch jemand (zweite Fliq-Instanz), bleibt er stehen. Andere Dateien
-/// werden nie geloescht.
+/// Folder `0700`, socket `0600`. A socket nobody listens on any more (crash) is replaced; if
+/// someone still listens (a second Fliq instance), it stays. Other files are never deleted.
 fn bind(path: &Path) -> io::Result<UnixListener> {
     let dir = path
         .parent()
@@ -96,8 +96,8 @@ struct Pending {
     since: Instant,
 }
 
-/// Ein Thread nimmt Verbindungen an, je Verbindung liest ein weiterer. Geschrieben wird von
-/// dort, wo die Antwort entsteht, ueber eine Kopie des Streams in `conns`.
+/// One thread accepts connections, one more reads each connection. Writing happens where the
+/// answer comes from, through a copy of the stream in `conns`.
 pub struct Server {
     path: PathBuf,
     hello: Value,
@@ -155,7 +155,7 @@ impl Server {
         }
     }
 
-    /// Kehrt zurueck, wenn die Verbindung endet oder gegen das Protokoll verstoesst.
+    /// Returns when the connection ends or breaks the protocol.
     fn read(&self, conn: u64, stream: UnixStream) {
         let mut reader = BufReader::new(stream);
         let mut buf = Vec::new();
@@ -184,7 +184,7 @@ impl Server {
     }
 
     fn handle(&self, conn: u64, msg: Map<String, Value>) {
-        // Ohne `id` ist es eine Benachrichtigung; von tuxhub kommen keine, unbekannte zaehlen nicht.
+        // Without `id` it is a notification; tuxhub sends none, unknown ones do not count.
         let Some(id) = msg.get("id").filter(|id| !id.is_null()).cloned() else {
             return;
         };
@@ -253,7 +253,7 @@ impl Server {
         self.pending.lock().unwrap().retain(|_, p| p.conn != conn);
     }
 
-    /// Antwort des Hauptfensters auf eine weitergereichte Anfrage.
+    /// Answer of the clock window to a forwarded request.
     pub fn respond(&self, rid: u64, result: Option<Value>, error: Option<Value>) {
         let Some(p) = self.pending.lock().unwrap().remove(&rid) else {
             return;
@@ -265,7 +265,7 @@ impl Server {
         self.send(p.conn, &msg);
     }
 
-    /// `exclude`: die Verbindung, deren `set` die Aenderung ausgeloest hat.
+    /// `exclude`: the connection whose `set` caused the change.
     pub fn changed(&self, values: Value, exclude: Option<u64>) {
         self.broadcast(
             &json!({"method": "changed", "params": {"values": values}}),
@@ -277,12 +277,12 @@ impl Server {
         self.broadcast(&json!({"method": "schema-changed", "params": {}}), None);
     }
 
-    /// Socket entfernen und alle Verbindungen schliessen. tuxhub wartet beim Beenden darauf.
+    /// Removes the socket and closes all connections. tuxhub waits for that when quitting.
     pub fn stop(&self) {
         if self.stopped.swap(true, Ordering::SeqCst) {
             return;
         }
-        // Weckt das wartende `accept`, damit der Thread endet.
+        // Wakes the waiting `accept`, so the thread ends.
         let _ = UnixStream::connect(&self.path);
         let _ = std::fs::remove_file(&self.path);
         let conns: Vec<UnixStream> = self.conns.lock().unwrap().drain().map(|(_, w)| w).collect();
@@ -292,9 +292,9 @@ impl Server {
     }
 }
 
-// --- Anbindung an Tauri ---
+// --- Tauri binding ---
 
-/// Der laufende Server, sobald das Hauptfenster bereit ist.
+/// The running server, once the clock window is ready.
 #[derive(Default)]
 pub struct TuxhubState(Mutex<Option<Arc<Server>>>);
 
@@ -310,7 +310,7 @@ impl Frontend for Tauri {
     fn request(&self, req: Forwarded) {
         use tauri::Emitter;
         if let Err(e) = self.0.emit_to("main", "tuxhub-request", req) {
-            eprintln!("fliq: tuxhub-Anfrage nicht zugestellt: {e}");
+            eprintln!("fliq: tuxhub request not delivered: {e}");
         }
     }
 
@@ -319,12 +319,12 @@ impl Frontend for Tauri {
     }
 }
 
-/// Das Hauptfenster kann Anfragen beantworten. Erst dann entsteht der Socket, denn sobald
-/// tuxhub sich verbinden kann, fragt es nach Schema und Werten.
+/// The clock window can answer requests. Only now the socket appears, because as soon as
+/// tuxhub can connect, it asks for schema and values.
 #[tauri::command]
 pub fn tuxhub_ready(app: tauri::AppHandle, state: tauri::State<'_, TuxhubState>) {
     let mut server = state.0.lock().unwrap();
-    // Nach einem Neuladen des Fensters laeuft der Server schon.
+    // After a reload of the window the server is already running.
     if server.is_some() {
         return;
     }
@@ -335,7 +335,7 @@ pub fn tuxhub_ready(app: tauri::AppHandle, state: tauri::State<'_, TuxhubState>)
     let (name, version) = (info.name.clone(), info.version.to_string());
     match Server::start(&path, &name, &version, Tauri(app)) {
         Ok(s) => *server = Some(s),
-        Err(e) => eprintln!("fliq: tuxhub-Schnittstelle nicht verfuegbar ({}): {e}", path.display()),
+        Err(e) => eprintln!("fliq: tuxhub interface not available ({}): {e}", path.display()),
     }
 }
 
@@ -365,7 +365,7 @@ pub fn tuxhub_schema_changed(state: tauri::State<'_, TuxhubState>) {
     }
 }
 
-/// Fuer Werte, die Rust selbst haelt (Overlay-Modus).
+/// For values Rust holds itself (overlay mode).
 pub fn changed(app: &tauri::AppHandle, values: Value) {
     use tauri::Manager;
     if let Some(s) = app.try_state::<TuxhubState>().and_then(|st| st.server()) {
@@ -416,7 +416,7 @@ mod tests {
         }
     }
 
-    /// Kurzer Pfad: Unix-Sockets vertragen hoechstens 107 Bytes.
+    /// Short path: Unix sockets allow at most 107 bytes.
     fn setup(name: &str) -> Setup {
         let dir = PathBuf::from(format!("/tmp/fliq-th-{name}-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
@@ -458,12 +458,12 @@ mod tests {
             self.reader.read_line(&mut line).expect("expected a line");
             serde_json::from_str(&line).expect("expected JSON")
         }
-        /// `true`, wenn die Gegenseite die Verbindung geschlossen hat.
+        /// `true` if the other side closed the connection.
         fn closed(&mut self) -> bool {
             let mut line = String::new();
             matches!(self.reader.read_line(&mut line), Ok(0))
         }
-        /// `true`, wenn innerhalb kurzer Zeit nichts ankommt.
+        /// `true` if nothing arrives within a short time.
         fn silent(&mut self) -> bool {
             self.reader
                 .get_ref()
@@ -508,7 +508,7 @@ mod tests {
     fn stale_socket_is_replaced() {
         let t = setup("stale");
         std::fs::create_dir_all(t.path.parent().unwrap()).unwrap();
-        drop(UnixListener::bind(&t.path).unwrap()); // Datei bleibt, niemand lauscht
+        drop(UnixListener::bind(&t.path).unwrap()); // file stays, nobody listens
         let (s, _rx, _q) = server(&t.path);
         let mut c = Client::connect(&t.path);
         c.send(json!({"id": 1, "method": "hello", "params": {"protocol": 1}}));
@@ -591,7 +591,7 @@ mod tests {
             c.recv(),
             json!({"id": "x", "error": {"message": "too big", "field": "clockTextSize"}})
         );
-        // Eine zweite Antwort auf dieselbe Anfrage geht nirgends hin.
+        // A second answer to the same request goes nowhere.
         s.respond(f.rid, Some(json!(true)), None);
         assert!(c.silent());
         s.stop();
@@ -607,7 +607,7 @@ mod tests {
         assert_eq!(r["id"], 3);
         assert!(r["error"]["message"].is_string());
         assert!(rx.try_recv().is_err());
-        // Benachrichtigungen ohne `id` bekommen keine Antwort.
+        // Notifications without an `id` get no answer.
         c.send(json!({"method": "something-new", "params": {}}));
         assert!(c.silent());
         s.stop();
