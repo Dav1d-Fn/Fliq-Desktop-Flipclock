@@ -1,4 +1,4 @@
-//! Linux-spezifischer Teil des Overlays: Compositor-Probe und Fensterkonfiguration.
+//! Linux part of the overlay: compositor probe, window configuration, monitors.
 
 use crate::overlay::OverlayMode;
 use std::os::raw::{c_int, c_void};
@@ -11,8 +11,7 @@ use wayland_client::{
 
 const PROBE_TIMEOUT: Duration = Duration::from_millis(500);
 
-/// Der Probe braucht keinen Zustand — er liest nur die Global-Liste, die
-/// `registry_queue_init` bereits gesammelt hat.
+/// The probe needs no state; it only reads the global list `registry_queue_init` has collected.
 struct Probe;
 
 impl Dispatch<wl_registry::WlRegistry, GlobalListContents> for Probe {
@@ -27,13 +26,12 @@ impl Dispatch<wl_registry::WlRegistry, GlobalListContents> for Probe {
     }
 }
 
-/// Fragt den laufenden Compositor, ob er `zwlr_layer_shell_v1` anbietet.
+/// Asks the running compositor whether it offers `zwlr_layer_shell_v1`.
 ///
-/// Laeuft bewusst **vor** jeder GTK-Initialisierung, damit die Wahl des GDK-Backends
-/// noch offen ist. Jeder Fehler bedeutet "nicht verfuegbar" — im Zweifel der Modus,
-/// der ueberall laeuft. Das schliesst einen haengenden Compositor/ein totes Socket ein: der
-/// eigentliche Roundtrip laeuft in [`super::with_timeout`], damit ein fehlendes Ende der
-/// Verbindung den App-Start nicht blockiert.
+/// Runs deliberately **before** any GTK initialisation, while the GDK backend can still be
+/// chosen. Every error means "not available": when in doubt, the mode that works everywhere.
+/// That includes a hanging compositor or a dead socket: the roundtrip runs in
+/// [`super::with_timeout`], so a missing answer cannot block the app start.
 pub fn layer_shell_available() -> bool {
     super::with_timeout(PROBE_TIMEOUT, || {
         let Ok(conn) = Connection::connect_to_env() else {
@@ -74,8 +72,8 @@ pub(super) enum KeyboardMode {
     OnDemand = 2,
 }
 
-// Direkte Bindung an die System-Bibliothek gtk-layer-shell (GTK3).
-// Die Rust-Crate dafuer ist auf crates.io als UNMAINTAINED markiert.
+// Direct binding to the system library gtk-layer-shell (GTK3).
+// The Rust crate for it is marked UNMAINTAINED on crates.io.
 extern "C" {
     fn gtk_layer_is_supported() -> c_int;
     pub(super) fn gtk_layer_init_for_window(window: *mut c_void);
@@ -84,36 +82,34 @@ extern "C" {
     pub(super) fn gtk_layer_set_keyboard_mode(window: *mut c_void, mode: KeyboardMode);
     pub(super) fn gtk_layer_set_exclusive_zone(window: *mut c_void, exclusive_zone: c_int);
     pub(super) fn gtk_layer_set_namespace(window: *mut c_void, name_space: *const std::os::raw::c_char);
-    /// Zweiter Parameter ist ein `GdkMonitor*`. Laut Probe (KWin/Plasma 6.7.3) wirkt der Aufruf
-    /// auch an einer bereits gemappten Surface in <= 16 ms, ohne Hide/Re-Show. Das gilt
-    /// ausdruecklich **nicht** fuer Margins — die sammelt KWin und laesst sie ~200 ms spaeter
-    /// in einem Schub landen. Deshalb positioniert die Uhr sich per CSS, nicht per Margin.
+    /// Second parameter is a `GdkMonitor*`. Per probe (KWin/Plasma 6.7.3) the call also works on
+    /// an already mapped surface within <= 16 ms, without hide/re-show. That explicitly does
+    /// **not** hold for margins: KWin collects those and applies them ~200 ms later in one batch.
+    /// That is why the clock positions itself by CSS, not by margin.
     fn gtk_layer_set_monitor(window: *mut c_void, monitor: *mut c_void);
 }
 
-/// Globale Geometrie eines Outputs, so wie das Frontend sie zum Umrechnen braucht.
+/// Global geometry of an output, as the frontend needs it for converting coordinates.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct MonitorInfo {
-    /// Schluessel in `LinuxConfig::monitor`. Siehe [`monitors`] zur Bildung.
+    /// Key in `LinuxConfig::monitor`. See [`monitors`] for how it is built.
     pub id: String,
     pub x: i32,
     pub y: i32,
     pub w: i32,
     pub h: i32,
-    /// Wird derzeit ueberall als 1 angenommen (auf der Zielmaschine fuer beide Outputs
-    /// zutreffend): Margins zaehlen in Ausgabepixeln, die CSS-Pixel im Ghost nicht. Bei
-    /// scale != 1 saesse der Umriss versetzt. Bekannte Vereinfachung, hier nicht geloest —
-    /// der Wert wird nur mitgeliefert, damit er sich spaeter ohne Schnittstellenbruch
-    /// auswerten laesst.
-    // ponytail: scale wird ignoriert, nicht skaliert. Nachruesten, sobald ein Output != 1 hat.
+    /// Currently assumed to be 1 everywhere (true for both outputs of the development machine).
+    /// With scale != 1 the ghost copy would sit offset. Known simplification; the value is sent
+    /// along so it can be used later without changing the interface.
+    // ponytail: scale is ignored, not applied. Add it once an output has scale != 1.
     pub scale: i32,
 }
 
-/// Baut den Namen, unter dem ein Monitor in `linux.json` steht.
+/// Builds the name a monitor is stored under in `linux.json`.
 ///
-/// Hersteller + Modell aus der EDID, weil das einen Neustart und ein Umstecken uebersteht;
-/// die Geometrie taete das nicht. Zwei baugleiche Schirme melden denselben Namen — dann
-/// entscheidet der Index, sonst zeigten beide auf denselben Ghost.
+/// Manufacturer + model from the EDID, because that survives a restart and re-plugging; the
+/// geometry would not. Two identical screens report the same name, then the index decides,
+/// otherwise both would point to the same ghost.
 fn monitor_id(monitor: &gtk::gdk::Monitor, index: i32, taken: &[MonitorInfo]) -> String {
     use gtk::prelude::MonitorExt;
 
@@ -132,13 +128,13 @@ fn monitor_id(monitor: &gtk::gdk::Monitor, index: i32, taken: &[MonitorInfo]) ->
     }
 }
 
-/// Alle Outputs in GDK-Reihenfolge. Der Index in dieser Liste ist zugleich der Index des
-/// zugehoerigen Ghost-Fensters (`ghost::label`) — beide zaehlen dieselbe Enumeration ab.
+/// All outputs in GDK order. The index in this list is also the index of the matching ghost
+/// window (`ghost::LABELS`); both count the same enumeration.
 ///
-/// Main-Thread-only (GDK). Synchrone Tauri-Commands erfuellen das, asynchrone nicht.
+/// Main-thread-only (GDK). Synchronous Tauri commands fulfil that, async ones do not.
 ///
-/// Bewusst **nicht** ueber `gdk_monitor_is_primary()`: das liefert unter Wayland fuer jeden
-/// Monitor `0`, eine Suche nach dem primaeren faende also nie einen.
+/// Deliberately **not** via `gdk_monitor_is_primary()`: under Wayland that returns `0` for every
+/// monitor, a search for the primary one would never find one.
 pub fn monitors() -> Vec<MonitorInfo> {
     use gtk::prelude::MonitorExt;
 
@@ -164,11 +160,11 @@ pub fn monitors() -> Vec<MonitorInfo> {
     out
 }
 
-/// Haengt ein Layer-Surface an den Monitor mit dieser `id`. `false`, wenn es den nicht (mehr)
-/// gibt — der Aufrufer laesst die Surface dann, wo sie ist.
+/// Moves a layer surface to the monitor with this `id`. `false` if it does not exist (any
+/// more); the caller then leaves the surface where it is.
 ///
-/// Muss nach `gtk_layer_init_for_window` laufen. Vor dem Realize ist erlaubt und der Weg bei
-/// der Ghost-Erzeugung; danach laut Probe ebenfalls.
+/// Must run after `gtk_layer_init_for_window`. Before the realize is allowed (ghost creation
+/// does that), after it too, per probe.
 pub fn set_monitor(window: &tauri::WebviewWindow, monitor_id: &str) -> bool {
     let Some(display) = gtk::gdk::Display::default() else {
         return false;
@@ -188,28 +184,27 @@ pub(super) fn set_monitor_object(
 ) -> bool {
     use gtk::glib::translate::ToGlibPtr;
 
-    // Wie in `with_raw_gtk_window`: den Stash am Leben halten, solange der Zeiger benutzt wird.
+    // As in `with_raw_gtk_window`: keep the stash alive while the pointer is used.
     let stash = monitor.to_glib_none();
     let mon_ptr: *mut gtk::gdk::ffi::GdkMonitor = stash.0;
-    // SAFETY: gueltiges GtkWindow fuer die Dauer der Closure, gueltiger GdkMonitor fuer die
-    // Dauer dieser Funktion, und `gtk_layer_init_for_window` lief bereits auf dem Fenster.
+    // SAFETY: valid GtkWindow for the duration of the closure, valid GdkMonitor for the duration
+    // of this function, and `gtk_layer_init_for_window` already ran on the window.
     with_raw_gtk_window(window, |ptr| unsafe {
         gtk_layer_set_monitor(ptr, mon_ptr as *mut c_void)
     })
     .is_some()
 }
 
-/// Ruft `f` mit dem Rohzeiger auf das GtkWindow hinter einem Tauri-Fenster auf.
+/// Calls `f` with the raw pointer to the GtkWindow behind a Tauri window.
 ///
-/// Der Zeiger wird bewusst **nicht** zurueckgegeben. Zwei Dinge muessen laenger leben als er:
-/// die `gtk_window()`-Referenz (eigene Refcount-Referenz auf das GObject) und der `Stash` aus
-/// `to_glib_none()`. Beide sind hier lokal und wuerden am Ende der Funktion fallen — ein
-/// zurueckgegebener Zeiger waere ab da formal baumelnd. Als Closure-Argument ist er gueltig,
-/// solange `f` laeuft.
+/// The pointer is deliberately **not** returned. Two things must outlive it: the
+/// `gtk_window()` reference (its own refcount on the GObject) and the `Stash` from
+/// `to_glib_none()`. Both are local here and drop at the end of the function; a returned
+/// pointer would formally dangle from then on. As a closure argument it is valid while `f` runs.
 ///
-/// `f` gibt bewusst nichts zurueck: ein generischer Rueckgabetyp koennte den Rohzeiger selbst
-/// nach draussen reichen und die Eindaemmung aushebeln, die dieser Helfer verspricht. `Some(())`
-/// heisst nur "es gab ein GtkWindow und `f` lief".
+/// `f` deliberately returns nothing: a generic return type could hand the raw pointer itself
+/// out and defeat the containment this helper promises. `Some(())` only means "there was a
+/// GtkWindow and `f` ran".
 pub(super) fn with_raw_gtk_window(
     window: &tauri::WebviewWindow,
     f: impl FnOnce(*mut c_void),
@@ -224,14 +219,13 @@ pub(super) fn with_raw_gtk_window(
     Some(())
 }
 
-/// Konfiguriert das Fenster fuer den gewaehlten Modus. Muss laufen, **bevor** das Fenster
-/// realisiert wird — deshalb startet das Hauptfenster mit `"visible": false`.
+/// Configures the window for the chosen mode. Must run **before** the window is realized,
+/// which is why the main window starts with `"visible": false`.
 ///
-/// Gibt den Modus zurueck, der **tatsaechlich** eingerichtet wurde. `mode` sagt, was versucht
-/// wird; der Rueckgabewert sagt, was daraus wurde. Jeder Fallback liefert `X11`, damit der
-/// Zustand, den das Frontend spaeter sieht, nicht luegt: ein als `layer-shell` gemeldetes,
-/// in Wahrheit aber X11-Fenster wuerde das Ziehen per `startDragging` unterdruecken und
-/// stattdessen per CSS in einem Fenster verschieben, das gar nicht vollflaechig ist.
+/// Returns the mode **actually** set up. `mode` says what is attempted, the return value what
+/// came of it. Every fallback returns `X11`, so the state the frontend sees does not lie: a
+/// window reported as `layer-shell` that is really X11 would suppress dragging by
+/// `startDragging` and instead move the clock by CSS in a window that is not full-output.
 #[must_use]
 pub fn apply(window: &tauri::WebviewWindow, mode: OverlayMode) -> OverlayMode {
     match mode {
@@ -240,36 +234,35 @@ pub fn apply(window: &tauri::WebviewWindow, mode: OverlayMode) -> OverlayMode {
             OverlayMode::X11
         }
         OverlayMode::LayerShell => {
-            // SAFETY: parameterloser Query-Call in libgtk-layer-shell, kein Zeiger im Spiel.
+            // SAFETY: parameterless query call into libgtk-layer-shell, no pointer involved.
             if unsafe { gtk_layer_is_supported() } == 0 {
-                // Praktisch unerreichbar, weil der Registry-Probe die Unterstuetzung bereits
-                // festgestellt hat. Ein sichtbares Widget ohne Always-on-Top ist trotzdem
-                // besser als ein unsichtbares.
-                eprintln!("fliq: layer-shell laut GTK nicht unterstuetzt, nutze X11-Verhalten");
+                // Practically unreachable, the registry probe already found support. A visible
+                // widget without always-on-top is still better than an invisible one.
+                eprintln!("fliq: GTK says layer-shell is not supported, using X11 behaviour");
                 apply_x11(window);
                 return OverlayMode::X11;
             }
 
-            // SAFETY: `ptr` ist ein gueltiges GtkWindow und bleibt es fuer die Dauer der
-            // Closure; alle Aufrufe sind die dokumentierte Reihenfolge (init zuerst).
+            // SAFETY: `ptr` is a valid GtkWindow for the duration of the closure; the calls follow
+            // the documented order (init first).
             let configured = with_raw_gtk_window(window, |ptr| unsafe {
                 gtk_layer_init_for_window(ptr);
                 gtk_layer_set_layer(ptr, Layer::Overlay);
                 gtk_layer_set_keyboard_mode(ptr, KeyboardMode::None);
-                // -1 heisst: fremde exclusive zones ignorieren. Sonst verschoebe ein
-                // erscheinendes Panel das Widget.
+                // -1 means: ignore other exclusive zones. Otherwise an appearing panel would push
+                // the widget away.
                 gtk_layer_set_exclusive_zone(ptr, -1);
-                // Alle vier Kanten: die Surface ist so gross wie der Output, die Uhr sitzt per
-                // CSS darin. So bewegt sie sich beim Ziehen flüssig — Margin-Aenderungen wendet
-                // KWin nur schubweise (~200 ms) an. Klicks nimmt nur die Uhr selbst an
-                // (`set_input_region`), der Rest ist durchklickbar.
+                // All four edges: the surface is as large as the output and the clock sits in it
+                // by CSS, so it moves smoothly while dragging (KWin applies margin changes only in
+                // ~200 ms batches). Only the clock takes clicks (`set_input_region`), the rest is
+                // click-through.
                 for edge in [Edge::Top, Edge::Bottom, Edge::Left, Edge::Right] {
                     gtk_layer_set_anchor(ptr, edge, 1);
                 }
             });
 
             if configured.is_none() {
-                eprintln!("fliq: kein GtkWindow erreichbar, Overlay nicht konfiguriert");
+                eprintln!("fliq: no GtkWindow reachable, overlay not configured");
                 return OverlayMode::X11;
             }
             OverlayMode::LayerShell
@@ -281,22 +274,22 @@ fn apply_x11(window: &tauri::WebviewWindow) {
     use gtk::prelude::GtkWindowExt;
 
     let Ok(gtk_win) = window.gtk_window() else {
-        eprintln!("fliq: kein GtkWindow erreichbar, Overlay nicht konfiguriert");
+        eprintln!("fliq: no GtkWindow reachable, overlay not configured");
         return;
     };
     gtk_win.set_keep_above(true);
     gtk_win.set_skip_taskbar_hint(true);
     gtk_win.set_skip_pager_hint(true);
-    // Bewusst KEIN WindowTypeHint::Dock: Dock-Fenster lassen sich vom WM nicht ziehen,
-    // und `startDragging` ist auf diesem Pfad die Bedienung.
+    // Deliberately NO WindowTypeHint::Dock: most WMs do not let dock windows be dragged, and
+    // `startDragging` is how this path is operated.
 }
 
-/// Begrenzt die Klickflaeche des Fensters auf das Rechteck der Uhr (Fensterkoordinaten).
+/// Limits the window's click area to the clock's rectangle (window coordinates).
 ///
-/// Das Fenster ist unter GTK/WebKitGTK oft groesser als die Uhr (Mindestgroesse, gemessen
-/// 200 px Hoehe). Der transparente Rest fing sonst Klicks ab, die eigentlich dem Fenster
-/// darunter gehoeren. Ueber das Widget statt ueber das GdkWindow, weil GTK die Form dort
-/// behaelt und bei jedem Realize neu anlegt.
+/// Under GTK/WebKitGTK the window is often larger than the clock (minimum size, measured 200 px
+/// height), and on the layer-shell path it spans the output. The transparent rest would catch
+/// clicks meant for the window underneath. Set on the widget rather than the GdkWindow, because
+/// GTK keeps the shape there and reapplies it on every realize.
 pub fn set_input_region(window: &tauri::WebviewWindow, x: i32, y: i32, w: i32, h: i32) {
     use gtk::prelude::WidgetExt;
 
@@ -307,17 +300,17 @@ pub fn set_input_region(window: &tauri::WebviewWindow, x: i32, y: i32, w: i32, h
     gtk_win.input_shape_combine_region(Some(&region));
 }
 
-/// Laedt die Seite neu, wenn der WebKit-Prozess stirbt.
+/// Reloads the page when the WebKit process dies.
 ///
-/// Ohne das bleibt das Fenster mit dem letzten Bild stehen: die Uhr wirkt eingefroren und
-/// reagiert auf nichts mehr. Ausgeloest z. B. durch einen GPU-Reset (amdgpu "context is lost",
-/// 08.11.2026 im Journal, danach SIGABRT im WebKitWebProcess).
+/// Without this the window keeps its last frame: the clock looks frozen and reacts to nothing.
+/// Triggered e.g. by a GPU reset (amdgpu "context is lost" on 2026-11-08 in the journal,
+/// followed by SIGABRT in WebKitWebProcess).
 pub fn reload_on_crash(window: &tauri::WebviewWindow) {
     let _ = window.with_webview(|wv| {
         use webkit2gtk::WebViewExt;
 
         wv.inner().connect_web_process_terminated(|view, reason| {
-            eprintln!("fliq: WebKit-Prozess beendet ({reason:?}), lade neu");
+            eprintln!("fliq: WebKit process ended ({reason:?}), reloading");
             view.reload();
         });
     });
@@ -327,11 +320,11 @@ pub fn reload_on_crash(window: &tauri::WebviewWindow) {
 mod tests {
     use super::*;
 
-    /// Diagnostischer Test, kein Teil der normalen Suite: verbindet sich mit dem echten
-    /// Compositor. Auf dem Entwicklungssystem (KDE Plasma, Wayland) muss dies `true` melden,
-    /// da `wayland-info` `zwlr_layer_shell_v1` bestaetigt.
+    /// Diagnostic test, not part of the normal suite: connects to the real compositor. On the
+    /// development system (KDE Plasma, Wayland) it must report `true`, as `wayland-info`
+    /// confirms `zwlr_layer_shell_v1`.
     ///
-    /// Ausfuehren mit: `cargo test -- --ignored --nocapture`
+    /// Run with: `cargo test -- --ignored --nocapture`
     #[test]
     #[ignore]
     fn probe_reports_layer_shell_on_this_machine() {

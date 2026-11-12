@@ -5,8 +5,8 @@
    --clock-text-size: 15px;
    --second-row-clock-text-size: 12px;
    --flipcard-rounded: 0.3em;
-   --text-color: white,
-   --text-font: "Arial, sans-serif",
+   --text-color: white;
+   --text-font: Arial, sans-serif;
 }
  
  #flipclock-container {

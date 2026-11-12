@@ -1,11 +1,9 @@
 [package]
 name = "desktop-flipclock"
-version = "0.0.0"
-description = "Desktop Flipclock"
-authors = ["you"]
+version = "1.4.0"
+description = "Fliq, a desktop flip clock"
+authors = ["Dav1d-Fn"]
 edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [lib]
 name = "desktop_flipclock_lib"

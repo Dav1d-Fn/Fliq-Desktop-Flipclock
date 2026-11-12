@@ -1,196 +1,41 @@
+pub mod commands;
 pub mod overlay;
 #[cfg(target_os = "linux")]
 pub mod tuxhub;
 
-// Window definition for the styling menu
-#[tauri::command]
-async fn open_stylingmenu_window(app: tauri::AppHandle) -> Result<(), String> {
-    use tauri::Manager;
+use commands::OverlayState;
 
-    if let Some(existing) = app.get_webview_window("Styling") {
-        let _ = existing.set_focus();
-        return Ok(());
-    }
-
-    tauri::WebviewWindowBuilder::new(
-        &app,
-        "Styling", /* the unique window label */
-        tauri::WebviewUrl::App("stylingMenu.html".into()),
-    )
-    .inner_size(900.0, 500.0)
-    .resizable(true)
-    .title("Styling")
-    .build()
-    .map(|_| ())
-    .map_err(|e| e.to_string())
-}
- 
-/// Gewaehlter Modus und persistierte Werte, erreichbar aus den Commands.
-pub struct OverlayState {
-    pub mode: overlay::OverlayMode,
-    pub config: std::sync::Mutex<overlay::LinuxConfig>,
-}
-
-#[derive(serde::Serialize)]
-pub struct OverlayInfo {
-    pub mode: String,
-    pub margin_x: i32,
-    pub margin_y: i32,
-    /// Die gespeicherte Praeferenz aus `linux.json` ("auto"/"layer-shell"/"x11"),
-    /// nicht der tatsaechlich wirksame Modus. Damit kann das Settings-Menü das
-    /// Dropdown nach einem Neustart korrekt vorbelegen.
-    pub preference: String,
-    /// Der Output, an dem die Uhr haengt (`get_monitors().id`). `None` heisst: kein
-    /// Layer-Shell oder noch kein Monitor bekannt — dann rechnet das Frontend gegen den
-    /// Bildschirm, den es kennt.
-    pub monitor: Option<String>,
-}
-
-#[tauri::command]
-fn get_overlay_state(state: tauri::State<'_, OverlayState>) -> OverlayInfo {
-    let cfg = state.config.lock().unwrap();
-    OverlayInfo {
-        #[cfg(target_os = "linux")]
-        mode: state.mode.as_str().to_string(),
-        #[cfg(not(target_os = "linux"))]
-        mode: "native".to_string(),
-        margin_x: cfg.margin_x,
-        margin_y: cfg.margin_y,
-        preference: cfg.overlay_mode.as_str().to_string(),
-        monitor: cfg.monitor.clone(),
-    }
-}
-
-/// Globale Geometrie aller Outputs, damit das Frontend waehrend des Ziehens zwischen globalen
-/// und output-lokalen Koordinaten umrechnen kann. Reihenfolge und Index entsprechen den
-/// Ghost-Fenstern (`ghost::LABELS`).
-///
-/// Bewusst **synchron**: GDK ist main-thread-only, und nur synchrone Commands laufen dort.
-#[cfg(target_os = "linux")]
-#[tauri::command]
-fn get_monitors() -> Vec<overlay::linux::MonitorInfo> {
-    overlay::linux::monitors()
-}
-
-/// Klickflaeche auf die Uhr begrenzen, siehe `overlay::linux::set_input_region`.
-/// Synchron, weil GTK main-thread-only ist.
-#[cfg(target_os = "linux")]
-#[tauri::command]
-fn set_input_region(window: tauri::WebviewWindow, x: i32, y: i32, w: i32, h: i32) {
-    overlay::linux::set_input_region(&window, x, y, w, h);
-}
-
-/// Beim Loslassen: Output wechseln (falls noetig) und Position speichern.
-///
-/// `x`/`y` sind **output-lokal**: die Lage der Uhr in der vollflaechigen Surface, gesetzt per
-/// CSS im Frontend. Gespeichert unter den alten Namen `margin_x/y`, damit bestehende
-/// `linux.json` ihre Position behalten.
-#[cfg(target_os = "linux")]
-#[tauri::command]
-fn set_overlay_placement(
-    window: tauri::WebviewWindow,
-    state: tauri::State<'_, OverlayState>,
-    monitor_id: String,
-    x: i32,
-    y: i32,
-) {
-    if state.mode == overlay::OverlayMode::LayerShell {
-        if !overlay::linux::set_monitor(&window, &monitor_id) {
-            // Monitor waehrend des Ziehens verschwunden. Die Uhr bleibt, wo sie ist; den Margin
-            // trotzdem zu setzen waere schlimmer, denn er zaehlte gegen den falschen Output.
-            eprintln!("fliq: Monitor {monitor_id} nicht gefunden, Uhr bleibt am bisherigen Output");
-            return;
-        }
-    }
-
-    let mut cfg = state.config.lock().unwrap();
-    cfg.monitor = Some(monitor_id);
-    cfg.margin_x = x;
-    cfg.margin_y = y;
-    if let Err(e) = cfg.save() {
-        eprintln!("fliq: konnte linux.json nicht schreiben: {e}");
-    }
-}
-
-/// Waehrend des Ziehens mit `persist: false` — sonst gaebe es einen Datei-Write pro
-/// Mausbewegung. Beim Loslassen einmal mit `persist: true`.
-#[tauri::command]
-fn set_overlay_margin(
-    _window: tauri::WebviewWindow,
-    state: tauri::State<'_, OverlayState>,
-    x: i32,
-    y: i32,
-    persist: bool,
-) {
-    {
-        let mut cfg = state.config.lock().unwrap();
-        cfg.margin_x = x;
-        cfg.margin_y = y;
-        if persist {
-            if let Err(e) = cfg.save() {
-                eprintln!("fliq: konnte linux.json nicht schreiben: {e}");
-            }
-        }
-    }
-
-}
-
-/// Wirkt erst nach einem Neustart — das GDK-Backend steht beim Start fest.
-#[tauri::command]
-fn set_overlay_mode(
-    _app: tauri::AppHandle,
-    state: tauri::State<'_, OverlayState>,
-    mode: String,
-) -> Result<(), String> {
-    let pref = match mode.as_str() {
-        "auto" => overlay::ModePreference::Auto,
-        "layer-shell" => overlay::ModePreference::LayerShell,
-        "x11" => overlay::ModePreference::X11,
-        other => return Err(format!("unbekannter Overlay-Modus: {other}")),
-    };
-    let mut cfg = state.config.lock().unwrap();
-    cfg.overlay_mode = pref;
-    cfg.save().map_err(|e| e.to_string())?;
-
-    // Auch wenn die Aenderung aus dem Styling-Fenster kommt, soll tuxhub sie sehen.
-    #[cfg(target_os = "linux")]
-    tuxhub::changed(&_app, serde_json::json!({ "overlayMode": pref.as_str() }));
-    Ok(())
-}
-
-// Main Window
+/// Builds and runs the app. `mode` and `config` come from `main`, which has to decide the GDK
+/// backend before GTK starts.
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run(mode: overlay::OverlayMode, config: overlay::LinuxConfig) {
-    // Muss vor dem Builder feststehen, siehe `ghost::LABELS`.
+    // Has to be known before the builder, see `ghost::LABELS`.
     #[cfg(target_os = "linux")]
     let ghost_labels: &[&str] = &overlay::ghost::LABELS;
     #[cfg(not(target_os = "linux"))]
     let ghost_labels: &[&str] = &[];
 
     tauri::Builder::default()
-        // `skip_initial_state("main")`: der Default `StateFlags::all()` enthaelt `VISIBLE`, und das
-        // Plugin restauriert den Zustand in `on_window_ready` — das laeuft synchron auf dem
-        // Main-Thread, *bevor* diese `setup`-Closure drankommt (tauri::app::setup baut erst die
-        // Fenster aus tauri.conf.json, dann den User-Setup-Hook). Das ruft `show()` + `set_focus()`
-        // auf einem Fenster auf, das erst noch von `overlay::linux::apply` konfiguriert werden
-        // muss, und restauriert nebenbei `SIZE`, obwohl das Frontend die Groesse ohnehin aus dem
-        // Inhalt berechnet.
+        // `skip_initial_state("main")`: the default `StateFlags::all()` contains `VISIBLE`, and the
+        // plugin restores state in `on_window_ready`, which runs synchronously on the main thread
+        // *before* the `setup` closure below (tauri builds the windows from tauri.conf.json first,
+        // then calls the user setup hook). That would call `show()` + `set_focus()` on a window
+        // that `overlay::linux::apply` still has to configure, and restore `SIZE`, although the
+        // frontend sizes the window from its content anyway.
         //
-        // Das Hauptfenster bekommt seinen Startzustand deshalb ausschliesslich unten im Setup:
-        // Position restaurieren, dann `show()` — in dieser Reihenfolge und an genau einer Stelle.
+        // The main window therefore gets its start state only in `setup`: restore the position,
+        // then `show()`, in that order and in exactly one place.
         //
-        // `with_denylist(ghost::LABELS)`: kein Ghost-Fenster darf das Plugin anfassen — und es
-        // gibt jetzt eines je Monitor, die Liste muss also alle abdecken. Der Default
-        // `StateFlags::all()` enthaelt `VISIBLE` — gespeichert und beim naechsten Start
-        // restauriert waere das genau der Fehlerfall, gegen den diese Funktion konstruiert ist:
-        // ein bildschirmfuellendes Overlay, sichtbar ohne laufenden Drag.
+        // `with_denylist(ghost::LABELS)`: the plugin must not touch any ghost window. Restoring a
+        // saved `VISIBLE` would be exactly the failure the ghosts are built against: a full-screen
+        // overlay, visible without a drag.
         .plugin(
             tauri_plugin_window_state::Builder::default()
                 .skip_initial_state("main")
                 .with_denylist(ghost_labels)
                 .build(),
         )
-        .plugin(tauri_plugin_autostart::init(tauri_plugin_autostart::MacosLauncher::LaunchAgent, Some(vec!["--flag1", "--flag2"])))
+        .plugin(tauri_plugin_autostart::init(tauri_plugin_autostart::MacosLauncher::LaunchAgent, None))
         .plugin(tauri_plugin_shell::init())
         .setup(move |app| {
             use tauri::Manager;
@@ -198,51 +43,27 @@ pub fn run(mode: overlay::OverlayMode, config: overlay::LinuxConfig) {
             #[cfg(target_os = "linux")]
             let mut config = config;
 
-            // Zielmonitor aufloesen, *bevor* `apply` die Margins setzt: ist der gespeicherte
-            // Monitor weg (abgezogen, anderer Rechner, anderes Layout), zaehlen die
-            // gespeicherten Margins gegen einen Output, den es nicht mehr gibt — die Uhr laege
-            // moeglicherweise ausserhalb jedes Schirms. Dann lieber der erste vorhandene und
-            // die Default-Margins; dieselbe Sorge, die `rescueMargin` fuer Koordinaten abdeckt.
-            //
-            // "Der erste vorhandene", nicht "der primaere": `gdk_monitor_is_primary()` liefert
-            // unter Wayland fuer jeden Monitor 0, die Suche danach faende nie einen.
             #[cfg(target_os = "linux")]
             if mode == overlay::OverlayMode::LayerShell {
-                let monitors = overlay::linux::monitors();
-                let known = config
-                    .monitor
-                    .as_deref()
-                    .is_some_and(|id| monitors.iter().any(|m| m.id == id));
-                if !known {
-                    if let Some(lost) = &config.monitor {
-                        eprintln!("fliq: gespeicherter Monitor {lost} nicht vorhanden, setze Position zurueck");
-                        let d = overlay::LinuxConfig::default();
-                        config.margin_x = d.margin_x;
-                        config.margin_y = d.margin_y;
-                    }
-                    config.monitor = monitors.first().map(|m| m.id.clone());
-                    if let Err(e) = config.save() {
-                        eprintln!("fliq: konnte linux.json nicht schreiben: {e}");
-                    }
-                }
+                restore_saved_monitor(&mut config);
             }
 
-            // `mode` ist ab hier der *tatsaechlich* eingerichtete Modus, nicht der versuchte.
-            // `apply` faellt bei Bedarf auf X11 zurueck, und was das Frontend gemeldet bekommt,
-            // muss zum echten Fenster passen. Deshalb wird `OverlayState` erst hier registriert.
+            // From here on `mode` is the mode *actually* set up, not the one attempted. `apply`
+            // falls back to X11 if needed, and what the frontend is told has to match the real
+            // window. That is why `OverlayState` is registered only below.
             #[cfg(target_os = "linux")]
             let mode = match &window {
                 Some(w) => overlay::linux::apply(w, mode),
                 None => mode,
             };
 
-            // Nach `apply` (das `gtk_layer_init_for_window` erledigt) und vor `show()`, also
-            // noch vor dem Realize.
+            // After `apply` (which runs `gtk_layer_init_for_window`) and before `show()`, so still
+            // before the realize.
             #[cfg(target_os = "linux")]
             if mode == overlay::OverlayMode::LayerShell {
                 if let (Some(w), Some(id)) = (&window, &config.monitor) {
                     if !overlay::linux::set_monitor(w, id) {
-                        eprintln!("fliq: Monitor {id} liess sich nicht zuweisen");
+                        eprintln!("fliq: could not assign monitor {id}");
                     }
                 }
             }
@@ -251,16 +72,15 @@ pub fn run(mode: overlay::OverlayMode, config: overlay::LinuxConfig) {
                 #[cfg(target_os = "linux")]
                 overlay::linux::reload_on_crash(&window);
 
-                // Ersetzt den uebersprungenen Initial-Restore des Plugins, aber nur `POSITION`:
-                // ohne das erschiene das Fenster auf Windows erst an der Default-Position und
-                // spraenge dann, sobald das Frontend `restoreStateCurrent(POSITION)` aufruft.
-                // Fehler sind egal — auf Wayland gibt es keine Fensterposition, dort positioniert
-                // der Compositor bzw. die Layer-Shell-Margin.
+                // Replaces the plugin's skipped initial restore, but only `POSITION`: without it
+                // the window would first appear at the default position on Windows and jump as
+                // soon as the frontend calls `restoreStateCurrent(POSITION)`. Errors do not
+                // matter; Wayland has no window position.
                 use tauri_plugin_window_state::{StateFlags, WindowExt};
                 let _ = window.restore_state(StateFlags::POSITION);
 
-                // Bewusst ausserhalb des Linux-Blocks: `"visible": false` gilt fuer alle
-                // Plattformen, also muss auch `show()` ueberall laufen.
+                // Outside the Linux block on purpose: `"visible": false` applies to every
+                // platform, so `show()` has to run everywhere.
                 window.show()?;
             }
 
@@ -268,27 +88,22 @@ pub fn run(mode: overlay::OverlayMode, config: overlay::LinuxConfig) {
             #[cfg(target_os = "linux")]
             app.manage(tuxhub::TuxhubState::default());
 
-            // Nur im Layer-Shell-Modus: dort positioniert der Compositor, und ein Live-Drag
-            // ueber Margins ist auf KWin unerreichbar. Der X11-Pfad zieht per `startDragging`
-            // und braucht keinen Ghost.
-            #[cfg(target_os = "linux")]
-            if mode == overlay::OverlayMode::LayerShell {
-                overlay::ghost::create(app.handle());
-            }
-
+            // The ghost windows (layer-shell only) are created on the first drag, see
+            // `overlay::ghost::ghost_show`.
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
-            open_stylingmenu_window,
-            get_overlay_state,
-            set_overlay_margin,
-            set_overlay_mode,
+            commands::open_stylingmenu_window,
+            commands::quit_app,
+            commands::get_overlay_state,
+            commands::set_overlay_margin,
+            commands::set_overlay_mode,
             #[cfg(target_os = "linux")]
-            get_monitors,
+            commands::get_monitors,
             #[cfg(target_os = "linux")]
-            set_overlay_placement,
+            commands::set_overlay_placement,
             #[cfg(target_os = "linux")]
-            set_input_region,
+            commands::set_input_region,
             #[cfg(target_os = "linux")]
             overlay::ghost::ghost_show,
             #[cfg(target_os = "linux")]
@@ -305,10 +120,40 @@ pub fn run(mode: overlay::OverlayMode, config: overlay::LinuxConfig) {
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
         .run(|_app, _event| {
-            // Socket wegraeumen, egal ob ueber "Exit", das letzte Fenster oder tuxhub beendet.
+            // Remove the socket however the app ends: "Exit", the last window, or tuxhub.
             #[cfg(target_os = "linux")]
             if let tauri::RunEvent::Exit = _event {
                 tuxhub::stop(_app);
             }
         });
+}
+
+/// Resolves the stored target monitor *before* `apply` sets up the surface. If it is gone
+/// (unplugged, other machine, other layout), the stored position counts against an output that
+/// no longer exists and the clock might sit outside every screen. Then the first available
+/// monitor and the default position are used instead.
+///
+/// "The first available", not "the primary": `gdk_monitor_is_primary()` returns 0 for every
+/// monitor under Wayland, a search for it would never find one.
+#[cfg(target_os = "linux")]
+fn restore_saved_monitor(config: &mut overlay::LinuxConfig) {
+    let monitors = overlay::linux::monitors();
+    let known = config
+        .monitor
+        .as_deref()
+        .is_some_and(|id| monitors.iter().any(|m| m.id == id));
+    if known {
+        return;
+    }
+
+    if let Some(lost) = &config.monitor {
+        eprintln!("fliq: stored monitor {lost} not present, resetting the position");
+        let defaults = overlay::LinuxConfig::default();
+        config.margin_x = defaults.margin_x;
+        config.margin_y = defaults.margin_y;
+    }
+    config.monitor = monitors.first().map(|m| m.id.clone());
+    if let Err(e) = config.save() {
+        eprintln!("fliq: could not write linux.json: {e}");
+    }
 }

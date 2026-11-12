@@ -1,11 +1,14 @@
-//! Der "Ghost": ein durchklickbares Layer-Surface in Outputgroesse **je Monitor**, das waehrend
-//! des Ziehens eine Kopie der Uhr zeigen kann.
+//! The "ghost": a click-through, output-sized layer surface **per monitor** that can show a
+//! copy of the clock while it is dragged.
 //!
-//! Warum ueberhaupt: ein Layer-Surface gehoert zu genau einem Output. Die Uhr selbst bewegt sich
-//! per CSS in ihrer vollflaechigen Surface, wird an deren Rand aber abgeschnitten. Ragt sie beim
-//! Ziehen auf einen anderen Monitor, zeichnet der Ghost dort den Rest. Das *Einblenden* einer
-//! Surface kostet gemessen 25-56 ms von `show()` bis zum ersten gemalten Frame, deshalb werden
-//! beim Drag-Start alle eingeblendet und danach nur noch per Event gesteuert.
+//! Why at all: a layer surface belongs to exactly one output. The clock moves by CSS inside its
+//! full-output surface, but is cut off at the surface's edge. When it reaches onto another
+//! monitor while dragging, that monitor's ghost draws the rest.
+//!
+//! Each ghost is a webview with its own WebKit process (~60 MB). They are therefore created on
+//! the first drag and destroyed again after [`IDLE_LIFETIME`] without dragging, instead of
+//! living for the whole session. While they exist, showing them costs 25-56 ms from `show()` to
+//! the first painted frame, so all are shown at drag start and then driven by events only.
 
 use super::linux::{
     gtk_layer_init_for_window, gtk_layer_set_anchor, gtk_layer_set_exclusive_zone,
@@ -16,48 +19,48 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
 use tauri::{Emitter, Manager};
 
-/// Die Labels aller moeglichen Ghost-Fenster; angelegt wird nur eines je vorhandenem Monitor.
+/// Labels of all possible ghost windows; one is created per existing monitor.
 ///
-/// Die Liste ist statisch, weil die Denylist des window-state-Plugins beim Bau des Builders
-/// feststehen muss — da laeuft noch kein GTK, die Monitorzahl ist also noch unbekannt. Ein
-/// Ghost, den das Plugin anfassen darf, kaeme beim naechsten Start als sichtbares
-/// bildschirmfuellendes Overlay ohne laufenden Drag wieder, also lieber eine Obergrenze als
-/// eine Luecke. Wer mehr als acht Schirme hat, sieht auf den weiteren keine Uhr-Kopie; alles
-/// andere funktioniert dort weiter.
+/// The list is static because the window-state plugin's denylist must be fixed when the builder
+/// is built. No GTK runs then, so the monitor count is unknown. A ghost the plugin may touch
+/// would come back on the next start as a visible full-screen overlay without a drag, so an
+/// upper bound beats a gap. With more than eight screens the others show no clock copy;
+/// everything else keeps working there.
 ///
-/// Die Labels muessen zum Glob `ghost-*` in `capabilities/main.json` passen. Ohne passende
-/// Capability verweigert die ACL `plugin:event|listen`, `ghost.html` bekommt nie ein
-/// `ghost-pos` — und weil das nur die JS-Promise ablehnt, ohne eine Zeile auf stderr,
-/// sieht das exakt aus wie ein Ghost, der gar nicht erst angelegt wurde.
+/// The labels must match the glob `ghost-*` in `capabilities/ghost.json`. Without a matching
+/// capability the ACL refuses `plugin:event|listen` and `ghost.html` never gets a `ghost-pos`;
+/// that only rejects a JS promise, without a line on stderr, so it looks exactly like a ghost
+/// that was never created.
 pub const LABELS: [&str; 8] = [
     "ghost-0", "ghost-1", "ghost-2", "ghost-3", "ghost-4", "ghost-5", "ghost-6", "ghost-7",
 ];
 
-/// Alle tatsaechlich angelegten Ghost-Fenster. Bewusst aus der Fensterliste abgeleitet statt
-/// aus einem eigenen Register: ein Register koennte mit der Wirklichkeit auseinanderlaufen, und
-/// gerade beim Ausblenden darf keines uebersehen werden.
+/// All ghost windows that actually exist. Derived from the window list on purpose instead of an
+/// own registry: a registry could drift from reality, and when hiding, none may be missed.
 fn all(app: &tauri::AppHandle) -> Vec<(String, tauri::WebviewWindow)> {
     LABELS.iter().filter_map(|l| app.get_webview_window(l).map(|w| (l.to_string(), w))).collect()
 }
 
-/// Notbremse fuer **alle** Ghosts (`ghost_hide` geht ueber [`all`]). Jeder liegt auf der
-/// OVERLAY-Ebene ueber allem, auch ueber Vollbild-Spielen — sichtbar haengenbleiben darf
-/// keiner. Im Normalfall raeumen `pointerup`, `pointercancel` und
-/// der Effect-Cleanup im Frontend auf; dieser Timeout deckt ab, was passiert, wenn der Webview
-/// vorher stirbt und keiner dieser Pfade mehr laeuft.
+/// Emergency brake for **all** ghosts (`ghost_hide` goes through [`all`]). Each lies on the
+/// OVERLAY layer above everything, fullscreen games included; none may stay visible. Normally
+/// `pointerup`, `pointercancel` and the effect cleanup in the frontend clean up; this timeout
+/// covers the webview dying before any of those runs.
 ///
-/// ponytail: das ist zugleich eine Obergrenze fuer die Dauer EINES Ziehvorgangs. Ein Drag ueber
-/// 30 s verliert die Uhr-Kopie; das Ziehen selbst laeuft weiter, denn der finale Position kommt aus
-/// den Zeigerkoordinaten, nicht aus dem Ghost. Falls das je stoert: Keepalive vom Frontend, das
-/// pro Bewegung nachlegt.
+/// ponytail: this also caps the length of ONE drag. A drag over 30 s loses the clock copy;
+/// dragging itself goes on, since the final position comes from the pointer, not the ghost. If
+/// that ever matters: a keepalive from the frontend on every move.
 const SAFETY_TIMEOUT: Duration = Duration::from_secs(30);
 
-/// Wird bei jedem `ghost_show`/`ghost_hide` erhoeht. Ein Sicherheits-Timeout blendet nur aus,
-/// wenn seither nichts passiert ist — sonst wuergte er einen laengst neuen Drag ab.
+/// How long hidden ghosts are kept for the next drag before they are destroyed. Dragging is
+/// rare, so their memory is better given back; a drag soon after the last one reuses them.
+const IDLE_LIFETIME: Duration = Duration::from_secs(30);
+
+/// Increased on every `ghost_show`/`ghost_hide`. A timeout only acts if nothing happened since,
+/// otherwise it would cut off a newer drag.
 static GENERATION: AtomicU64 = AtomicU64::new(0);
 
-/// Wo der Ghost seine Kopie der Uhr zeichnet (output-lokal). Dieselbe Form emittiert das
-/// Frontend pro Frame als `ghost-pos`.
+/// Where the ghost draws its copy of the clock (output-local). The frontend emits the same
+/// shape per frame as `ghost-pos`.
 #[derive(Clone, serde::Serialize)]
 struct Pos {
     x: i32,
@@ -66,39 +69,38 @@ struct Pos {
 }
 
 impl Pos {
-    /// Ausgeblendet per CSS, nicht per `hide()`: das Ein-/Ausblenden einer Surface kostet
-    /// 25-56 ms, das Ueberqueren einer Monitorgrenze soll aber im selben Frame sichtbar sein.
+    /// Hidden by CSS, not by `hide()`: showing/hiding a surface costs 25-56 ms, but crossing a
+    /// monitor border should be visible in the same frame.
     const HIDDEN: Pos = Pos { x: 0, y: 0, visible: false };
 }
 
-/// Legt je Monitor ein Ghost-Fenster an: unsichtbar, Outputgroesse (Vier-Kanten-Verankerung),
-/// Layer `OVERLAY`, Keyboard-Mode `NONE`, leere Input-Region, per `gtk_layer_set_monitor` dem
-/// eigenen Output zugewiesen.
+/// Creates the ghost window of every monitor that has none yet: invisible, output-sized
+/// (anchored to all four edges), layer `OVERLAY`, keyboard mode `NONE`, empty input region,
+/// assigned to its own output via `gtk_layer_set_monitor`.
 ///
-/// Die Monitorliste ist eine Momentaufnahme des Starts. Ein spaeter angestecktes Display
-/// bekommt keinen Ghost — dort bliebe die Kopie aus, waehrend Ziehen und Ablegen weiter
-/// funktionieren. Ein Neustart holt es ein.
+/// Runs at drag start, so a monitor plugged in since the app started gets its ghost too. The
+/// index matches `get_monitors`, which the frontend fetches at the same moment.
 ///
-/// Muss im `setup`-Hook laufen (GTK-Main-Thread), und das Fenster muss mit `visible(false)`
-/// gebaut werden: gtk-layer-shell verlangt die Initialisierung **vor** dem Realize.
+/// Must run on the GTK main thread (synchronous command), and the window must be built with
+/// `visible(false)`: gtk-layer-shell needs its initialisation **before** the realize.
 ///
-/// Bewusst **kein** Pre-Warm (einmaliges Zeigen beim Start, um die 25-56 ms des ersten
-/// `show()` zu sparen): das machte aus einer seltenen, vom Nutzer ausgeloesten, kurzen
-/// Sichtbarkeit eine bedingungslose bei jedem Start. Sollte die leere Input-Region auf einem
-/// anderen Compositor je nicht greifen, waere der Preis dafuer ein bildschirmfuellender
-/// Klick-Fresser beim Programmstart — ohne `pointerup`, das ihn beendet. Die Kopie darf dafuer
-/// beim allerersten Drag einer Sitzung ein bis drei Frames spaet erscheinen.
-pub fn create(app: &tauri::AppHandle) {
+/// A freshly created ghost needs a few hundred ms until its page listens. Until then it shows
+/// nothing; dragging and dropping are not affected, the copy just appears a little later.
+fn create_missing(app: &tauri::AppHandle) {
     let Some(display) = gtk::gdk::Display::default() else {
-        eprintln!("fliq: kein GdkDisplay, Ziehen ohne Uhr-Kopie");
+        eprintln!("fliq: no GdkDisplay, dragging without a clock copy");
         return;
     };
     let count = display.n_monitors().min(LABELS.len() as i32);
     for index in 0..count {
+        let label = LABELS[index as usize];
+        if app.get_webview_window(label).is_some() {
+            continue;
+        }
         let Some(monitor) = display.monitor(index) else {
             continue;
         };
-        create_one(app, LABELS[index as usize], &monitor);
+        create_one(app, label, &monitor);
     }
 }
 
@@ -116,70 +118,71 @@ fn create_one(app: &tauri::AppHandle, label: &str, monitor: &gtk::gdk::Monitor) 
     .shadow(false)
     .skip_taskbar(true)
     .resizable(false)
-    // Startgroesse ist belanglos — die Vier-Kanten-Verankerung ueberschreibt sie mit der
-    // Outputgroesse.
+    // The start size does not matter; anchoring to all four edges replaces it with the output
+    // size.
     .inner_size(400.0, 300.0)
     .build()
     {
         Ok(w) => w,
         Err(e) => {
-            eprintln!("fliq: Ghost-Fenster {label} liess sich nicht bauen, keine Uhr-Kopie dort: {e}");
+            eprintln!("fliq: ghost window {label} could not be built, no clock copy there: {e}");
             return;
         }
     };
 
     let Ok(gtk_win) = ghost.gtk_window() else {
-        eprintln!("fliq: kein GtkWindow am Ghost {label}, keine Uhr-Kopie dort");
+        eprintln!("fliq: no GtkWindow on ghost {label}, no clock copy there");
         let _ = ghost.close();
         return;
     };
 
     let namespace = std::ffi::CString::new(format!("fliq-{label}")).unwrap();
 
-    // SAFETY: `ptr` ist ein gueltiges GtkWindow fuer die Dauer der Closure, die Reihenfolge ist
-    // die dokumentierte (init zuerst), und das Fenster ist wegen `visible(false)` noch nicht
-    // realisiert. `namespace` lebt laenger als der Aufruf.
+    // SAFETY: `ptr` is a valid GtkWindow for the duration of the closure, the order is the
+    // documented one (init first), and thanks to `visible(false)` the window is not realized
+    // yet. `namespace` outlives the call.
     let configured = with_raw_gtk_window(&ghost, |ptr| unsafe {
         gtk_layer_init_for_window(ptr);
-        // Nur zur Diagnose: eine haengengebliebene Vollbild-Surface soll im Compositor einen
-        // Namen haben und nicht als anonymes Layer-Surface dastehen.
+        // Diagnostics only: a stuck full-screen surface should have a name in the compositor
+        // instead of showing up as an anonymous layer surface.
         gtk_layer_set_namespace(ptr, namespace.as_ptr());
         gtk_layer_set_layer(ptr, Layer::Overlay);
         gtk_layer_set_keyboard_mode(ptr, KeyboardMode::None);
         gtk_layer_set_exclusive_zone(ptr, -1);
-        // Alle vier Kanten verankert => der Compositor gibt die volle Outputgroesse.
+        // Anchored to all four edges => the compositor gives the full output size.
         for edge in [Edge::Top, Edge::Bottom, Edge::Left, Edge::Right] {
             gtk_layer_set_anchor(ptr, edge, 1);
         }
     });
 
     if configured.is_none() {
-        eprintln!("fliq: Ghost {label} nicht konfigurierbar, keine Uhr-Kopie dort");
+        eprintln!("fliq: ghost {label} not configurable, no clock copy there");
         let _ = ghost.close();
         return;
     }
 
-    // Zuweisung an den eigenen Output, noch **vor** dem Realize — sonst legte der Compositor
-    // alle Ghosts auf denselben Schirm und die uebrigen blieben leer.
+    // Assigned to its own output **before** the realize; otherwise the compositor would put all
+    // ghosts on the same screen and the others would stay empty.
     if !set_monitor_object(&ghost, monitor) {
-        eprintln!("fliq: Ghost {label} liess sich keinem Output zuweisen");
+        eprintln!("fliq: ghost {label} could not be assigned to an output");
     }
 
-    // Leere *Input*-Shape (nicht Clip-Shape) => `wl_surface.set_input_region(leer)`: der Ghost
-    // liegt ueber allem, faengt aber keinen einzigen Klick ab. Vor dem Realize gesetzt, GTK
-    // wendet sie beim Realize an.
+    // Empty *input* shape (not clip shape) => `wl_surface.set_input_region(empty)`: the ghost
+    // lies above everything but catches not a single click. Set before the realize; GTK applies
+    // it then.
     gtk_win.input_shape_combine_region(Some(&gtk::cairo::Region::create()));
 }
 
-/// Blendet **alle** Ghosts ein, jeden zunaechst leer. Waehrend des Ziehens zeichnet die echte
-/// Uhr auf ihrem eigenen Output; ragt sie ueber eine Monitorgrenze, zeichnet der Ghost des
-/// anderen Outputs dort eine Kopie (`ghost-pos` aus dem Frontend). Beim Loslassen auf einem
-/// anderen Monitor ueberbrueckt die Kopie den Moment, in dem die Uhr-Surface umgehaengt wird.
+/// Shows **all** ghosts, each empty at first. While dragging, the real clock draws on its own
+/// output; where it reaches across a monitor border, the other output's ghost draws a copy
+/// (`ghost-pos` from the frontend). Dropped on another monitor, the copy bridges the moment in
+/// which the clock surface is moved there.
 ///
-/// Reihenfolge: erst leeren, dann `show()`. Andersherum stuende fuer einen Frame die Kopie an
-/// der Stelle des vorigen Ziehvorgangs.
+/// Order: clear first, then `show()`. The other way round, the copy would stand for one frame
+/// where the previous drag left it.
 #[tauri::command]
 pub fn ghost_show(app: tauri::AppHandle) {
+    create_missing(&app);
     for (l, win) in all(&app) {
         let _ = win.emit_to(l.as_str(), "ghost-pos", Pos::HIDDEN);
         let _ = win.show();
@@ -189,22 +192,32 @@ pub fn ghost_show(app: tauri::AppHandle) {
 
 #[tauri::command]
 pub fn ghost_hide(app: tauri::AppHandle) {
-    GENERATION.fetch_add(1, Ordering::Relaxed);
+    let hidden_at = GENERATION.fetch_add(1, Ordering::Relaxed) + 1;
     for (_, win) in all(&app) {
         let _ = win.hide();
     }
+
+    gtk::glib::timeout_add_once(IDLE_LIFETIME, move || {
+        // A drag since then? It uses the ghosts, and its own ghost_hide schedules the next try.
+        if GENERATION.load(Ordering::Relaxed) != hidden_at {
+            return;
+        }
+        for (_, win) in all(&app) {
+            let _ = win.destroy();
+        }
+    });
 }
 
 fn arm_safety_timeout(app: &tauri::AppHandle) {
     let armed_at = GENERATION.fetch_add(1, Ordering::Relaxed) + 1;
     let app = app.clone();
     gtk::glib::timeout_add_once(SAFETY_TIMEOUT, move || {
-        // Seither ein weiteres show/hide? Dann ist dieser Timeout veraltet.
+        // Another show/hide since then? Then this timeout is stale.
         if GENERATION.load(Ordering::Relaxed) != armed_at {
             return;
         }
         eprintln!(
-            "fliq: Ghost nach {}s ohne Ende des Ziehvorgangs zwangsweise ausgeblendet",
+            "fliq: ghost hidden by force after {}s without the drag ending",
             SAFETY_TIMEOUT.as_secs()
         );
         ghost_hide(app);
