@@ -300,6 +300,27 @@ pub fn set_input_region(window: &tauri::WebviewWindow, x: i32, y: i32, w: i32, h
     gtk_win.input_shape_combine_region(Some(&region));
 }
 
+/// Tells the page when the pointer leaves the clock surface (event `pointer-left`).
+///
+/// WebKitGTK sends no `mouseout`/`pointerleave` when the pointer leaves the input region of the
+/// layer-shell surface (checked on KWin): the page keeps its last hover state. GTK itself does get
+/// the leave, so it is passed on from here. The clock's right-click menu closes on it.
+pub fn report_pointer_leave(window: &tauri::WebviewWindow) {
+    let target = window.clone();
+    let _ = window.with_webview(move |wv| {
+        use gtk::prelude::WidgetExt;
+        use tauri::Emitter;
+
+        wv.inner().connect_leave_notify_event(move |_, event| {
+            // Moves between the webview's own child windows are no real leave.
+            if event.detail() != gtk::gdk::NotifyType::Inferior {
+                let _ = target.emit_to(target.label(), "pointer-left", ());
+            }
+            gtk::glib::Propagation::Proceed
+        });
+    });
+}
+
 /// Reloads the page when the WebKit process dies.
 ///
 /// Without this the window keeps its last frame: the clock looks frozen and reacts to nothing.

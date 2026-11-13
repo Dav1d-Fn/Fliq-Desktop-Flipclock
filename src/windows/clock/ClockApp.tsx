@@ -1,7 +1,7 @@
 import "../../styles/styles.css";
 import "@pqina/flip/dist/flip.min.css";
 
-import { MouseEvent, useEffect } from "react";
+import { MouseEvent, useCallback, useEffect, useState } from "react";
 import { useAtom, useAtomValue } from "jotai";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { PhysicalPosition } from "@tauri-apps/api/dpi";
@@ -16,6 +16,10 @@ import { useWeatherUpdates } from "../../weather/useWeatherUpdates";
 import { AppActions } from "../../settings/AppActions";
 import { ATOMS } from "../../settings/atoms";
 import { TuxhubBridge } from "../../tuxhub/TuxhubBridge";
+import ClockMenu, { type ClockMenuItem } from "./ClockMenu";
+
+// True while the native right-click menu is shown, see showNativeMenu.
+let nativeMenuOpen = false;
 
 function ClockApp()
 {
@@ -24,6 +28,9 @@ function ClockApp()
     const [alwaysOnTop, setAlwaysOnTop] = useAtom(ATOMS.ALWAYS_ON_TOP);
     const layout = useAtomValue(ATOMS.CLOCK_LAYOUT);
     const scalePercent = useAtomValue(ATOMS.CLOCK_SCALE);
+    // Where the HTML menu is open (layer-shell only), null while closed.
+    const [menuAt, setMenuAt] = useState<{ x: number; y: number } | null>(null);
+    const closeMenu = useCallback(() => setMenuAt(null), []);
 
     useWeatherUpdates();
 
@@ -101,34 +108,85 @@ function ClockApp()
         setAlwaysOnTop(!alwaysOnTop);
     }
 
+    // Click area grows with the menu and shrinks back once it is gone. Runs after the menu has
+    // placed itself (its layout effect runs first).
+    useEffect(() =>
+    {
+        ClockWindow.updateInputRegion();
+    }, [menuAt]);
+
+    const menuItems: ClockMenuItem[] = [
+        { label: "Styling", action: () => void AppActions.openStyling() },
+        { label: "Autostart", checked: autostart, action: () => void toggleAutostart() },
+        { label: "Hide in Taskbar", checked: hideInTaskbar, action: () => void toggleHideInTaskbar() },
+        { label: "Always on Top", checked: alwaysOnTop, action: () => void toggleAlwaysOnTop() },
+        { label: "Exit", action: () => void AppActions.quit() },
+    ];
+
+    // Layer-shell: own HTML menu (see ClockMenu for why). X11 and Windows keep the native menu:
+    // there the window is only as large as the clock, so an HTML menu would be cut off, and the
+    // native popup gets a proper grab and closes on outside clicks.
     async function openContextMenu(event: MouseEvent)
     {
-        const items = await Promise.all([
-            MenuItem.new({ text: "Styling", action: () => void AppActions.openStyling() }),
-            CheckMenuItem.new({ checked: autostart, text: "Autostart", action: () => void toggleAutostart() }),
-            CheckMenuItem.new({ checked: hideInTaskbar, text: "Hide in Taskbar", action: () => void toggleHideInTaskbar() }),
-            CheckMenuItem.new({ checked: alwaysOnTop, text: "Always on Top", action: () => void toggleAlwaysOnTop() }),
-            MenuItem.new({ text: "Exit", action: () => void AppActions.quit() }),
-        ]);
-        const menu = await Menu.new({ items });
-        await menu.popup(new PhysicalPosition(event.clientX, event.clientY));
+        const position = { x: event.clientX, y: event.clientY };
+        if (await ClockWindow.isLayerShell())
+        {
+            setMenuAt(position);
+            return;
+        }
+        await showNativeMenu(position);
     }
 
+    async function showNativeMenu(position: { x: number; y: number })
+    {
+        // On GTK, popup() runs a nested main loop and holds Tauri's resource table until the menu
+        // closes. Creating menu items in that time (a second right-click) waits for the same lock
+        // on the same thread: the whole app freezes. So only one menu at a time.
+        if (nativeMenuOpen)
+        {
+            return;
+        }
+        nativeMenuOpen = true;
+        try
+        {
+            const items = await Promise.all(menuItems.map((item) => item.checked === undefined
+                ? MenuItem.new({ text: item.label, action: item.action })
+                : CheckMenuItem.new({ text: item.label, checked: item.checked, action: item.action })));
+            const menu = await Menu.new({ items });
+            await menu.popup(new PhysicalPosition(position.x, position.y));
+        }
+        finally
+        {
+            nativeMenuOpen = false;
+        }
+    }
+
+    // The clock is hidden until the overlay state is known (set imperatively, like the
+    // transform), otherwise it would flash in the top left corner of the output first.
     return (
-        // Hidden until the overlay state is known (set imperatively, like the transform),
-        // otherwise the clock would flash in the top left corner of the output first.
-        <div
-            id="maindiv"
-            style={{ position: "absolute", left: 0, top: 0, visibility: "hidden" }}
-            onContextMenu={(event) =>
-            {
-                event.preventDefault();
-                event.stopPropagation();
-                openContextMenu(event);
-            }}
-        >
-            <GridClock layout={layout} scale={scalePercent / 100} />
-        </div>
+        <>
+            <div
+                id="maindiv"
+                style={{ position: "absolute", left: 0, top: 0, visibility: "hidden" }}
+                onPointerDown={(event) =>
+                {
+                    // A left click on the clock closes the menu (and may start a drag as usual).
+                    if (event.button === 0)
+                    {
+                        closeMenu();
+                    }
+                }}
+                onContextMenu={(event) =>
+                {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    void openContextMenu(event);
+                }}
+            >
+                <GridClock layout={layout} scale={scalePercent / 100} />
+            </div>
+            {menuAt && <ClockMenu x={menuAt.x} y={menuAt.y} items={menuItems} onClose={closeMenu} />}
+        </>
     );
 }
 

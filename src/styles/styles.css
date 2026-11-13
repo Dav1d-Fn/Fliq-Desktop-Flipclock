@@ -83,3 +83,45 @@ button {
     background-color: #0f0f0f69;
   }
 }
+
+/* Right-click menu of the clock (ClockMenu). Dark, with the settings window's green accent. */
+.clock-menu {
+  position: fixed;
+  z-index: 10;
+  min-width: 180px;
+  padding: 4px;
+  border-radius: 8px;
+  border: 1px solid #3a3f48;
+  background: #1f2228;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+  font-family: "Inter Variable", Inter, system-ui, sans-serif;
+  font-size: 13px;
+  line-height: 18px;
+  user-select: none;
+}
+
+.clock-menu .clock-menu-item {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 6px 10px 6px 6px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  box-shadow: none;
+  color: #e9ebef;
+  font-size: inherit;
+  font-weight: 400;
+  text-align: left;
+}
+
+.clock-menu .clock-menu-item:hover {
+  background: #2fa84f;
+  color: #ffffff;
+}
+
+.clock-menu .clock-menu-check {
+  display: inline-block;
+  width: 20px;
+  text-align: center;
+}
