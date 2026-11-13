@@ -1,34 +1,43 @@
-import "../../styles/styles.css";
 import "@mantine/core/styles.css";
+import "@fontsource-variable/inter";
+import "@fontsource-variable/jetbrains-mono";
 import "./styling.css";
 
-import { MantineProvider, Space, Stack } from "@mantine/core";
-import { FirstRowSection } from "./sections/FirstRowSection";
-import { FlipCardSection } from "./sections/FlipCardSection";
-import { FormatHelpSection } from "./sections/FormatHelpSection";
-import { GeneralSection } from "./sections/GeneralSection";
-import { LinksSection } from "./sections/LinksSection";
-import { SecondRowSection } from "./sections/SecondRowSection";
-import { WeatherSection } from "./sections/WeatherSection";
+import { useRef, useState } from "react";
+import { MantineProvider } from "@mantine/core";
+import { LivePreview } from "./layout/LivePreview";
+import { Sidebar } from "./layout/Sidebar";
+import { SETTINGS_PAGES, type PageId } from "./SettingsPages";
+import { stylingTheme } from "./theme";
 
-// The styling window. Every section reads and writes the settings atoms directly; the clock
-// window follows through the shared localStorage.
+// The styling window: sidebar with the pages of SETTINGS_PAGES, the current page on the right.
+// Every page reads and writes the settings atoms directly; the clock window follows through the
+// shared localStorage.
 export default function StylingApp()
 {
+    const [currentPageId, setCurrentPageId] = useState<PageId>("appearance");
+    const mainRef = useRef<HTMLElement>(null);
+
+    const currentPage = SETTINGS_PAGES.find((page) => page.id === currentPageId) ?? SETTINGS_PAGES[0];
+    const PageComponent = currentPage.component;
+
+    function navigate(pageId: PageId)
+    {
+        setCurrentPageId(pageId);
+        mainRef.current?.scrollTo({ top: 0 });
+    }
+
     return (
-        <div style={{ margin: "15px 30px 0" }}>
-            <MantineProvider>
-                <Stack gap="lg">
-                    <GeneralSection />
-                    <FormatHelpSection />
-                    <FirstRowSection />
-                    <SecondRowSection />
-                    <FlipCardSection />
-                    <WeatherSection />
-                    <LinksSection />
-                    <Space h="xs" />
-                </Stack>
-            </MantineProvider>
-        </div>
+        <MantineProvider theme={stylingTheme} forceColorScheme="light">
+            <div className="styling-window">
+                <Sidebar currentPage={currentPage.id} onNavigate={navigate} />
+                <main className="styling-main" ref={mainRef}>
+                    <div className="styling-page">
+                        {currentPage.showPreview && <LivePreview />}
+                        <PageComponent navigate={navigate} />
+                    </div>
+                </main>
+            </div>
+        </MantineProvider>
     );
 }

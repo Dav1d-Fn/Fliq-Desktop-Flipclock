@@ -20,7 +20,10 @@ gtk-layer-shell, X11 fallback). macOS is not shipped. Meant to grow into a widge
 - `src/windows/` — one folder per window, each with its `main.tsx` entry:
   - `clock/ClockApp` — the clock window (context menu, window setup, weather updates, tuxhub).
   - `ghost/` — copy of the clock drawn on another monitor while dragging (Linux layer-shell).
-  - `styling/StylingApp` — settings window; `sections/` one card each, `controls/` shared inputs.
+  - `styling/StylingApp` — settings window: sidebar + one page at a time. `SettingsPages` lists
+    the pages (group, icon, live preview on/off), `FormatTokens` the line placeholders (chips,
+    token page, "Used in line" badges). `pages/` one file per page, `controls/` the setting rows
+    and inputs, `layout/` sidebar, header, live preview (the real FlipClock, scaled down).
 - `src/clock/` — the clock itself. `FlipClock` is mounted once per layout (`useClockLayoutKey`);
   style and weather changes re-render it in place. `TimeCharacters` renders the Tick.js spans
   once and never again — React must not touch nodes Tick.js owns. `ClockTemplate` parses
@@ -41,7 +44,8 @@ gtk-layer-shell, X11 fallback). macOS is not shipped. Meant to grow into a widge
 ## Adding a setting
 
 1. Atom in `src/settings/atoms.ts`.
-2. Control in the matching `src/windows/styling/sections/*Section.tsx`.
+2. A `SettingRow` in the matching `src/windows/styling/pages/*Page.tsx`. A new module (widget)
+   gets its page in `SettingsPages` under "Modules" and its placeholder in `FormatTokens`.
 3. Field in `src/tuxhub/tuxhubSchema.ts` and key in `TuxhubBridge` (`tests/tuxhub-schema.test.ts`
    fails otherwise).
 

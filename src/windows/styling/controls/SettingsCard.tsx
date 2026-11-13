@@ -1,20 +1,21 @@
 import { ReactNode } from "react";
-import { Card, Divider, Title } from "@mantine/core";
 
 interface SettingsCardProps
 {
     title: string;
+    // SettingRow elements.
     children: ReactNode;
 }
 
-// One titled section of the styling window.
+// A titled group of setting rows.
 export function SettingsCard({ title, children }: SettingsCardProps)
 {
     return (
-        <Card shadow="sm" radius="md" withBorder>
-            <Title order={4}>{title}</Title>
-            <Divider my="sm" />
-            {children}
-        </Card>
+        <section>
+            <div className="card-title">{title}</div>
+            <div className="settings-card">
+                {children}
+            </div>
+        </section>
     );
 }
