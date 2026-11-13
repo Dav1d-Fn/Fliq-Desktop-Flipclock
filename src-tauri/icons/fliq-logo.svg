@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Source of the app icons: the Fliq logo of the settings window (FliqLogo.tsx).
+     Tile radius size/4, cards size/3 x size*0.45, gap and card radius size/16.
+     Regenerate the set with: npx tauri icon src-tauri/icons/fliq-logo.svg -->
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <rect width="1024" height="1024" rx="256" fill="#121212"/>
+  <rect x="138.67" y="281.6" width="341.33" height="460.8" rx="64" fill="#2fa84f"/>
+  <rect x="544" y="281.6" width="341.33" height="460.8" rx="64" fill="#fafafa"/>
+</svg>
