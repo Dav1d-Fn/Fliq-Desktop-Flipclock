@@ -9,12 +9,12 @@
   },
   "devDependencies": {
     "@fontsource-variable/inter": "5.2.8",
-    "@remotion/cli": "4.0.538",
+    "@remotion/cli": "4.0.543",
     "@types/react": "18.3.23",
     "playwright": "1.65.0",
     "react": "18.3.1",
     "react-dom": "18.3.1",
-    "remotion": "4.0.538",
+    "remotion": "4.0.543",
     "typescript": "5.9.3"
   }
 }
