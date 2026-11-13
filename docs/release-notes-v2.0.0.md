@@ -1,5 +1,4 @@
-<!-- SHOWREEL: replace this comment with the https://github.com/user-attachments/assets/... link of
-     docs/video/out/fliq-showreel.mp4 (the same link as in the README), on its own line. -->
+https://github.com/user-attachments/assets/6796d331-4cf8-4b79-a32d-208d5bc32768
 
 What's New:
 
