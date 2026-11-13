@@ -58,3 +58,11 @@ test("no data yet shows the loading text", () =>
 {
     assert.equal(new WeatherFormatter(null, null, "C", at(12)).format("temp"), "Loading weather…");
 });
+
+test("high and low need both values, old caches without them show a dash", () =>
+{
+    const withRange = { ...report, highCelsius: "9", highFahrenheit: "48", lowCelsius: "3", lowFahrenheit: "37" };
+    assert.equal(new WeatherFormatter(withRange, sunDays, "C", at(12)).format("highLow"), "9 °C / 3 °C");
+    assert.equal(new WeatherFormatter(withRange, sunDays, "F", at(12)).format("highLow"), "48 °F / 37 °F");
+    assert.equal(format("highLow", at(12)), "–");
+});

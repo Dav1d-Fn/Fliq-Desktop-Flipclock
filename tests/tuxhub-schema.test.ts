@@ -4,10 +4,8 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { schema, check, Refusal } from "../src/tuxhub/tuxhubSchema.ts";
 
-const ON = { secondRowEnabled: true };
-
 const fields = (s: ReturnType<typeof schema>) => s.sections.flatMap((sec) => sec.fields);
-const field = (key: string, s = schema("en", ON)) => 
+const field = (key: string, s = schema("en")) => 
 {
     const f = fields(s).find((f) => f.key === key);
     assert.ok(f, `field ${key} is missing`);
@@ -18,8 +16,9 @@ test("schema covers every stored setting except caches", () =>
 {
     const atoms = readFileSync(new URL("../src/settings/atoms.ts", import.meta.url), "utf8");
     const stored = [...atoms.matchAll(/atomWithStorage(?:<[^>]*>)?\("([^"]+)"/g)].map((m) => m[1]);
-    const caches = ["weatherReport", "sunDays"];
-    const keys = fields(schema("en", ON)).map((f) => f.key);
+    // Caches, and the block layout, which only the styling window edits.
+    const caches = ["weatherReport", "sunDays", "clockLayout"];
+    const keys = fields(schema("en")).map((f) => f.key);
     for (const key of stored.filter((k) => !caches.includes(k))) 
     {
         assert.ok(keys.includes(key), `${key} is not in the schema`);
@@ -31,7 +30,7 @@ test("schema stays within the limits tuxhub checks", () =>
 {
     for (const locale of ["en", "de"]) 
     {
-        const s = schema(locale, ON);
+        const s = schema(locale);
         const ident = /^[A-Za-z0-9_.-]{1,64}$/;
         assert.ok(s.sections.length <= 32 && s.actions.length <= 32);
         const keys = new Set<string>();
@@ -69,12 +68,12 @@ test("schema stays within the limits tuxhub checks", () =>
 
 test("labels come in English and German, anything else falls back to English", () => 
 {
-    assert.equal(field("textColor", schema("en", ON)).label, "Text color");
-    assert.equal(field("textColor", schema("de", ON)).label, "Textfarbe");
-    assert.deepEqual(schema("fr", ON), schema("en", ON));
-    assert.deepEqual(schema("de-AT", ON), schema("de", ON));
-    const en = JSON.stringify(schema("en", ON));
-    const de = JSON.stringify(schema("de", ON));
+    assert.equal(field("textColor", schema("en")).label, "Default text color");
+    assert.equal(field("textColor", schema("de")).label, "Standard-Textfarbe");
+    assert.deepEqual(schema("fr"), schema("en"));
+    assert.deepEqual(schema("de-AT"), schema("de"));
+    const en = JSON.stringify(schema("en"));
+    const de = JSON.stringify(schema("de"));
     assert.notEqual(en, de);
 });
 
@@ -84,41 +83,28 @@ test("context menu entries and actions are part of the schema", () =>
     {
         assert.equal(field(key).type, "toggle");
     }
-    const ids = schema("en", ON).actions.map((a) => a.id);
+    const ids = schema("en").actions.map((a) => a.id);
     assert.deepEqual(ids, ["open-styling", "quit"]);
-});
-
-test("second row fields follow the second row switch", () => 
-{
-    const second = ["secondRowGap", "secondRowClockTextSize", "secondRowFormat"];
-    for (const key of second) 
-    {
-        assert.ok(!field(key, schema("en", ON)).disabled);
-        assert.equal(field(key, schema("en", { secondRowEnabled: false })).disabled, true);
-    }
-    assert.ok(!field("secondRowEnabled", schema("en", { secondRowEnabled: false })).disabled);
 });
 
 test("valid values are accepted as they are applied", () => 
 {
-    assert.equal(check("clockTextSize", 40, ON), 40);
-    assert.equal(check("clockTextSize", 40.4, ON), 40);
-    assert.equal(check("boxRounded", 0, ON), 0);
-    assert.equal(check("textColor", "#FF0000AA", ON), "#ff0000aa");
-    assert.equal(check("textColor", "#ff0000", ON), "#ff0000ff");
-    assert.equal(check("textFont", "Georgia, serif", ON), "Georgia, serif");
-    assert.equal(check("lang", "de", ON), "de");
-    assert.equal(check("overlayMode", "x11", ON), "x11");
-    assert.equal(check("secondRowEnabled", false, ON), false);
-    assert.equal(check("weatherLocation", "", ON), "");
-    assert.equal(check("format", "$FLIPTIME(HH:mm)", ON), "$FLIPTIME(HH:mm)");
+    assert.equal(check("clockScale", 150), 150);
+    assert.equal(check("clockScale", 150.4), 150);
+    assert.equal(check("clockCornerRadius", 0), 0);
+    assert.equal(check("textColor", "#FF0000AA"), "#ff0000aa");
+    assert.equal(check("textColor", "#ff0000"), "#ff0000ff");
+    assert.equal(check("textFont", "Georgia, serif"), "Georgia, serif");
+    assert.equal(check("lang", "de"), "de");
+    assert.equal(check("overlayMode", "x11"), "x11");
+    assert.equal(check("weatherLocation", ""), "");
 });
 
-function refused(key: string, value: unknown, opts = ON, locale = "en") 
+function refused(key: string, value: unknown, locale = "en") 
 {
     try 
     {
-        check(key, value, opts, locale);
+        check(key, value, locale);
     }
     catch (e) 
     {
@@ -132,10 +118,10 @@ function refused(key: string, value: unknown, opts = ON, locale = "en")
 
 test("values that do not fit are refused and name the field", () => 
 {
-    refused("clockTextSize", 4);
-    refused("clockTextSize", 101);
-    refused("clockTextSize", "40");
-    refused("clockTextSize", Number.NaN);
+    refused("clockScale", 29);
+    refused("clockScale", 301);
+    refused("clockScale", "40");
+    refused("clockScale", Number.NaN);
     refused("clockPadding", -1);
     refused("textColor", "red");
     refused("textColor", "#ff00");
@@ -145,24 +131,21 @@ test("values that do not fit are refused and name the field", () =>
     refused("overlayMode", "wayland");
     refused("weatherUnit", "K");
     refused("autostart", "yes");
-    refused("format", 5);
-    refused("format", "x".repeat(1001));
-    refused("seperatorString", "x".repeat(51));
     refused("weatherLocation", "x".repeat(201));
 });
 
-test("unknown keys and disabled fields are refused", () => 
+test("unknown keys and the block layout are refused", () => 
 {
     refused("weatherData", { temp: 1 });
     refused("__proto__", 1);
-    refused("secondRowGap", 10, { secondRowEnabled: false });
+    refused("clockLayout", { columns: 2 });
 });
 
 test("refusals are worded in the requested language", () => 
 {
-    const en = refused("clockTextSize", 500, ON, "en");
-    const de = refused("clockTextSize", 500, ON, "de");
+    const en = refused("clockScale", 500, "en");
+    const de = refused("clockScale", 500, "de");
     assert.notEqual(en, de);
-    assert.match(en, /5/);
-    assert.match(de, /100/);
+    assert.match(en, /30/);
+    assert.match(de, /300/);
 });

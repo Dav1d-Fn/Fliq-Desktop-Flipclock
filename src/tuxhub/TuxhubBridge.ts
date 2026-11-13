@@ -3,7 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { ATOMS } from "../settings/atoms";
 import { AppActions } from "../settings/AppActions";
-import { schema, check, toLocale, Refusal, ACTION_IDS, type Options } from "./tuxhubSchema.ts";
+import { schema, check, toLocale, Refusal, ACTION_IDS } from "./tuxhubSchema.ts";
 
 interface Request
 {
@@ -32,22 +32,14 @@ type Setting = WritableAtom<unknown, [never], void>;
 // Schema key -> atom. The keys are the localStorage keys of the atoms.
 const SETTINGS: Record<string, Setting> = {
     lang: ATOMS.LANGUAGE,
+    hourCycle: ATOMS.HOUR_CYCLE,
+    hourLeadingZero: ATOMS.HOUR_LEADING_ZERO,
     boxBackgroundColor: ATOMS.BOX_BACKGROUND,
-    boxRounded: ATOMS.BOX_RADIUS,
+    clockCornerRadius: ATOMS.CLOCK_CORNER_RADIUS,
+    clockScale: ATOMS.CLOCK_SCALE,
     clockPadding: ATOMS.CLOCK_PADDING,
     textFont: ATOMS.TEXT_FONT,
     textColor: ATOMS.TEXT_COLOR,
-    clockTextSize: ATOMS.CLOCK_TEXT_SIZE,
-    format: ATOMS.TIME_FORMAT,
-    secondRowEnabled: ATOMS.SECOND_ROW_ENABLED,
-    secondRowGap: ATOMS.SECOND_ROW_GAP,
-    secondRowClockTextSize: ATOMS.SECOND_ROW_CLOCK_TEXT_SIZE,
-    secondRowFormat: ATOMS.SECOND_ROW_TIME_FORMAT,
-    clockSeparatorColor: ATOMS.CLOCK_SEPARATOR_COLOR,
-    clockTextColor: ATOMS.CLOCK_TEXT_COLOR,
-    flipCardBackground: ATOMS.FLIPCARD_BACKGROUND,
-    flipcardRounded: ATOMS.FLIPCARD_RADIUS,
-    seperatorString: ATOMS.SEPARATOR_STRING,
     weatherUnit: ATOMS.WEATHER_UNIT,
     weatherLocation: ATOMS.WEATHER_LOCATION,
     autostart: ATOMS.AUTOSTART,
@@ -130,11 +122,6 @@ export class TuxhubBridge
     {
         invoke("tuxhub_changed", { values: { [key]: this.store.get(atom) }, exclude: this.origin })
             .catch((error) => console.error("tuxhub_changed failed:", error));
-        if (key === "secondRowEnabled")
-        {
-            invoke("tuxhub_schema_changed")
-                .catch((error) => console.error("tuxhub_schema_changed failed:", error));
-        }
     }
 
     private async answer(request: Request): Promise<void>
@@ -169,13 +156,13 @@ export class TuxhubBridge
         {
             case "schema":
                 this.locale = toLocale(params.locale);
-                return { result: schema(this.locale, this.options()) };
+                return { result: schema(this.locale) };
             case "get":
                 return { result: { values: await this.values() } };
             case "set":
             {
                 const key = typeof params.key === "string" ? params.key : "";
-                const value = check(key, params.value, this.options(), this.locale);
+                const value = check(key, params.value, this.locale);
                 await this.apply(key, value, request.conn);
                 return { result: { value } };
             }
@@ -241,11 +228,6 @@ export class TuxhubBridge
         const overlay = await invoke<{ preference: string }>("get_overlay_state");
         values.overlayMode = overlay.preference;
         return values;
-    }
-
-    private options(): Options
-    {
-        return { secondRowEnabled: this.store.get(ATOMS.SECOND_ROW_ENABLED) };
     }
 
     private static asObject(value: unknown): Record<string, unknown>

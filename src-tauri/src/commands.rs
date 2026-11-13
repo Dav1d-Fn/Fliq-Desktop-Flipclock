@@ -33,8 +33,8 @@ pub async fn open_stylingmenu_window(app: tauri::AppHandle) -> Result<(), String
     }
 
     tauri::WebviewWindowBuilder::new(&app, "Styling", tauri::WebviewUrl::App("stylingMenu.html".into()))
-        .inner_size(1000.0, 700.0)
-        .min_inner_size(820.0, 520.0)
+        .inner_size(1614.0, 1018.0)
+        .min_inner_size(1000.0, 640.0)
         .resizable(true)
         .title("Fliq Settings")
         .build()

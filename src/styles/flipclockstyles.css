@@ -1,67 +1,91 @@
-:root {
-   --flipcard-bg-color: black;
-   --seperator-color: black;
-   --clock-text-color: white;
-   --clock-text-size: 15px;
-   --second-row-clock-text-size: 12px;
-   --flipcard-rounded: 0.3em;
-   --text-color: white;
-   --text-font: Arial, sans-serif;
-}
- 
- #flipclock-container {
-   display: flex;       
-   flex-direction: column;   
-   align-items: center; 
-   justify-content: center;
-   text-align: center;
+/* The clock: grid container, blocks and the Tick.js overrides. Colors come in as variables,
+   set on the container (clock defaults) and on each block (its own values). */
+
+#flipclock-container {
    width: fit-content;
    height: fit-content;
- }
- 
-
-#flipclock {
-   display: inline-flex;
-   gap: 2px;
-   font-size: var(--clock-text-size);
 }
 
-#flipclock-second-row {
-   display: inline-flex;
-   gap: 2px;
-   font-size: var(--second-row-clock-text-size);
+.clock-block {
+   /* Own compositing layer per block. Without it WebKitGTK left pieces of the old, larger
+      text behind (dark bars under the block) when the block shrank, e.g. more padding. */
+   will-change: transform;
 }
 
-/* Settings For all other Text Elements */
+.clock-block-fit {
+   flex: 1;
+   min-width: 0;
+   display: flex;
+   align-items: center;
+   /* Visible: above 100 % text size the content may reach past the block. */
+   overflow: visible;
+}
+
+.block-content {
+   flex: none;
+   display: inline-flex;
+   align-items: center;
+   /* pre, not nowrap: each time character is its own flex item, and a lone space would
+      collapse to nothing ("Fri,13.11"). */
+   white-space: pre;
+   line-height: 1.2;
+}
+
+/* Letter spacing (ClockBlock's --letter-spacing), the same after every character. Single time
+   characters get it as margin (negative works, a span can't get narrower than 0); text runs
+   as CSS letter-spacing, which adds it after their last character too, so segment borders are
+   spaced like characters. No flex gap. */
+.block-content > * {
+   margin-right: var(--letter-spacing, 0em);
+}
+
+.block-content > .text-run {
+   letter-spacing: var(--letter-spacing, 0em);
+   margin-right: 0;
+}
+
+/* Room between group members: exactly the group's item gap, the character before it already
+   brings its own spacing. */
+.block-content > .segment-space {
+   margin-right: 0;
+}
+
+/* Flip cards and the separators between them get a small base gap that keeps the cards apart
+   at 0 em. */
+.block-content > .tick-flip,
+.block-content > .tick-text-inline {
+   margin-right: calc(0.08em + var(--letter-spacing, 0em));
+}
+
+/* Nothing after the last item, so the content stays centred. */
+.block-content > :last-child {
+   margin-right: 0;
+}
+
+.block-content > .text-run:last-child {
+   margin-right: calc(-1 * var(--letter-spacing, 0em));
+}
+
+/* Text, time and weather */
 .normal-text-settings {
-   color: var(--text-color) !important; 
+   color: var(--text-color) !important;
    font-family: var(--text-font) !important;
 }
 
-/* Settings For Fliptime Seperators */
+/* Separators between flip cards */
 .tick-text-inline {
-   color: var(--seperator-color) !important; 
+   color: var(--text-color) !important;
    font-family: var(--text-font) !important;
 }
 
-/* Settings For Fliptime Element */
+/* Flip cards */
 .tick-flip-panel {
-   color: var(--clock-text-color) !important;
+   color: var(--text-color) !important;
    font-family: var(--text-font) !important;
-}
-
-.tick {
-  font-family: arial,sans-serif;
+   background-color: var(--flipcard-bg-color) !important;
 }
 
 .tick-flip {
-   font-family: 'Roboto', sans-serif !important; 
-}
-
-.tick-flip-panel {
-   background-color: var(--flipcard-bg-color) !important; 
-}
-
-.tick-flip {
-   border-radius: var(--flipcard-rounded) !important; 
+   font-family: 'Roboto', sans-serif !important;
+   border-radius: var(--flipcard-rounded) !important;
 }

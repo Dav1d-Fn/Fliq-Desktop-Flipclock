@@ -2,10 +2,10 @@ import "@mantine/core/styles.css";
 import "@fontsource-variable/inter";
 import "@fontsource-variable/jetbrains-mono";
 import "./styling.css";
+import "./layoutEditor/layoutEditor.css";
 
 import { useRef, useState } from "react";
 import { MantineProvider } from "@mantine/core";
-import { LivePreview } from "./layout/LivePreview";
 import { Sidebar } from "./layout/Sidebar";
 import { SETTINGS_PAGES, type PageId } from "./SettingsPages";
 import { stylingTheme } from "./theme";
@@ -15,7 +15,7 @@ import { stylingTheme } from "./theme";
 // shared localStorage.
 export default function StylingApp()
 {
-    const [currentPageId, setCurrentPageId] = useState<PageId>("appearance");
+    const [currentPageId, setCurrentPageId] = useState<PageId>("layout");
     const mainRef = useRef<HTMLElement>(null);
 
     const currentPage = SETTINGS_PAGES.find((page) => page.id === currentPageId) ?? SETTINGS_PAGES[0];
@@ -31,11 +31,14 @@ export default function StylingApp()
         <MantineProvider theme={stylingTheme} forceColorScheme="light">
             <div className="styling-window">
                 <Sidebar currentPage={currentPage.id} onNavigate={navigate} />
-                <main className="styling-main" ref={mainRef}>
-                    <div className="styling-page">
-                        {currentPage.showPreview && <LivePreview />}
-                        <PageComponent navigate={navigate} />
-                    </div>
+                <main className={currentPage.wide ? "styling-main wide" : "styling-main"} ref={mainRef}>
+                    {currentPage.wide
+                        ? <PageComponent />
+                        : (
+                            <div className="styling-page">
+                                <PageComponent />
+                            </div>
+                        )}
                 </main>
             </div>
         </MantineProvider>
