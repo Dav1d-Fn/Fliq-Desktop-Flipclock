@@ -1,8 +1,10 @@
 # Fliq – A Floating Desktop Flipclock ⏳
 
-<!-- SHOWREEL: replace this comment with the https://github.com/user-attachments/assets/... link
-     GitHub generates when docs/video/out/fliq-showreel.mp4 is dropped into the editor on
-     github.com. The link must stand alone on its own line, then GitHub shows a player. -->
+
+
+https://github.com/user-attachments/assets/6796d331-4cf8-4b79-a32d-208d5bc32768
+
+
 
 ---
 
