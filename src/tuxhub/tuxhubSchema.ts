@@ -17,7 +17,6 @@ export type Field = {
     type: FieldDef["type"];
     label: string;
     help?: string;
-    disabled?: boolean;
     min?: number;
     max?: number;
     step?: number;
@@ -35,14 +34,7 @@ export type Schema = {
     actions: { id: string; label: string }[];
 };
 
-export type Options = { secondRowEnabled: boolean };
-
 const same = (s: string): Text => ({ en: s, de: s });
-
-const FORMAT_HELP: Text = {
-    en: "Placeholders: $FLIPTIME(HH:mm:ss), $TIME(dddd, DD.MM), $TEXT(…), $WEATHER(tempEmoji). Formats follow Day.js.",
-    de: "Platzhalter: $FLIPTIME(HH:mm:ss), $TIME(dddd, DD.MM), $TEXT(…), $WEATHER(tempEmoji). Formate wie bei Day.js.",
-};
 
 const number = (key: string, label: Text, cfg: { min: number; max: number; unit: string }): FieldDef => ({
     key,
@@ -59,23 +51,23 @@ const SECTIONS: { id: string; label: Text; fields: FieldDef[] }[] = [
         id: "general",
         label: { en: "General", de: "Allgemein" },
         fields: [
-            {
-                key: "lang",
-                type: "select",
-                label: { en: "Language", de: "Sprache" },
-                help: { en: "Language of dates and weather.", de: "Sprache von Datum und Wetter." },
-                options: LOCALE_OPTIONS.map((l) => ({ value: l.code, label: same(l.name) })),
-            },
+            number("clockScale", { en: "Size", de: "Größe" }, SLIDER_CONFIGS.SCALE),
             { key: "boxBackgroundColor", type: "color", label: { en: "Background color", de: "Hintergrundfarbe" } },
-            number("boxRounded", { en: "Background rounding", de: "Rundung des Hintergrunds" }, SLIDER_CONFIGS.RADIUS),
+            number("clockCornerRadius", { en: "Corner rounding", de: "Eckenrundung" }, SLIDER_CONFIGS.CORNER_RADIUS),
             number("clockPadding", { en: "Padding", de: "Innenabstand" }, SLIDER_CONFIGS.PADDING),
             {
                 key: "textFont",
                 type: "select",
-                label: { en: "Text font", de: "Schriftart" },
+                label: { en: "Default font", de: "Standardschrift" },
+                help: { en: "Blocks without a font of their own use it.", de: "Gilt für alle Blöcke ohne eigene Schrift." },
                 options: FONT_OPTIONS.map((f) => ({ value: f.value, label: same(f.label) })),
             },
-            { key: "textColor", type: "color", label: { en: "Text color", de: "Textfarbe" } },
+            {
+                key: "textColor",
+                type: "color",
+                label: { en: "Default text color", de: "Standard-Textfarbe" },
+                help: { en: "Blocks are edited in the styling window.", de: "Die Blöcke selbst bearbeitest du im Styling-Fenster." },
+            },
             {
                 key: "overlayMode",
                 type: "select",
@@ -93,60 +85,32 @@ const SECTIONS: { id: string; label: Text; fields: FieldDef[] }[] = [
         ],
     },
     {
-        id: "first-line",
-        label: { en: "First line", de: "Erste Zeile" },
+        id: "time",
+        label: { en: "Time", de: "Zeit" },
         fields: [
-            number("clockTextSize", { en: "Size", de: "Größe" }, SLIDER_CONFIGS.TEXT_SIZE),
             {
-                key: "format",
-                type: "text",
-                label: { en: "Display format", de: "Anzeigeformat" },
-                help: FORMAT_HELP,
-                max_length: 1000,
-                multiline: true,
+                key: "hourCycle",
+                type: "select",
+                label: { en: "Clock format", de: "Uhrzeitformat" },
+                help: { en: "Blocks with a custom format keep it.", de: "Blöcke mit eigenem Format behalten es." },
+                options: [
+                    { value: "24", label: { en: "24-hour", de: "24 Stunden" } },
+                    { value: "12", label: { en: "12-hour", de: "12 Stunden" } },
+                ],
             },
-        ],
-    },
-    {
-        id: "second-line",
-        label: { en: "Second line", de: "Zweite Zeile" },
-        fields: [
-            { key: "secondRowEnabled", type: "toggle", label: { en: "Enable second row", de: "Zweite Zeile anzeigen" } },
-            number("secondRowGap", { en: "Gap size", de: "Abstand" }, SLIDER_CONFIGS.PADDING),
-            number("secondRowClockTextSize", { en: "Size", de: "Größe" }, SLIDER_CONFIGS.TEXT_SIZE),
+            { key: "hourLeadingZero", type: "toggle", label: { en: "Leading zero for hours", de: "Führende Null bei Stunden" } },
             {
-                key: "secondRowFormat",
-                type: "text",
-                label: { en: "Display format", de: "Anzeigeformat" },
-                help: FORMAT_HELP,
-                max_length: 1000,
-                multiline: true,
-            },
-        ],
-    },
-    {
-        id: "fliptime",
-        label: { en: "$FLIPTIME settings", de: "$FLIPTIME-Einstellungen" },
-        fields: [
-            { key: "clockSeparatorColor", type: "color", label: { en: "Separator color", de: "Farbe der Trennzeichen" } },
-            { key: "clockTextColor", type: "color", label: { en: "Text color", de: "Textfarbe" } },
-            { key: "flipCardBackground", type: "color", label: { en: "Flip card background", de: "Hintergrund der Klappkarten" } },
-            number("flipcardRounded", { en: "Rounding", de: "Rundung" }, SLIDER_CONFIGS.RADIUS),
-            {
-                key: "seperatorString",
-                type: "text",
-                label: { en: "Separator characters", de: "Trennzeichen" },
-                help: {
-                    en: "Characters shown between the flip cards instead of a card of their own.",
-                    de: "Zeichen, die zwischen den Klappkarten stehen statt auf einer eigenen Karte.",
-                },
-                max_length: 50,
+                key: "lang",
+                type: "select",
+                label: { en: "Date language", de: "Datumssprache" },
+                help: { en: "Language of dates and weather.", de: "Sprache von Datum und Wetter." },
+                options: LOCALE_OPTIONS.map((l) => ({ value: l.code, label: same(l.name) })),
             },
         ],
     },
     {
         id: "weather",
-        label: { en: "$WEATHER settings", de: "$WEATHER-Einstellungen" },
+        label: { en: "Weather", de: "Wetter" },
         fields: [
             {
                 key: "weatherUnit",
@@ -174,8 +138,6 @@ const SECTIONS: { id: string; label: Text; fields: FieldDef[] }[] = [
     },
 ];
 
-const SECOND_ROW = ["secondRowGap", "secondRowClockTextSize", "secondRowFormat"];
-
 const ACTIONS: { id: string; label: Text }[] = [
     { id: "open-styling", label: { en: "Open styling window", de: "Styling-Fenster öffnen" } },
     { id: "quit", label: { en: "Quit Fliq", de: "Fliq beenden" } },
@@ -190,16 +152,10 @@ export function toLocale(locale: unknown): Locale
     return typeof locale === "string" && locale.toLowerCase().startsWith("de") ? "de" : "en";
 }
 
-function isDisabled(key: string, opts: Options) 
-{
-    return !opts.secondRowEnabled && SECOND_ROW.includes(key);
-}
-
-function render(def: FieldDef, lang: Locale, opts: Options): Field 
+function render(def: FieldDef, lang: Locale): Field 
 {
     const f: Field = { key: def.key, type: def.type, label: def.label[lang] };
     if (def.help) f.help = def.help[lang];
-    if (isDisabled(def.key, opts)) f.disabled = true;
     switch (def.type) 
     {
         case "number":
@@ -220,14 +176,14 @@ function render(def: FieldDef, lang: Locale, opts: Options): Field
     return f;
 }
 
-export function schema(locale: unknown, opts: Options): Schema 
+export function schema(locale: unknown): Schema 
 {
     const lang = toLocale(locale);
     return {
         sections: SECTIONS.map((s) => ({
             id: s.id,
             label: s.label[lang],
-            fields: s.fields.map((f) => render(f, lang, opts)),
+            fields: s.fields.map((f) => render(f, lang)),
         })),
         actions: ACTIONS.map((a) => ({ id: a.id, label: a.label[lang] })),
     };
@@ -248,7 +204,6 @@ export class Refusal extends Error
 
 const MESSAGES = {
     unknown: { en: "Fliq has no setting with this name.", de: "Diese Einstellung gibt es in Fliq nicht." },
-    disabled: { en: "Enable the second row first.", de: "Zuerst die zweite Zeile einschalten." },
     toggle: { en: "Expected on or off.", de: "Erwartet ein oder aus." },
     number: { en: "Expected a number.", de: "Erwartet eine Zahl." },
     range: { en: "Choose a value from {min} to {max}.", de: "Wähle einen Wert von {min} bis {max}." },
@@ -262,14 +217,13 @@ const MESSAGES = {
  * Checks a value for `set` and returns it as Fliq stores it: numbers rounded to whole steps,
  * colors in lower case with alpha (the styling window uses the "hexa" format).
  */
-export function check(key: string, value: unknown, opts: Options, locale: unknown = "en"): unknown 
+export function check(key: string, value: unknown, locale: unknown = "en"): unknown 
 {
     const lang = toLocale(locale);
     const refuse = (m: keyof typeof MESSAGES, vars: Record<string, number> = {}) =>
         new Refusal(key, MESSAGES[m][lang].replace(/\{(\w+)\}/g, (_, v) => String(vars[v])));
     const def = DEFS.get(key);
     if (!def) throw refuse("unknown");
-    if (isDisabled(key, opts)) throw refuse("disabled");
     switch (def.type) 
     {
         case "toggle":

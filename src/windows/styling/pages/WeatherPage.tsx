@@ -5,7 +5,6 @@ import { DraftTextInput } from "../controls/DraftTextInput";
 import { SettingRow } from "../controls/SettingRow";
 import { SettingsCard } from "../controls/SettingsCard";
 import { PageHeader } from "../layout/PageHeader";
-import { UsageBadge } from "../layout/UsageBadge";
 
 const UNIT_SEGMENTS = [
     { value: "C", label: "Celsius" },
@@ -19,11 +18,7 @@ export function WeatherPage()
 
     return (
         <>
-            <PageHeader
-                title="Weather"
-                intro={<>Data source for the <code className="token-chip">$WEATHER</code> token.</>}
-                aside={<UsageBadge type="WEATHER" />}
-            />
+            <PageHeader title="Weather" intro="Where and in which unit every weather block reports." />
 
             <SettingsCard title="Location">
                 <SettingRow label="City" description="Leave empty to detect your location automatically.">

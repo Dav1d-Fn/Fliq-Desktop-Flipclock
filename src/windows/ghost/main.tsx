@@ -5,8 +5,9 @@ import { useEffect, useRef } from "react";
 import ReactDOM from "react-dom/client";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
-import FlipClock from "../../clock/FlipClock";
-import { useClockLayoutKey } from "../../clock/useClockLayoutKey";
+import { useAtomValue } from "jotai";
+import GridClock from "../../clock/GridClock";
+import { ATOMS } from "../../settings/atoms";
 
 interface GhostPosition
 {
@@ -20,7 +21,8 @@ interface GhostPosition
 // ClockDragController. Settings reach it through the shared storage like any other window.
 function Ghost()
 {
-    const [layoutKey, requestRebuild] = useClockLayoutKey();
+    const layout = useAtomValue(ATOMS.CLOCK_LAYOUT);
+    const scalePercent = useAtomValue(ATOMS.CLOCK_SCALE);
     const wrapper = useRef<HTMLDivElement>(null);
 
     useEffect(() =>
@@ -48,7 +50,7 @@ function Ghost()
 
     return (
         <div ref={wrapper} style={{ position: "absolute", left: 0, top: 0, visibility: "hidden" }}>
-            <FlipClock key={layoutKey} onLayoutChange={requestRebuild} />
+            <GridClock layout={layout} scale={scalePercent / 100} />
         </div>
     );
 }

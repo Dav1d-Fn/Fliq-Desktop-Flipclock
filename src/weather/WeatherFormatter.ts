@@ -35,6 +35,9 @@ export class WeatherFormatter
         const temperature = this.temperature(report.temperatureCelsius, report.temperatureFahrenheit);
         const feelsLike = this.temperature(report.feelsLikeCelsius, report.feelsLikeFahrenheit);
         const description = report.descriptionLocalized;
+        const highLow = report.highCelsius && report.lowCelsius
+            ? `${this.temperature(report.highCelsius, report.highFahrenheit ?? "")} / ${this.temperature(report.lowCelsius, report.lowFahrenheit ?? "")}`
+            : "–";
         const today = this.today();
         const nextSun = this.nextSunEvent();
 
@@ -54,6 +57,10 @@ export class WeatherFormatter
                 return description;
             case "descemoji":
                 return `${emoji} ${description}`;
+            case "highlow":
+                return highLow;
+            case "highlowemoji":
+                return `${emoji} ${highLow}`;
             case "full":
                 return `${temperature} – ${description}`;
             case "sunrise":

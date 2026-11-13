@@ -10,6 +10,11 @@ export interface WeatherReport
     temperatureFahrenheit: string;
     feelsLikeCelsius: string;
     feelsLikeFahrenheit: string;
+    // Today's high and low. Missing in caches written before they were fetched.
+    highCelsius?: string;
+    highFahrenheit?: string;
+    lowCelsius?: string;
+    lowFahrenheit?: string;
     descriptionEnglish: string;
     descriptionLocalized: string;
     latitude: string;

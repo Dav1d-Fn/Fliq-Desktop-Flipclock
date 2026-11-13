@@ -1,14 +1,9 @@
-import { Button, Select } from "@mantine/core";
-import { useAtom } from "jotai";
-import { ATOMS } from "../../../settings/atoms";
-import { LOCALE_OPTIONS } from "../../../settings/options";
+import { Button } from "@mantine/core";
 import { SettingsReset } from "../../../settings/SettingsReset";
 import { SettingRow } from "../controls/SettingRow";
 import { SettingsCard } from "../controls/SettingsCard";
 import { PageHeader } from "../layout/PageHeader";
 import { OverlayModeRow } from "./OverlayModeRow";
-
-const LANGUAGE_DATA = LOCALE_OPTIONS.map((locale) => ({ value: locale.code, label: locale.name }));
 
 async function resetAllSettings()
 {
@@ -23,24 +18,9 @@ async function resetAllSettings()
 
 export function GeneralPage()
 {
-    const [language, setLanguage] = useAtom(ATOMS.LANGUAGE);
-
     return (
         <>
-            <PageHeader title="General" intro="Language and how the window behaves." />
-
-            <SettingsCard title="Language">
-                <SettingRow label="Date language" description="Names of weekdays and months in $TIME and $FLIPTIME.">
-                    <Select
-                        aria-label="Date language"
-                        value={language}
-                        onChange={(value) => value && setLanguage(value)}
-                        data={LANGUAGE_DATA}
-                        allowDeselect={false}
-                        w={200}
-                    />
-                </SettingRow>
-            </SettingsCard>
+            <PageHeader title="General" intro="How the window behaves." />
 
             <SettingsCard title="Window">
                 <SettingRow

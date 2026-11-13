@@ -1,31 +1,14 @@
 import type { ComponentType } from "react";
-import {
-    IconBraces,
-    IconCloud,
-    IconInfoCircle,
-    IconLayoutColumns,
-    IconLayoutRows,
-    IconPalette,
-    IconSettings,
-    type Icon,
-} from "@tabler/icons-react";
+import { IconClock, IconCloud, IconInfoCircle, IconLayoutDashboard, IconSettings, type Icon } from "@tabler/icons-react";
+import { LayoutPage } from "./layoutEditor/LayoutPage";
 import { AboutPage } from "./pages/AboutPage";
-import { AppearancePage } from "./pages/AppearancePage";
-import { FlipTimePage } from "./pages/FlipTimePage";
-import { FormatTokensPage } from "./pages/FormatTokensPage";
 import { GeneralPage } from "./pages/GeneralPage";
-import { LinesPage } from "./pages/LinesPage";
+import { TimePage } from "./pages/TimePage";
 import { WeatherPage } from "./pages/WeatherPage";
 
-export type PageId = "appearance" | "lines" | "tokens" | "flip" | "weather" | "general" | "about";
+export type PageId = "layout" | "time" | "weather" | "general" | "about";
 
-export const PAGE_GROUPS = ["Clock", "Modules", "App"] as const;
-
-export interface PageProps
-{
-    // Switches to another page, for links between pages.
-    navigate: (pageId: PageId) => void;
-}
+export const PAGE_GROUPS = ["Clock", "Data", "App"] as const;
 
 export interface SettingsPage
 {
@@ -33,19 +16,18 @@ export interface SettingsPage
     group: typeof PAGE_GROUPS[number];
     label: string;
     icon: Icon;
-    // Live preview of the clock above the page.
-    showPreview: boolean;
-    component: ComponentType<PageProps>;
+    // Fills the whole main area instead of the centered page column.
+    wide: boolean;
+    component: ComponentType;
 }
 
-// Every page of the styling window, in sidebar order. A new module gets an entry under "Modules"
-// and its placeholder one in FORMAT_TOKENS; nothing else has to change.
+// Every page of the styling window, in sidebar order. Everything visual lives in the layout
+// editor; a new block kind needs no page, data a block uses (like the weather location) goes
+// under "Data".
 export const SETTINGS_PAGES: SettingsPage[] = [
-    { id: "appearance", group: "Clock", label: "Appearance", icon: IconPalette, showPreview: true, component: AppearancePage },
-    { id: "lines", group: "Clock", label: "Lines & Format", icon: IconLayoutRows, showPreview: true, component: LinesPage },
-    { id: "tokens", group: "Clock", label: "Format Tokens", icon: IconBraces, showPreview: false, component: FormatTokensPage },
-    { id: "flip", group: "Modules", label: "Flip Time", icon: IconLayoutColumns, showPreview: true, component: FlipTimePage },
-    { id: "weather", group: "Modules", label: "Weather", icon: IconCloud, showPreview: false, component: WeatherPage },
-    { id: "general", group: "App", label: "General", icon: IconSettings, showPreview: false, component: GeneralPage },
-    { id: "about", group: "App", label: "About", icon: IconInfoCircle, showPreview: false, component: AboutPage },
+    { id: "layout", group: "Clock", label: "Layout", icon: IconLayoutDashboard, wide: true, component: LayoutPage },
+    { id: "time", group: "Data", label: "Time", icon: IconClock, wide: false, component: TimePage },
+    { id: "weather", group: "Data", label: "Weather", icon: IconCloud, wide: false, component: WeatherPage },
+    { id: "general", group: "App", label: "General", icon: IconSettings, wide: false, component: GeneralPage },
+    { id: "about", group: "App", label: "About", icon: IconInfoCircle, wide: false, component: AboutPage },
 ];

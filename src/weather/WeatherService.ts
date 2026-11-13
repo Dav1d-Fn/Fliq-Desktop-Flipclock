@@ -17,6 +17,7 @@ export class WeatherService
         const data = await response.json();
         const current = data.current_condition?.[0];
         const area = data.nearest_area?.[0];
+        const today = data.weather?.[0];
         if (!current || !area)
         {
             throw new Error("wttr.in sent no current conditions");
@@ -30,6 +31,10 @@ export class WeatherService
             temperatureFahrenheit: current.temp_F,
             feelsLikeCelsius: current.FeelsLikeC,
             feelsLikeFahrenheit: current.FeelsLikeF,
+            highCelsius: today?.maxtempC,
+            highFahrenheit: today?.maxtempF,
+            lowCelsius: today?.mintempC,
+            lowFahrenheit: today?.mintempF,
             descriptionEnglish,
             descriptionLocalized,
             latitude: area.latitude,

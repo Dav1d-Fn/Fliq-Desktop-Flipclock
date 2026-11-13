@@ -2,15 +2,14 @@ import "../../styles/styles.css";
 import "@pqina/flip/dist/flip.min.css";
 
 import { MouseEvent, useEffect } from "react";
-import { useAtom } from "jotai";
+import { useAtom, useAtomValue } from "jotai";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { PhysicalPosition } from "@tauri-apps/api/dpi";
 import { CheckMenuItem, Menu, MenuItem } from "@tauri-apps/api/menu";
 import { isEnabled } from "@tauri-apps/plugin-autostart";
 import { restoreStateCurrent, saveWindowState, StateFlags } from "@tauri-apps/plugin-window-state";
 
-import FlipClock from "../../clock/FlipClock";
-import { useClockLayoutKey } from "../../clock/useClockLayoutKey";
+import GridClock from "../../clock/GridClock";
 import { ClockDragController } from "../../overlay/ClockDragController";
 import { ClockWindow } from "../../overlay/ClockWindow";
 import { useWeatherUpdates } from "../../weather/useWeatherUpdates";
@@ -23,7 +22,8 @@ function ClockApp()
     const [autostart, setAutostart] = useAtom(ATOMS.AUTOSTART);
     const [hideInTaskbar, setHideInTaskbar] = useAtom(ATOMS.HIDE_IN_TASKBAR);
     const [alwaysOnTop, setAlwaysOnTop] = useAtom(ATOMS.ALWAYS_ON_TOP);
-    const [layoutKey, requestRebuild] = useClockLayoutKey();
+    const layout = useAtomValue(ATOMS.CLOCK_LAYOUT);
+    const scalePercent = useAtomValue(ATOMS.CLOCK_SCALE);
 
     useWeatherUpdates();
 
@@ -66,8 +66,7 @@ function ClockApp()
     // Settings page in tuxhub, if it is installed (src/tuxhub.ts).
     useEffect(() => TuxhubBridge.start(), []);
 
-    // Click area and window size follow the clock. Re-attached per layout, because the container
-    // remounts with the clock; the observer also fires once right away.
+    // Click area and window size follow the clock; the observer also fires once right away.
     useEffect(() =>
     {
         const container = document.querySelector("#flipclock-container");
@@ -82,7 +81,7 @@ function ClockApp()
         });
         observer.observe(container);
         return () => observer.disconnect();
-    }, [layoutKey]);
+    }, []);
 
     async function toggleAutostart()
     {
@@ -128,7 +127,7 @@ function ClockApp()
                 openContextMenu(event);
             }}
         >
-            <FlipClock key={layoutKey} onLayoutChange={requestRebuild} />
+            <GridClock layout={layout} scale={scalePercent / 100} />
         </div>
     );
 }

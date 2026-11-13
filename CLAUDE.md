@@ -2,7 +2,8 @@
 
 Tauri 2 + React. A frameless, always-on-top flip clock for Windows and Linux (KDE/Wayland via
 gtk-layer-shell, X11 fallback). macOS is not shipped. Meant to grow into a widget board
-(more rows, calendar, lists), so keep areas separate.
+(calendar, lists), so keep areas separate. The clock is a grid of blocks, each block one kind
+(flip time, time, date, weather, text) with its own settings, or a group of such blocks.
 
 ## Code style
 
@@ -20,14 +21,41 @@ gtk-layer-shell, X11 fallback). macOS is not shipped. Meant to grow into a widge
 - `src/windows/` — one folder per window, each with its `main.tsx` entry:
   - `clock/ClockApp` — the clock window (context menu, window setup, weather updates, tuxhub).
   - `ghost/` — copy of the clock drawn on another monitor while dragging (Linux layer-shell).
-  - `styling/StylingApp` — settings window: sidebar + one page at a time. `SettingsPages` lists
-    the pages (group, icon, live preview on/off), `FormatTokens` the line placeholders (chips,
-    token page, "Used in line" badges). `pages/` one file per page, `controls/` the setting rows
-    and inputs, `layout/` sidebar, header, live preview (the real FlipClock, scaled down).
-- `src/clock/` — the clock itself. `FlipClock` is mounted once per layout (`useClockLayoutKey`);
-  style and weather changes re-render it in place. `TimeCharacters` renders the Tick.js spans
-  once and never again — React must not touch nodes Tick.js owns. `ClockTemplate` parses
-  `$FLIPTIME(...) $TEXT(...) $WEATHER(...)` rows.
+  - `styling/StylingApp` — settings window: sidebar + one page at a time (`SettingsPages`).
+    `layoutEditor/` is the Clock › Layout page: `LayoutCanvas` (the real GridClock with an
+    editing layer: cells, snap ghost, drag and resize handles), `AddBlockBar`, and the
+    inspector (`ClockInspector` for the whole clock, `BlockInspector` built from the block
+    registry, `ContentEditor` for what a block or group member shows, `SelectionInspector`
+    for several blocks shift/ctrl-clicked on the canvas). `pages/` the other pages,
+    `controls/` and `layout/` shared pieces.
+- `src/layout/` — `ClockLayout` (block and grid shapes, `LayoutGrid`: fits, free spot, snap
+  targets, grouping; pure and tested), `LayoutMigration` (one-time move from the old two
+  template rows).
+- Groups: a block of kind `group` with `items` (members: kind and content fields only —
+  display, custom format, text, weather icon) and `itemGap`. Every other field (text size,
+  spacing, padding, offset, font, color, background, cards) is the group's look, shared by
+  all members. It renders as one BlockContent (`GroupBlock` joins the members' segments with
+  `SPACE` segments), so all members get one font size, like a line of the old template rows.
+  `LayoutGrid.grouped` merges touching blocks of the same rows (groups among them are
+  flattened, the leftmost block gives the look); `ungrouped` splits back into even widths
+  with the group's look; `mergedInto` handles a block dropped onto another in the canvas
+  (the target becomes a group on its own cells, or a group gets the block's members).
+  Right-click on a group in the canvas opens `MemberMenu` for the member under the pointer
+  (segments carry `member`, rendered as `data-member`; blocks carry `data-block-id`):
+  `withMemberMoved`, `withMemberDetached` (own block on the next free spot; a group left
+  with one member turns back into a plain block), or its settings in the inspector.
+  Groups are not in the palette.
+- `src/blocks/` — one `BlockDefinition` per block kind (name, default size, display options,
+  the segments it shows) and `BlockRegistry`. `segments` gets a `SegmentContext` with the
+  global Data › Time settings (12/24-hour, leading zero; read with `useSegmentContext`): time
+  blocks only choose "with seconds" or not, `timeFormat` builds the hours from the context. The styling-window side of a kind (icon, extra
+  settings) is `layoutEditor/BlockEditors`.
+- `src/clock/` — `GridClock` (container + blocks; used by clock, ghost and editor), `ClockBlock`
+  (one block's box and colors; remounts its content when its segments or the language change),
+  `BlockContent` (own Tick.js root and timer per block, font size fitted to the block).
+  `TimeCharacters` renders the Tick.js spans once and never again — React must not touch nodes
+  Tick.js owns. `ClockTemplate` holds a block's segments; `parse` reads the old
+  `$FLIPTIME(...)` strings for the migration only.
 - `src/weather/` — `WeatherService` (wttr.in + sunrise-sunset.org), `WeatherFormatter` (pure,
   tested), `useWeatherUpdates` (clock window only, every 15 min). Storage holds raw values.
 - `src/overlay/` — `ClockWindow` (input region, size, placement), `ClockDragController`,
@@ -41,13 +69,21 @@ gtk-layer-shell, X11 fallback). macOS is not shipped. Meant to grow into a widge
   30 s after the last one), `tuxhub.rs` (socket server).
 - HTML entries at the root: `index.html` (clock), `stylingMenu.html`, `ghost.html`.
 
+## Adding a block kind
+
+1. `src/blocks/<Kind>Block.ts` with a `BlockDefinition`, listed in `BlockRegistry`; the kind
+   name goes into `BlockKind` (`src/layout/ClockLayout.ts`).
+2. Its icon (and optional settings panel in `layoutEditor/blockSettings/`) in `BlockEditors`.
+   Palette, inspector and display dropdown pick it up from there.
+
 ## Adding a setting
 
-1. Atom in `src/settings/atoms.ts`.
-2. A `SettingRow` in the matching `src/windows/styling/pages/*Page.tsx`. A new module (widget)
-   gets its page in `SettingsPages` under "Modules" and its placeholder in `FormatTokens`.
-3. Field in `src/tuxhub/tuxhubSchema.ts` and key in `TuxhubBridge` (`tests/tuxhub-schema.test.ts`
-   fails otherwise).
+1. Whole-clock settings: atom in `src/settings/atoms.ts` (keys never change), a field in
+   `ClockInspector`, and the field in `src/tuxhub/tuxhubSchema.ts` + key in `TuxhubBridge`
+   (`tests/tuxhub-schema.test.ts` fails otherwise).
+2. Per-block settings: an optional field on `LayoutBlock`, read in `ClockBlock` or the block's
+   definition, edited in `BlockInspector` or the kind's settings panel. tuxhub does not show
+   blocks.
 
 ## Checks
 
