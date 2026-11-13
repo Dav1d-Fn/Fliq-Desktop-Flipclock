@@ -25,5 +25,4 @@ gif inspector inspector 240 0 1040 800 1040 15
 gif grid  grid-undo  240 0 1040 800 1040 15
 
 # Stills, cropped to the interesting part and squeezed.
-ffmpeg -loglevel error -y -i out/editor.png -vf "scale=1280:-1" "$MEDIA/editor.png"
 ffmpeg -loglevel error -y -i out/time.png -vf "crop=1280:550:0:0" "$MEDIA/time-page.png"
