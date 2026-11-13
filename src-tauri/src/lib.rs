@@ -71,6 +71,8 @@ pub fn run(mode: overlay::OverlayMode, config: overlay::LinuxConfig) {
             if let Some(window) = window {
                 #[cfg(target_os = "linux")]
                 overlay::linux::reload_on_crash(&window);
+                #[cfg(target_os = "linux")]
+                overlay::linux::report_pointer_leave(&window);
 
                 // Replaces the plugin's skipped initial restore, but only `POSITION`: without it
                 // the window would first appear at the default position on Windows and jump as

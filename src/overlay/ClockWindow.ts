@@ -24,6 +24,7 @@ export interface Monitor
 
 const CLOCK_SELECTOR = "#flipclock-container";
 const CLOCK_WRAPPER_ID = "maindiv";
+const CLOCK_MENU_SELECTOR = "#clock-menu";
 
 // The clock's own window: overlay mode, click area, size and the clock's place in it.
 export class ClockWindow
@@ -50,6 +51,7 @@ export class ClockWindow
     // Only the clock takes clicks; the transparent rest of the window lets them through. On the
     // layer-shell path the window spans the whole output, elsewhere it cannot shrink below a GTK
     // minimum size; either way the empty area would block whatever lies underneath.
+    // While the right-click menu is open, the region spans clock and menu together.
     static updateInputRegion(): void
     {
         const rect = document.querySelector(CLOCK_SELECTOR)?.getBoundingClientRect();
@@ -57,11 +59,18 @@ export class ClockWindow
         {
             return;
         }
+        // ponytail: one bounding box (the command takes one rect), so the gap between clock and
+        // menu also blocks clicks while the menu is open. Send a list of rects if that bothers.
+        const menu = document.querySelector(CLOCK_MENU_SELECTOR)?.getBoundingClientRect();
+        const left = Math.min(rect.left, menu?.left ?? rect.left);
+        const top = Math.min(rect.top, menu?.top ?? rect.top);
+        const right = Math.max(rect.right, menu?.right ?? rect.right);
+        const bottom = Math.max(rect.bottom, menu?.bottom ?? rect.bottom);
         invoke("set_input_region", {
-            x: Math.floor(rect.left),
-            y: Math.floor(rect.top),
-            w: Math.ceil(rect.width),
-            h: Math.ceil(rect.height),
+            x: Math.floor(left),
+            y: Math.floor(top),
+            w: Math.ceil(right - Math.floor(left)),
+            h: Math.ceil(bottom - Math.floor(top)),
         }).catch(() =>
         {
             // The command only exists on Linux; elsewhere the window has no such problem.
