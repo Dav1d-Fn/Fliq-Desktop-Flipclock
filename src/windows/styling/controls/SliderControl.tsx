@@ -1,32 +1,29 @@
-import { Slider, Text } from "@mantine/core";
+import { Slider } from "@mantine/core";
 import type { SliderConfig } from "../../../settings/options";
 
 type SliderControlProps = SliderConfig &
 {
+    // Accessible name; the visible label is the SettingRow's.
     label: string;
     value: number;
-    disabled?: boolean;
     onChange: (value: number) => void;
 };
 
-// Labelled slider with marks. Writes on every step: the clock applies size and color changes
-// in place, so live feedback costs nothing.
-export function SliderControl({ label, unit, value, onChange, min, max, marks, disabled = false }: SliderControlProps)
+// Slider with its current value on the right. Writes on every step: the clock applies size and
+// color changes in place, so live feedback costs nothing.
+export function SliderControl({ label, unit, value, onChange, min, max }: SliderControlProps)
 {
     return (
-        <div>
-            <Text mb={10} size="sm" fw={500}>{label}</Text>
+        <div className="slider-control">
             <Slider
                 value={value}
                 onChange={onChange}
-                disabled={disabled}
                 min={min}
                 max={max}
-                color="green"
-                size="lg"
-                marks={marks.map((markValue) => ({ value: markValue, label: `${markValue}${unit}` }))}
-                aria-label={`${label} control`}
+                label={null}
+                aria-label={label}
             />
+            <span className="slider-value">{value} {unit}</span>
         </div>
     );
 }

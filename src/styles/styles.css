@@ -1,5 +1,4 @@
-/* Shared by all windows. No `overflow: hidden` here: the styling window (900x500, a stack of
-   cards) has to scroll. The clock and ghost windows set it in their own HTML. */
+/* Shared by the clock and ghost windows; the styling window has its own styling.css. */
 html, body {
   background: transparent;
   margin: 0;

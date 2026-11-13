@@ -1,16 +1,17 @@
 import { useEffect, useState } from "react";
-import { Group, Select, Space } from "@mantine/core";
+import { Select } from "@mantine/core";
 import { invoke } from "@tauri-apps/api/core";
+import { SettingRow } from "../controls/SettingRow";
 
 const OVERLAY_MODE_OPTIONS = [
     { value: "auto", label: "Auto (recommended)" },
     { value: "layer-shell", label: "Layer-Shell" },
-    { value: "x11", label: "X11 Compatibility" },
+    { value: "x11", label: "X11 compatibility" },
 ];
 
 // Linux only: how the clock stays on top. Hidden on Windows/macOS ("native"). The choice lives
 // in linux.json on the Rust side, not in localStorage, and applies after a restart.
-export function OverlayModeSelect()
+export function OverlayModeRow()
 {
     const [platformMode, setPlatformMode] = useState("native");
     const [preference, setPreference] = useState("auto");
@@ -49,18 +50,18 @@ export function OverlayModeSelect()
     }
 
     return (
-        <>
-            <Space h="xs" />
-            <Group grow mt="md">
-                <Select
-                    label="Overlay Mode (Linux)"
-                    description="Layer-Shell stays above fullscreen windows but needs KDE, Sway or Hyprland. X11 Compatibility works everywhere. Takes effect after a restart."
-                    value={preference}
-                    onChange={changePreference}
-                    data={OVERLAY_MODE_OPTIONS}
-                    labelProps={{ style: { marginBottom: 12 } }}
-                />
-            </Group>
-        </>
+        <SettingRow
+            label={<>Overlay mode <span className="platform-tag">Linux</span></>}
+            description="Layer-Shell stays above fullscreen windows but needs KDE, Sway or Hyprland. X11 works everywhere. Applies after a restart."
+        >
+            <Select
+                aria-label="Overlay mode"
+                value={preference}
+                onChange={changePreference}
+                data={OVERLAY_MODE_OPTIONS}
+                allowDeselect={false}
+                w={200}
+            />
+        </SettingRow>
     );
 }
