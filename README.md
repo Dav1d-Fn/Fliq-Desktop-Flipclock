@@ -1,8 +1,53 @@
 # Fliq – A Floating Desktop Flipclock ⏳
 
-<div align="center">
-  <img src="https://github.com/Dav1d-Fn/desktop-flipclock/assets/28605357/ba2a5423-5064-40f9-94a0-5d2849336b0a" alt="Flipclock GIF">
-</div>
+<!-- SHOWREEL: replace this comment with the https://github.com/user-attachments/assets/... link
+     GitHub generates when docs/video/out/fliq-showreel.mp4 is dropped into the editor on
+     github.com. The link must stand alone on its own line, then GitHub shows a player. -->
+
+---
+
+## Installation 💻
+
+Every command below downloads the newest release straight from GitHub and installs it.
+
+### Linux 🐧
+
+**Fedora / RHEL / Nobara** (`.rpm`)
+
+```bash
+sudo dnf install "$(curl -s https://api.github.com/repos/Dav1d-Fn/Fliq-Desktop-Flipclock/releases/latest | grep -o 'https://[^"]*x86_64\.rpm' | head -n1)"
+```
+
+**openSUSE** (`.rpm`, the package is not signed)
+
+```bash
+sudo zypper install --allow-unsigned-rpm "$(curl -s https://api.github.com/repos/Dav1d-Fn/Fliq-Desktop-Flipclock/releases/latest | grep -o 'https://[^"]*x86_64\.rpm' | head -n1)"
+```
+
+**Debian / Ubuntu / Mint / Pop!_OS** (`.deb`)
+
+```bash
+curl -sLo /tmp/fliq.deb "$(curl -s https://api.github.com/repos/Dav1d-Fn/Fliq-Desktop-Flipclock/releases/latest | grep -o 'https://[^"]*amd64\.deb' | head -n1)" && sudo apt install /tmp/fliq.deb
+```
+
+**Arch / Manjaro / anything else:** there is no AUR package or Flatpak yet —
+[build from source](#building-from-source).
+
+Packages are built for x86_64 only. To update, run the same command again.
+
+### Windows 🪟
+
+Download and run the latest installer in PowerShell:
+
+```powershell
+$url = ((irm https://api.github.com/repos/Dav1d-Fn/Fliq-Desktop-Flipclock/releases/latest).assets | ? name -like '*x64-setup.exe').browser_download_url; iwr $url -OutFile "$env:TEMP\fliq-setup.exe"; & "$env:TEMP\fliq-setup.exe"
+```
+
+Or grab the `.exe` (or `.msi`) by hand from the [Releases](https://github.com/Dav1d-Fn/Fliq-Desktop-Flipclock/releases/latest) page.
+
+### macOS 🍎
+
+Not available — there is no Mac to build or test on.
 
 ---
 
@@ -11,59 +56,109 @@
 **Fliq** is a sleek, customizable desktop clock that displays the current time in a retro flip clock style.  
 Built with [React](https://reactjs.org/) and [Tauri v2](https://v2.tauri.app/), it's fast, lightweight, and privacy-friendly.
 
+The clock is a small grid of **blocks** — flip time, time, date, weather or your own text — that
+you arrange like widgets on a phone home screen.
+
+<div align="center">
+  <img src="docs/media/clock.gif" alt="The clock with date, sunset and temperature, flipping over to the full hour" width="800">
+</div>
+
 ---
 
 ## Features ✨
 
-- 🖌️ **Fully Customizable Layout** via Template Tags  
-  Combine dynamic elements using intuitive placeholders:
-  - `$TIME(HH:mm:ss)` – classic digital time
-  - `$FLIPTIME(HH:mm)` – retro flip clock style
-  - `$WEATHER(tempEmoji)` – weather info with emoji and temperature
-  - `$TEXT(My custom text)` – static custom text
-  - `$WEATHER(nextSun)` – next sunrise or sunset with time
+### 🧩 Grid Layout Editor
 
-- 🌍 **Multilingual Interface**  
-  Switch between:
-  - English, Deutsch, Français, Español, Italiano, Русский, 中文, 日本語, Svenska, Polski  
-  Don't see your language? [Open an issue](https://github.com/Dav1d-Fn/Fliq-Desktop-Flipclock/issues) or contribute a translation – it's always welcome!
+Right-click the clock and pick **Styling** to open the settings. The **Layout** page shows the real
+clock on a grid:
 
-- 🌤️ **Weather & Sun Data**  
-  - Live weather info via [wttr.in](https://wttr.in)
-  - Sunrise and sunset times via [sunrisesunset.io](https://sunrisesunset.io/api/)
-  - Updates automatically in the background
+- **Blocks:** Flip Time, Time, Date, Weather and Text. Click a tile to add one; it lands on the
+  first free spot.
+- **Drag & drop** blocks to move them, pull the green handles to resize them.
+- **More room:** add or remove columns (up to 8) and rows (up to 4).
 
-- ⚙️ **Additional Settings**  
-  - Font selection (from system fonts)
-  - Customizable font size, spacing, border radius, and background
-  - Autostart on system boot
-  - Hide from taskbar
-  - Always-on-top toggle
+<div align="center">
+  <img src="docs/media/add-block.gif" alt="Adding a row and a weather block, dragging it aside, adding a date block" width="710">
+</div>
+
+### 🔗 Groups
+
+Drop a block **onto another block** and both become one group: they share one line and one look,
+like *date · sunset · temperature* under the flip cards. Shift-click blocks side by side to group
+them, too. **Right-click** a member of a group to move it left or right, open its settings, or take
+it out of the group again.
+
+<div align="center">
+  <img src="docs/media/group.gif" alt="Dropping a weather block onto a date block, widening the group and reordering it from the right-click menu" width="440">
+</div>
+
+### 🎛️ Settings for Every Block
+
+Select a block and the inspector on the right shows what it can do:
+
+- What it shows (e.g. hours & minutes or with seconds, weekday & date, temperature, next sunrise / sunset), or a custom format
+- Font, color, alignment, card color and rounding for flip cards
+- **Own background** with its own color and rounding
+- **Letter spacing**, **text size** and padding
+- **Offset** to nudge a block freely, off the grid
+
+The **Whole clock** tab holds what all blocks share: size on the desktop, background, corner
+rounding, padding, column width, row height and the space between columns and rows.
+
+<div align="center">
+  <img src="docs/media/inspector.gif" alt="Giving a group its own background, changing text size and letter spacing, then the corner rounding of the whole clock" width="880">
+</div>
+
+### 📐 Column & Row Sizes, Gaps, Undo
+
+Click the bar above a column or beside a row to size just that one, or click between two rows or
+columns to change that single gap. Every change can be undone and redone (**Ctrl+Z** /
+**Ctrl+Shift+Z** or the arrows above the canvas), and **Preview** shows the clock without the
+editing aids.
+
+<div align="center">
+  <img src="docs/media/grid-undo.gif" alt="Widening one column, changing the gap between the rows, then undo and redo" width="880">
+</div>
+
+### 🕒 Data › Time
+
+- **12- or 24-hour** clock for all flip time and time blocks (time blocks add AM/PM)
+- **Leading zero** for hours (09:30 or 9:30)
+- **Date language** for weekday and month names: English, Deutsch, Français, Español, Italiano,
+  Русский, 中文, 日本語, Svenska, Polski. Don't see your language? [Open an issue](https://github.com/Dav1d-Fn/Fliq-Desktop-Flipclock/issues) or contribute a translation – it's always welcome!
+
+<div align="center">
+  <img src="docs/media/time-page.png" alt="The Data › Time settings page" width="760">
+</div>
+
+### 🌤️ Weather & Sun Data
+
+- Live weather via [wttr.in](https://wttr.in) — temperature, condition, feels like, high & low
+- Next sunrise or sunset via [sunrise-sunset.org](https://sunrise-sunset.org/api)
+- Location by city name or detected automatically, °C or °F
+- Updates every 15 minutes in the background, no API key needed
+
+### 🐧 tuxhub Integration
+
+On Linux, Fliq offers its settings live to [tuxhub](https://github.com/SirSnolte/tuxhub): while
+both run, tuxhub shows Fliq's whole-clock settings, time, weather and window options as a page of
+its own and changes apply right away.
+
+### ⚙️ Window Settings
+
+- Autostart on system boot
+- Hide from taskbar
+- Always-on-top toggle
+- Reset all settings
+
+Coming from an older version with template tags (`$FLIPTIME(HH:mm)` …)? Your two rows are turned
+into blocks automatically on the first start.
 
 ---
 
-## Installation 💻
+## Linux Notes 🐧
 
-### Windows 🪟
-
-1. Download the latest `.exe` installer from the [Releases](https://github.com/Dav1d-Fn/Fliq-Desktop-Flipclock/releases) page.
-2. Run the installer and follow the on-screen instructions.
-
-### Linux 🐧
-
-Download the matching package from the [Releases](https://github.com/Dav1d-Fn/Fliq-Desktop-Flipclock/releases) page, then:
-
-| Distro | Command |
-|---|---|
-| Fedora | `sudo dnf install ./Fliq*.rpm` |
-| openSUSE | `sudo zypper install ./Fliq*.rpm` |
-| Debian / Ubuntu / Mint | `sudo apt install ./Fliq*.deb` |
-| Arch | no AUR package — [build from source](#building-from-source) |
-| Anything else | [build from source](#building-from-source) |
-
-On Fedora and openSUSE you can skip the download entirely — `dnf` and `zypper` install straight
-from a URL, so the release notes of every version carry a ready-to-paste one-liner of the form
-`sudo dnf install https://github.com/Dav1d-Fn/Fliq-Desktop-Flipclock/releases/download/v<version>/Fliq-<version>-1.x86_64.rpm`.
+### Why there is no AppImage
 
 There is deliberately no `.AppImage`. An AppImage carries its own GTK and WebKitGTK, which then
 collide with the host's Mesa and freetype — on Fedora 44 the renderer aborts with
@@ -71,7 +166,7 @@ collide with the host's Mesa and freetype — on Fedora 44 the renderer aborts w
 out layer-shell and with it the above-fullscreen behaviour that is the whole point of the Wayland
 path.
 
-#### What works where
+### What works where
 
 Wayland does not let an application keep itself on top by itself. Fliq therefore picks one
 of two modes at startup, and what you get depends on your desktop:
@@ -101,15 +196,15 @@ A few other things worth knowing:
   restart.
 - **X11 compatibility mode** has no drag outline at all — dragging is handled by the window
   manager directly, same as on Windows.
-- If auto-detection picks the wrong mode, override it under **Styling → General Settings →
-  Overlay Mode** (takes effect after a restart).
+- If auto-detection picks the wrong mode, override it under **Styling → General →
+  Overlay mode** (takes effect after a restart).
 
 Only **KDE Plasma 6.7.3 on Wayland** has actually been tested. GNOME, XFCE, Cinnamon, Sway,
 Hyprland, X11 sessions, and every distro other than Fedora are expected to work but untested.
 If something's broken on your setup, please [open an issue](https://github.com/Dav1d-Fn/Fliq-Desktop-Flipclock/issues)
 with your desktop and distro.
 
-#### Building from source
+### Building from source
 
 ```bash
 # Fedora
@@ -124,14 +219,6 @@ npm run tauri build
 
 ---
 
-## Example Templates 🧩
-
-```
-$FLIPTIME(HH:mm) $TEXT(—) $WEATHER(tempEmoji)
-```
-
----
-
 ## Dependencies 📦
 
 Fliq is built on the shoulders of great open-source projects:
@@ -141,7 +228,9 @@ Fliq is built on the shoulders of great open-source projects:
 - [Mantine](https://github.com/mantinedev/mantine) – Modern React UI components.
 - [Jotai](https://github.com/pmndrs/jotai) – Minimalist global state management.
 - [wttr.in](https://github.com/chubin/wttr.in) – Weather data via HTTP (no API key required).
-- [sunrisesunset.io](https://sunrisesunset.io/api/) – Free sunrise & sunset time API.
+- [sunrise-sunset.org](https://sunrise-sunset.org/api) – Free sunrise & sunset time API.
+- [Tabler Icons](https://github.com/tabler/tabler-icons) – Icons in the settings window.
+- [Inter](https://rsms.me/inter/) & [JetBrains Mono](https://www.jetbrains.com/lp/mono/) – Bundled fonts via [Fontsource](https://fontsource.org/).
 
 ---
 
@@ -151,7 +240,7 @@ Here’s a glimpse at what’s coming:
 
 - ~~🐧 **Linux Support**~~ — done
 - ~~🍎 **macOS Support**~~ — no Mac to build or test on, don't count on this happening
-- 🎨 **Additional Clock Styles** and layouts
+- ~~🎨 **Additional Clock Styles** and layouts~~ — done, see the grid layout editor
 - 📅 **Calendar Integration** – events & reminders
 - ✅ **Task Support** – simple to-dos directly on the clock
 
