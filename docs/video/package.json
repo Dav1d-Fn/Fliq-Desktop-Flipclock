@@ -1,0 +1,20 @@
+{
+  "name": "fliq-media",
+  "private": true,
+  "type": "module",
+  "description": "Records the README clips and renders the Fliq showreel (Remotion). See README.md in this folder.",
+  "scripts": {
+    "studio": "remotion studio",
+    "reel": "./render-reel.sh"
+  },
+  "devDependencies": {
+    "@fontsource-variable/inter": "5.2.8",
+    "@remotion/cli": "4.0.538",
+    "@types/react": "18.3.23",
+    "playwright": "1.65.0",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "remotion": "4.0.538",
+    "typescript": "5.9.3"
+  }
+}
