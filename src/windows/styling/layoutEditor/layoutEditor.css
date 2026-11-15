@@ -902,10 +902,16 @@
 }
 
 /* Clock style picker: live previews in a grid (ClockStylePicker). */
+/* --style-columns tiles per row (about two rows), but never narrower than 80px: a narrow
+   inspector wraps them into more rows instead. */
 .clock-style-picker {
+  --style-gap: 6px;
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 6px;
+  grid-template-columns: repeat(
+    auto-fill,
+    minmax(max(80px, calc((100% - (var(--style-columns) - 1) * var(--style-gap)) / var(--style-columns))), 1fr)
+  );
+  gap: var(--style-gap);
 }
 
 .clock-style {
@@ -923,15 +929,28 @@
   box-shadow: 0 0 0 1px var(--mantine-primary-color-filled);
 }
 
+/* Grows in height with its width; the faces are sized in em, so the font size follows the
+   box: round faces fill its height, digits its width. */
 .clock-style-preview {
   width: 100%;
-  height: 64px;
+  aspect-ratio: 16 / 10;
+  container-type: size;
   border-radius: 7px;
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
   color: #fafafa;
+}
+
+/* Container units measure the box from inside only, hence the wrapper. */
+.clock-style-preview-scale {
+  display: contents;
+  font-size: min(17cqw, 34cqh);
+}
+
+.clock-style-preview.round .clock-style-preview-scale {
+  font-size: 88cqh;
 }
 
 .clock-style-name {
@@ -1052,7 +1071,7 @@
   background: #f59e0b;
 }
 
-.layout-thumbnail {
+.layout-schematic {
   display: grid;
   flex: none;
   box-sizing: border-box;
@@ -1060,7 +1079,20 @@
   max-width: 100%;
 }
 
-.layout-thumbnail-block {
+/* The real clock, drawn full size and scaled down (LayoutThumbnail). */
+.layout-thumbnail {
+  display: block;
+  flex: none;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.layout-thumbnail-clock {
+  display: block;
+  transform-origin: 0 0;
+}
+
+.layout-schematic-block {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1115,11 +1147,6 @@
 .layout-menu-action:disabled {
   opacity: 0.45;
   cursor: default;
-}
-
-.layout-menu-item .layout-thumbnail {
-  width: 52px;
-  display: grid;
 }
 
 .layout-menu-item-text {
