@@ -348,6 +348,7 @@ export class LayoutMigration
             case "BREAK":
             case "PROGRESSBAR":
             case "FACE":
+            case "CALENDAR":
                 return null;
         }
     }

@@ -19,6 +19,9 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tauri-plugin-autostart = "2"
 tauri-plugin-window-state = "2"
+# Calendar feeds (see calendar.rs). Ring instead of the default aws-lc: no C toolchain needed.
+reqwest = { version = "0.13", default-features = false, features = ["rustls-no-provider", "charset", "gzip"] }
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 gtk = { version = "0.18" }

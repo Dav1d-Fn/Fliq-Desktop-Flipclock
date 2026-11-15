@@ -13,6 +13,7 @@ import GridClock from "../../clock/GridClock";
 import { ClockDragController } from "../../overlay/ClockDragController";
 import { ClockWindow } from "../../overlay/ClockWindow";
 import { useWeatherUpdates } from "../../weather/useWeatherUpdates";
+import { useCalendarUpdates } from "../../calendar/useCalendarUpdates";
 import { AppActions } from "../../settings/AppActions";
 import { ATOMS } from "../../settings/atoms";
 import { TuxhubBridge } from "../../tuxhub/TuxhubBridge";
@@ -35,6 +36,7 @@ function ClockApp()
     const closeMenu = useCallback(() => setMenuAt(null), []);
 
     useWeatherUpdates();
+    useCalendarUpdates();
 
     // Window flags and position, once per page load, with the values from storage.
     useEffect(() =>

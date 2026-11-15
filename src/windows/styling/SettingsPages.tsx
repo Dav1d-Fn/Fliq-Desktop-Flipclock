@@ -1,13 +1,14 @@
 import type { ComponentType } from "react";
-import { IconClock, IconCloud, IconInfoCircle, IconLayoutDashboard, IconLayoutList, IconSettings, type Icon } from "@tabler/icons-react";
+import { IconCalendarEvent, IconClock, IconCloud, IconInfoCircle, IconLayoutDashboard, IconLayoutList, IconSettings, type Icon } from "@tabler/icons-react";
 import { LayoutPage } from "./layoutEditor/LayoutPage";
 import { AboutPage } from "./pages/AboutPage";
+import { CalendarPage } from "./pages/CalendarPage";
 import { GeneralPage } from "./pages/GeneralPage";
 import { TimePage } from "./pages/TimePage";
 import { WeatherPage } from "./pages/WeatherPage";
 import { SavedLayoutsPage } from "./savedLayouts/SavedLayoutsPage";
 
-export type PageId = "layout" | "savedLayouts" | "time" | "weather" | "general" | "about";
+export type PageId = "layout" | "savedLayouts" | "time" | "weather" | "calendar" | "general" | "about";
 
 export const PAGE_GROUPS = ["Clock", "Data", "App"] as const;
 
@@ -36,6 +37,7 @@ export const SETTINGS_PAGES: SettingsPage[] = [
     { id: "savedLayouts", group: "Clock", icon: IconLayoutList, wide: false, component: SavedLayoutsPage },
     { id: "time", group: "Data", icon: IconClock, wide: false, component: TimePage },
     { id: "weather", group: "Data", icon: IconCloud, wide: false, component: WeatherPage },
+    { id: "calendar", group: "Data", icon: IconCalendarEvent, wide: false, component: CalendarPage },
     { id: "general", group: "App", icon: IconSettings, wide: false, component: GeneralPage },
     { id: "about", group: "App", icon: IconInfoCircle, wide: false, component: AboutPage },
 ];

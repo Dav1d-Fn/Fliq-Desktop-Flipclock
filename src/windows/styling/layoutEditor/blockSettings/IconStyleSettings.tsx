@@ -1,17 +1,16 @@
 import { SegmentedControl } from "@mantine/core";
-import type { IconStyle } from "../../../../layout/ClockLayout";
+import { showsIcons } from "../../../../blocks/StyleSettings";
+import { LayoutGrid, type IconStyle } from "../../../../layout/ClockLayout";
 import type { BlockSettingsProps } from "../BlockEditors";
 import { useStrings } from "../../../../i18n/useStrings";
 import { InspectorField } from "../InspectorField";
 
 // Colored emoji or flat line icons in the block's text color. Only shown while the block (or a
-// member of the group) shows a weather icon.
+// member of the group) shows weather or calendar icons.
 export function IconStyleSettings({ block, onChange }: BlockSettingsProps)
 {
     const text = useStrings().iconStyle;
-    const shown = block.kind === "group" ? block.items ?? [] : [block];
-    const showsIcons = shown.some((item) => item.kind === "weather" && item.weatherIcon !== false);
-    if (!showsIcons)
+    if (!LayoutGrid.itemsOf(block).some(showsIcons))
     {
         return null;
     }

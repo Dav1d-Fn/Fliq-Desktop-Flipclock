@@ -3,6 +3,7 @@ import type { HourCycle } from "../blocks/BlockDefinition";
 import { DEFAULT_LAYOUT, type ClockLayout } from "../layout/ClockLayout";
 import { LAYOUT_KEYS, LayoutMigration } from "../layout/LayoutMigration";
 import type { SavedLayout } from "../layout/LayoutLibrary";
+import type { CalendarFeed, CalendarSource } from "../calendar/CalendarTypes";
 import type { SunDays, WeatherReport } from "../weather/WeatherTypes";
 import type { WeatherPlace } from "../weather/WeatherPlace";
 import { systemDateLanguage, systemUiLanguage } from "../i18n/UiLanguage";
@@ -45,4 +46,9 @@ export const ATOMS = {
     // Caches written by useWeatherUpdates, not settings.
     WEATHER_REPORT: atomWithStorage<WeatherReport | null>("weatherReport", null),
     SUN_DAYS: atomWithStorage<SunDays | null>("sunDays", null),
+    // Data › Calendar: the calendars (with their secret links) and how often they are fetched.
+    CALENDAR_SOURCES: atomWithStorage<CalendarSource[]>("calendarSources", []),
+    CALENDAR_REFRESH_MINUTES: atomWithStorage("calendarRefreshMinutes", 15),
+    // Cache written by CalendarSync: the last good events per source id.
+    CALENDAR_FEEDS: atomWithStorage<Record<string, CalendarFeed>>("calendarFeeds", {}),
 };

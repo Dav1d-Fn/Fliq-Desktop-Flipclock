@@ -3,7 +3,7 @@ import { Button, Select, SegmentedControl, Switch } from "@mantine/core";
 import { IconAlignCenter, IconAlignLeft, IconAlignRight, IconStackPop, IconTrash } from "@tabler/icons-react";
 import { useAtomValue } from "jotai";
 import { blockDefinition } from "../../../blocks/BlockRegistry";
-import { settingsOf, type StyleSetting } from "../../../blocks/StyleSettings";
+import { settingsOf, showsIcons, type StyleSetting } from "../../../blocks/StyleSettings";
 import { BLOCK_SIZE_LIMITS } from "../../../clock/useLayoutGrid";
 import { BLOCK_DEFAULTS, LayoutGrid, type BlockAlign, type LayoutBlock } from "../../../layout/ClockLayout";
 import { named, useStrings } from "../../../i18n/useStrings";
@@ -81,8 +81,8 @@ export function BlockInspector({ block, onChange, onRemove, onUngroup, openMembe
     const MemberSettings = editor.memberSettings;
     const Icon = editor.icon;
     const items = LayoutGrid.itemsOf(block);
-    const showsIcons = items.some((item) => item.kind === "weather" && item.weatherIcon !== false);
-    const hasLook = Boolean(StyleSettings) && (block.kind === "group" || showsIcons || LOOK_SETTINGS.some((setting) => settings.has(setting)));
+    const withIcons = items.some(showsIcons);
+    const hasLook = Boolean(StyleSettings) && (block.kind === "group" || withIcons || LOOK_SETTINGS.some((setting) => settings.has(setting)));
     const hasText = ["align", "font", "color", "textSize", "size", "letterSpacing"].some((setting) => settings.has(setting as StyleSetting));
 
     // Summaries for closed sections.
@@ -102,7 +102,7 @@ export function BlockInspector({ block, onChange, onRemove, onUngroup, openMembe
     {
         lookSummary = block.direction === "column" ? strings.group.stacked : strings.group.sideBySide;
     }
-    else if (showsIcons)
+    else if (withIcons)
     {
         lookSummary = strings.iconStyle[block.iconStyle ?? "colored"];
     }

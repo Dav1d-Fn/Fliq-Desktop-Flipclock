@@ -3,6 +3,7 @@ import { ActionIcon, UnstyledButton } from "@mantine/core";
 import { IconArrowDown, IconArrowUp, IconX } from "@tabler/icons-react";
 import { useAtomValue } from "jotai";
 import { blockDefinition } from "../../../../blocks/BlockRegistry";
+import { useCalendarText } from "../../../../calendar/useCalendarText";
 import { ClockTemplate } from "../../../../clock/ClockTemplate";
 import { useSegmentContext } from "../../../../clock/useSegmentContext";
 import type { GroupItem, LayoutBlock } from "../../../../layout/ClockLayout";
@@ -25,6 +26,7 @@ export function GroupMembers({ block, onChange, openMember, onOpenMember }: Bloc
     const sunDays = useAtomValue(ATOMS.SUN_DAYS);
     const weatherUnit = useAtomValue(ATOMS.WEATHER_UNIT);
     const segmentContext = useSegmentContext();
+    const calendarText = useCalendarText();
     const strings = useStrings();
     const text = strings.group;
     const weather = new WeatherFormatter(weatherReport, sunDays, weatherUnit, new Date());
@@ -64,8 +66,8 @@ export function GroupMembers({ block, onChange, openMember, onOpenMember }: Bloc
     // Only content fields reach a member; the rest of the patch would be the group's look.
     function changeItem(index: number, patch: Partial<LayoutBlock>)
     {
-        const { display, customFormat, text, weatherIcon, clockStyle, progressShape, progressUnit, progressMotion } = { ...items[index], ...patch };
-        const item: GroupItem = { kind: items[index].kind, display, customFormat, text, weatherIcon, clockStyle, progressShape, progressUnit, progressMotion };
+        const { display, customFormat, text, weatherIcon, clockStyle, calendar, progressShape, progressUnit, progressMotion } = { ...items[index], ...patch };
+        const item: GroupItem = { kind: items[index].kind, display, customFormat, text, weatherIcon, clockStyle, calendar, progressShape, progressUnit, progressMotion };
         setItems(items.map((current, itemIndex) => (itemIndex === index ? item : current)));
     }
 
@@ -78,7 +80,7 @@ export function GroupMembers({ block, onChange, openMember, onOpenMember }: Bloc
                     const name = named(strings, definition.name);
                     const Icon = BLOCK_EDITORS[item.kind].icon;
                     const merged = { ...block, ...item };
-                    const preview = new ClockTemplate(definition.segments(merged, segmentContext)).plainText((key) => weather.format(key));
+                    const preview = new ClockTemplate(definition.segments(merged, segmentContext)).plainText((key) => weather.format(key), calendarText);
                     const open = openIndex === index;
                     return (
                         <div key={index} className={open ? "group-member selected" : "group-member"}>
