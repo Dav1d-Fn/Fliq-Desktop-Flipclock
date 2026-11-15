@@ -1,6 +1,7 @@
 import dayjs from "dayjs";
 import { SegmentedControl, UnstyledButton } from "@mantine/core";
 import { useAtomValue } from "jotai";
+import { withClockStyle } from "../../../../blocks/StyleSettings";
 import { ClockFace } from "../../../../clock/faces/ClockFace";
 import type { ClockStyle, LayoutBlock, ProgressMotion, ProgressShape, ProgressUnit } from "../../../../layout/ClockLayout";
 import { useStrings } from "../../../../i18n/useStrings";
@@ -17,8 +18,8 @@ const ROUND_MAX_COLUMNS = 2;
 
 // Size of the previews, in px (the faces are sized in em): round faces fill the preview's
 // height, digits stay small enough for their width.
-const ROUND_PREVIEW_SIZE = 32;
-const DIGITS_PREVIEW_SIZE = 14;
+const ROUND_PREVIEW_SIZE = 58;
+const DIGITS_PREVIEW_SIZE = 24;
 
 function isRound(style: ClockStyle): boolean
 {
@@ -68,6 +69,15 @@ export function ClockStylePicker({ block, onChange }: BlockSettingsProps)
     const current = block.clockStyle ?? "flip";
     const drawsSeconds = current !== "flip" && current !== "text" && current !== "progress";
 
+    // One change, so one undo step brings back the old style with its colors.
+    function pick(style: ClockStyle)
+    {
+        if (style !== current)
+        {
+            onChange({ ...withClockStyle(style), ...narrowed(block, isRound(style)) });
+        }
+    }
+
     return (
         <InspectorField label={text.label} help={drawsSeconds ? text.secondsNote : undefined}>
             <div className="clock-style-picker" role="radiogroup" aria-label={text.label}>
@@ -78,7 +88,7 @@ export function ClockStylePicker({ block, onChange }: BlockSettingsProps)
                         role="radio"
                         aria-label={text.names[style]}
                         aria-checked={style === current}
-                        onClick={() => onChange({ clockStyle: style, ...narrowed(block, isRound(style)) })}
+                        onClick={() => pick(style)}
                     >
                         <span className="clock-style-preview" style={{ background, fontSize: isRound(style) ? ROUND_PREVIEW_SIZE : DIGITS_PREVIEW_SIZE }}>
                             <StylePreview style={style} />
