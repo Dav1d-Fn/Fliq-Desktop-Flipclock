@@ -1,17 +1,18 @@
 import { useEffect, useState } from "react";
-import { getVersion } from "@tauri-apps/api/app";
+import { useSettingsHost } from "./host/SettingsHost";
 
-// Version of the running build; `undefined` until Tauri answered.
+// Version of the running build; `undefined` until the host answered.
 export function useAppVersion(): string | undefined
 {
+    const host = useSettingsHost();
     const [version, setVersion] = useState<string | undefined>(undefined);
 
     useEffect(() =>
     {
-        getVersion()
+        host.version()
             .then(setVersion)
             .catch(() => undefined);
-    }, []);
+    }, [host]);
 
     return version;
 }
