@@ -107,6 +107,7 @@ export const DE: Strings = {
         dropToGroup: "Loslassen zum Gruppieren",
         occupied: "Belegt",
         dropHere: "Hier ablegen",
+        dropToSlideIn: "Loslassen zum Einschieben",
         resizeWidth: "Breite ändern",
         resizeHeight: "Höhe ändern",
         resizeBoth: "Breite und Höhe ändern",
