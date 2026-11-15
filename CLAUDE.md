@@ -63,11 +63,23 @@ gtk-layer-shell, X11 fallback). macOS is not shipped. Meant to grow into a widge
 - `src/settings/` — `atoms.ts` (every setting; localStorage keys must never change),
   `options.ts` (choices for the UI and tuxhub), `AppActions` (autostart, taskbar, on-top, quit —
   shared by context menu and tuxhub), `SettingsReset`.
-- `src/tuxhub/` — live settings interface for tuxhub (Linux): `TuxhubBridge`, `tuxhubSchema`.
+- `src/tuxhub/` — live settings interface for tuxhub (Linux): `TuxhubBridge` (clock window;
+  answers the socket), `tuxhubSchema` (the plain fields older tuxhub versions show, and the
+  checks for every value from outside), `RemoteSettingsBackend` (the embedded page's copy of
+  the clock's settings).
+- `src/windows/tuxhub/` — entry of the settings page embedded in tuxhub: the same `StylingApp`,
+  fed over the socket (`settings.get` / `settings.set` / `settings-changed`) instead of
+  localStorage and Tauri. `styling/host/` is the seam: `NativeSettingsHost` for Fliq's own
+  window, `TuxhubSettingsHost` here. Built by `npm run build:tuxhub` into `dist-tuxhub/`,
+  which the Linux packages install as files (`tauri.linux.conf.json`).
 - `src-tauri/src/` — `lib.rs` (app setup), `commands.rs` (everything `invoke` calls),
   `overlay/` (layer-shell, monitors, ghosts; ghosts are created on the first drag and destroyed
   30 s after the last one), `tuxhub.rs` (socket server).
-- HTML entries at the root: `index.html` (clock), `stylingMenu.html`, `ghost.html`.
+- HTML entries at the root: `index.html` (clock), `stylingMenu.html`, `ghost.html`,
+  `tuxhub.html` (settings inside tuxhub).
+- Settings styles: every color is a `--fliq-*` variable in `styling.css` (light, and dark for
+  tuxhub); the size steps are container queries on `.styling-frame`
+  (`tests/settings-styles.test.ts` fails on a literal color).
 
 ## Adding a block kind
 
@@ -83,7 +95,8 @@ gtk-layer-shell, X11 fallback). macOS is not shipped. Meant to grow into a widge
    (`tests/tuxhub-schema.test.ts` fails otherwise).
 2. Per-block settings: an optional field on `LayoutBlock`, read in `ClockBlock` or the block's
    definition, edited in `BlockInspector` or the kind's settings panel. tuxhub does not show
-   blocks.
+   blocks as fields; its embedded page edits them like the styling window does, and
+   `LayoutValidator` has to know every new field (unknown ones are dropped).
 
 ## Checks
 
