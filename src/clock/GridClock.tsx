@@ -15,9 +15,10 @@ import "dayjs/locale/zh";
 import "dayjs/locale/ja";
 import "dayjs/locale/sv";
 import "dayjs/locale/pl";
-import { LayoutGrid, type ClockLayout, type LayoutBlock, type PixelRect } from "../layout/ClockLayout";
+import type { ClockLayout, LayoutBlock, PixelRect } from "../layout/ClockLayout";
 import { ATOMS } from "../settings/atoms";
 import { ClockBlock } from "./ClockBlock";
+import { useLayoutGrid } from "./useLayoutGrid";
 
 interface GridClockProps
 {
@@ -48,7 +49,7 @@ export default function GridClock({ layout, scale, blockRect, blockStyle, underl
     // Before the time spans render, they are formatted with it.
     dayjs.locale(language);
 
-    const grid = new LayoutGrid(layout);
+    const grid = useLayoutGrid(layout);
     const gridSize = grid.size(scale);
 
     const containerStyle = {
@@ -70,6 +71,7 @@ export default function GridClock({ layout, scale, blockRect, blockStyle, underl
                         block={block}
                         rect={blockRect?.(block) ?? grid.pixelRect(block, scale)}
                         scale={scale}
+                        rowAlign={grid.rowAlign(block.y)}
                         language={language}
                         style={blockStyle?.(block)}
                     />

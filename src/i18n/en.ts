@@ -68,7 +68,7 @@ export const EN = {
     },
     layout: {
         title: "Layout",
-        intro: "Drag blocks to move them. Pull the green handles to resize. Click between two rows or columns to change the space, or the bar above a column or beside a row to size it. Drop a block onto another to group them, or shift-click blocks side by side.",
+        intro: "Drag blocks to move them. Pull the green handles to resize. Click between two rows or columns to change the space, the bar above a column to size it, or the bar beside a row to align its blocks. Drop a block onto another to group them, or shift-click blocks side by side.",
         undo: "Undo",
         undoTitle: "Undo (Ctrl+Z)",
         redo: "Redo",
@@ -117,11 +117,9 @@ export const EN = {
             : `Space between rows ${first} and ${first + 1}`,
         trackSize: (axis: "column" | "row", number: number) => axis === "column"
             ? `Width of column ${number}`
-            : `Height of row ${number}`,
+            : `Row ${number}`,
         gapIntro: "Blocks spanning this gap grow or shrink with it.",
-        trackIntro: (axis: "column" | "row"): string => axis === "column"
-            ? "Blocks in this column grow or shrink with it."
-            : "Blocks in this row grow or shrink with it.",
+        trackIntro: "Blocks in this column grow or shrink with it.",
         distance: "Distance",
         width: "Width",
         height: "Height",
@@ -135,8 +133,7 @@ export const EN = {
         cornerRounding: "Corner rounding",
         padding: "Padding",
         columnWidth: "Column width",
-        rowHeight: "Row height",
-        rowHeightNote: "Click the bar above a column or beside a row to size it apart.",
+        rowHeightNote: "Click the bar above a column to size it apart. Rows are as high as their highest block; click the bar beside a row to align its blocks.",
         columnSpace: "Space between columns",
         rowSpace: "Space between rows",
         gapNote: "Click a single gap on the clock to set it apart.",
@@ -170,7 +167,7 @@ export const EN = {
         color: "Color",
         blockColor: "Block color",
         textSize: "Text size",
-        textSizeNote: "Letter spacing first uses free room. A block whose text already fills it shrinks the text instead; lower the text size to make room. Above 100 % the text grows past the block if needed.",
+        textSizeNote: "Letter spacing first uses free room. A block whose text already fills it shrinks the text instead; lower the text size to make room. The row grows or shrinks with the text size; above 100 % the text may reach past the block sideways.",
         letterSpacing: "Letter spacing",
         background: "Background",
         ownBackground: "Own background",
@@ -216,6 +213,22 @@ export const EN = {
     },
     // Texts that live in the block definitions and swatch lists (in English there), by their
     // English text. A text missing here stays English, so a new block kind works untranslated.
+    row: {
+        intro: (number: number) => `Row ${number} is as high as its highest block.`,
+        alignLabel: "Lower blocks sit at",
+        alignNote: "Bottom lines small seconds cards up with the bottom edge of the big ones.",
+        top: "Top",
+        center: "Center",
+        bottom: "Bottom",
+    },
+    secondsBar: {
+        fillColor: "Fill color",
+        trackColor: "Track color",
+        thickness: "Thickness",
+        barThickness: "Bar thickness",
+        rounding: "Rounding",
+        barRounding: "Bar rounding",
+    },
     named: {} as Record<string, string>,
 };
 

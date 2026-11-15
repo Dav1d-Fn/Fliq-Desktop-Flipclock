@@ -12,6 +12,7 @@ import { ClockInspector } from "./ClockInspector";
 import { GapInspector } from "./GapInspector";
 import { LayoutCanvas } from "./LayoutCanvas";
 import { PreviewModeNote } from "./PreviewModeNote";
+import { RowInspector } from "./RowInspector";
 import { SelectionInspector } from "./SelectionInspector";
 import { TrackInspector } from "./TrackInspector";
 import { useEditorHistory } from "./useEditorHistory";
@@ -374,12 +375,19 @@ export function LayoutPage()
                         onChange={(value) => setLayout((current) => new LayoutGrid(current).withGap(activeGap, value))}
                     />
                 )}
-                {shownTab === "selection" && activeTrack && (
+                {shownTab === "selection" && activeTrack?.axis === "column" && (
                     <TrackInspector
-                        track={activeTrack}
+                        column={activeTrack.index}
                         value={new LayoutGrid(layout).trackSize(activeTrack)}
-                        overridden={new LayoutGrid(layout).trackOverride(activeTrack) !== null}
-                        onChange={(value) => setLayout((current) => new LayoutGrid(current).withTrackSize(activeTrack, value))}
+                        overridden={new LayoutGrid(layout).columnWidthOverride(activeTrack.index) !== null}
+                        onChange={(value) => setLayout((current) => new LayoutGrid(current).withColumnWidth(activeTrack.index, value))}
+                    />
+                )}
+                {shownTab === "selection" && activeTrack?.axis === "row" && (
+                    <RowInspector
+                        row={activeTrack.index}
+                        value={new LayoutGrid(layout).rowAlign(activeTrack.index)}
+                        onChange={(align) => setLayout((current) => new LayoutGrid(current).withRowAlign(activeTrack.index, align))}
                     />
                 )}
                 {editing && shownTab === "clock" && <ClockInspector />}

@@ -50,18 +50,9 @@ export function ClockInspector()
             <InspectorField label={text.columnWidth}>
                 <SliderControl
                     label={text.columnWidth}
-                    value={grid.defaultTrackSize("column")}
+                    value={grid.defaultColumnWidth()}
                     onChange={(columnWidth) => setLayout((current) => ({ ...current, columnWidth }))}
                     {...SLIDER_CONFIGS.COLUMN_WIDTH}
-                />
-            </InspectorField>
-
-            <InspectorField label={text.rowHeight}>
-                <SliderControl
-                    label={text.rowHeight}
-                    value={grid.defaultTrackSize("row")}
-                    onChange={(rowHeight) => setLayout((current) => ({ ...current, rowHeight }))}
-                    {...SLIDER_CONFIGS.ROW_HEIGHT}
                 />
                 <p className="inspector-note">{text.rowHeightNote}</p>
             </InspectorField>

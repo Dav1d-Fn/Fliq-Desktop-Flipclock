@@ -1,7 +1,8 @@
 import { CSSProperties, MouseEvent, PointerEvent, useEffect, useRef, useState } from "react";
 import { useAtomValue } from "jotai";
 import GridClock from "../../../clock/GridClock";
-import { LayoutGrid, type CellRect, type ClockLayout, type GapRef, type LayoutBlock, type PixelRect, type TrackRef } from "../../../layout/ClockLayout";
+import { useLayoutGrid } from "../../../clock/useLayoutGrid";
+import { type CellRect, type ClockLayout, type GapRef, type LayoutBlock, type PixelRect, type TrackRef } from "../../../layout/ClockLayout";
 import { useStrings } from "../../../i18n/useStrings";
 import { ATOMS } from "../../../settings/atoms";
 import { MemberMenu } from "./MemberMenu";
@@ -93,7 +94,7 @@ export function LayoutCanvas(props: LayoutCanvasProps)
     const [drag, setDrag] = useState<Drag | null>(null);
     const [memberTarget, setMemberTarget] = useState<MemberTarget | null>(null);
     const [memberHighlight, setMemberHighlight] = useState<PixelRect | null>(null);
-    const grid = new LayoutGrid(layout);
+    const grid = useLayoutGrid(layout);
     const gridSize = grid.size(1);
 
     // Largest scale up to 1 at which the whole clock fits the canvas.
@@ -422,7 +423,7 @@ export function LayoutCanvas(props: LayoutCanvasProps)
         return targets;
     }
 
-    // One bar per column above the grid and per row left of it: click to size that one apart.
+    // One bar per column above the grid and per row left of it: click for its settings.
     function renderTrackBars()
     {
         const bars = [];

@@ -35,6 +35,8 @@ export interface BlockDefinition
     supportsCustomFormat: boolean;
     // Left/center/right; flip cards are always centered.
     alignable: boolean;
+    // Shows no text (seconds bar): the inspector leaves out font, color, text size and spacing.
+    textless?: boolean;
     // What the block shows. The text format strings stay internal, the UI never shows them
     // except in "Custom format".
     segments: (block: LayoutBlock, context: SegmentContext) => Segment[];

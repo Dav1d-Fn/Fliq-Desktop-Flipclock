@@ -89,3 +89,20 @@
    font-family: 'Roboto', sans-serif !important;
    border-radius: var(--flipcard-rounded) !important;
 }
+
+/* Seconds bar: the track as wide as the block, the fill grows over each minute. */
+.seconds-bar {
+   flex: 1;
+   height: var(--bar-thickness);
+   background: var(--bar-track-color);
+   border-radius: var(--bar-radius);
+   overflow: hidden;
+}
+
+.seconds-bar-fill {
+   width: 0;
+   height: 100%;
+   background: var(--bar-color);
+   border-radius: var(--bar-radius);
+   transition: width 1s linear;
+}

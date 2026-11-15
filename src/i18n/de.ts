@@ -69,7 +69,7 @@ export const DE: Strings = {
     },
     layout: {
         title: "Layout",
-        intro: "Blöcke ziehen, um sie zu verschieben. An den grünen Griffen ziehen, um die Größe zu ändern. Zwischen zwei Zeilen oder Spalten klicken, um den Abstand zu ändern, oder auf den Balken über einer Spalte oder neben einer Zeile, um ihre Größe zu ändern. Einen Block auf einen anderen ziehen, um sie zu gruppieren, oder nebeneinanderliegende Blöcke mit Umschalt anklicken.",
+        intro: "Blöcke ziehen, um sie zu verschieben. An den grünen Griffen ziehen, um die Größe zu ändern. Zwischen zwei Zeilen oder Spalten klicken, um den Abstand zu ändern, auf den Balken über einer Spalte, um ihre Breite zu ändern, oder auf den Balken neben einer Zeile, um ihre Blöcke auszurichten. Einen Block auf einen anderen ziehen, um sie zu gruppieren, oder nebeneinanderliegende Blöcke mit Umschalt anklicken.",
         undo: "Rückgängig",
         undoTitle: "Rückgängig (Strg+Z)",
         redo: "Wiederholen",
@@ -117,11 +117,9 @@ export const DE: Strings = {
             : `Abstand zwischen Zeile ${first} und ${first + 1}`,
         trackSize: (axis: "column" | "row", number: number) => axis === "column"
             ? `Breite von Spalte ${number}`
-            : `Höhe von Zeile ${number}`,
+            : `Zeile ${number}`,
         gapIntro: "Blöcke über diesem Abstand wachsen oder schrumpfen mit.",
-        trackIntro: (axis: "column" | "row") => axis === "column"
-            ? "Blöcke in dieser Spalte wachsen oder schrumpfen mit."
-            : "Blöcke in dieser Zeile wachsen oder schrumpfen mit.",
+        trackIntro: "Blöcke in dieser Spalte wachsen oder schrumpfen mit.",
         distance: "Abstand",
         width: "Breite",
         height: "Höhe",
@@ -135,8 +133,7 @@ export const DE: Strings = {
         cornerRounding: "Eckenrundung",
         padding: "Innenabstand",
         columnWidth: "Spaltenbreite",
-        rowHeight: "Zeilenhöhe",
-        rowHeightNote: "Auf den Balken über einer Spalte oder neben einer Zeile klicken, um sie einzeln einzustellen.",
+        rowHeightNote: "Auf den Balken über einer Spalte klicken, um sie einzeln einzustellen. Zeilen sind so hoch wie ihr höchster Block; der Balken neben einer Zeile richtet ihre Blöcke aus.",
         columnSpace: "Abstand zwischen Spalten",
         rowSpace: "Abstand zwischen Zeilen",
         gapNote: "Einen einzelnen Abstand auf der Uhr anklicken, um ihn einzeln einzustellen.",
@@ -170,7 +167,7 @@ export const DE: Strings = {
         color: "Farbe",
         blockColor: "Blockfarbe",
         textSize: "Textgröße",
-        textSizeNote: "Der Zeichenabstand nutzt zuerst freien Platz. Füllt der Text den Block schon aus, wird stattdessen der Text kleiner; die Textgröße senken, um Platz zu schaffen. Über 100 % wächst der Text wenn nötig über den Block hinaus.",
+        textSizeNote: "Der Zeichenabstand nutzt zuerst freien Platz. Füllt der Text den Block schon aus, wird stattdessen der Text kleiner; die Textgröße senken, um Platz zu schaffen. Die Zeile wächst oder schrumpft mit der Textgröße; über 100 % kann der Text seitlich über den Block hinausragen.",
         letterSpacing: "Zeichenabstand",
         background: "Hintergrund",
         ownBackground: "Eigener Hintergrund",
@@ -214,8 +211,25 @@ export const DE: Strings = {
         notGroupable: "Nur Blöcke, die in denselben Zeilen ohne Abstand nebeneinanderliegen, lassen sich gruppieren.",
         remove: (count: number) => `${count} Blöcke entfernen`,
     },
+    row: {
+        intro: (number: number) => `Zeile ${number} ist so hoch wie ihr höchster Block.`,
+        alignLabel: "Niedrigere Blöcke sitzen",
+        alignNote: "Unten setzt kleine Sekundenkarten bündig an die Unterkante der großen.",
+        top: "Oben",
+        center: "Mitte",
+        bottom: "Unten",
+    },
+    secondsBar: {
+        fillColor: "Füllfarbe",
+        trackColor: "Spurfarbe",
+        thickness: "Dicke",
+        barThickness: "Leistendicke",
+        rounding: "Rundung",
+        barRounding: "Leistenrundung",
+    },
     named: {
         // Block kinds
+        "Seconds bar": "Sekundenleiste",
         "Flip Time": "Flip-Zeit",
         "Time": "Zeit",
         "Date": "Datum",
@@ -249,5 +263,6 @@ export const DE: Strings = {
         "Graphite": "Graphit",
         "Dark": "Dunkel",
         "Rust": "Rost",
+        "Faint white": "Blasses Weiß",
     },
 };
