@@ -43,6 +43,7 @@ const SETTINGS: Record<string, Setting> = {
     textColor: ATOMS.TEXT_COLOR,
     weatherUnit: ATOMS.WEATHER_UNIT,
     weatherLocation: ATOMS.WEATHER_LOCATION,
+    calendarRefreshMinutes: ATOMS.CALENDAR_REFRESH_MINUTES,
     autostart: ATOMS.AUTOSTART,
     hideInTaskbar: ATOMS.HIDE_IN_TASKBAR,
     alwaysOnTop: ATOMS.ALWAYS_ON_TOP,

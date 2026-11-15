@@ -1,6 +1,11 @@
 import type { ReactNode } from "react";
 import {
     createReactComponent,
+    IconBeach,
+    IconCake,
+    IconPlane,
+    IconStethoscope,
+    IconTrash,
     IconCloud,
     IconCloudRain,
     IconCloudSnow,
@@ -33,7 +38,7 @@ const IconCloudMoon = createReactComponent("outline", "cloud-moon", "IconCloudMo
     ["path", { d: CLOUD_PATH, transform: "translate(-1 6) scale(0.8)", strokeWidth: "2.5", key: "cloud" }],
 ]);
 
-// Every emoji WeatherFormatter writes, with its flat line icon.
+// Every emoji WeatherFormatter and the calendar's EventFormatter write, with its flat line icon.
 const FLAT_ICONS: Record<string, Icon> = {
     "☁️🌙": IconCloudMoon,
     "☀️": IconSun,
@@ -48,6 +53,12 @@ const FLAT_ICONS: Record<string, Icon> = {
     "🌡️": IconTemperature,
     "🌅": IconSunrise,
     "🌇": IconSunset,
+    // Calendar keyword icons (EventFormatter).
+    "🗑️": IconTrash,
+    "🎂": IconCake,
+    "🩺": IconStethoscope,
+    "✈️": IconPlane,
+    "🏖️": IconBeach,
 };
 
 // Longest first, so "☁️🌙" wins over "☁️". The capture group keeps the emoji in split().
