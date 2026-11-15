@@ -87,6 +87,7 @@ export const DE: Strings = {
         edit: "Bearbeiten",
         preview: "Vorschau",
         inspectorAria: "Blockeinstellungen",
+        inspectorResize: "Breite der Einstellungen: ziehen, Pfeiltasten, Doppelklick für automatisch",
         wholeClock: "Ganze Uhr",
         selection: "Auswahl",
         block: "Block",
