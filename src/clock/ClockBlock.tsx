@@ -107,6 +107,11 @@ export function ClockBlock({ block, rect, scale, rowAlign, language, style }: Cl
         "--flipcard-bg-color": block.cardColor ?? BLOCK_DEFAULTS.cardColor,
         "--flipcard-rounded": `${cardRadius / 100 * FLIP_CARD_WIDTH_EM}em`,
         "--letter-spacing": `${block.letterSpacing ?? 0}em`,
+        // Clock face colors; unset leaves each style's own (see faces.css).
+        ...(block.glowColor && { "--glow-color": block.glowColor }),
+        ...(block.dialColor && { "--dial-color": block.dialColor }),
+        ...(block.handColor && { "--hand-color": block.handColor }),
+        ...(block.secondHandColor && { "--second-hand-color": block.secondHandColor }),
         translate: `${(block.offsetX ?? 0) * scale}px ${(block.offsetY ?? 0) * scale}px`,
         ...(definition.kind === "secondsBar" && {
             "--bar-color": block.barColor ?? "var(--text-color)",

@@ -5,6 +5,7 @@ import { CSSProperties, ReactNode, useEffect, useMemo, useRef, useState } from "
 import { useAtomValue } from "jotai";
 import { ATOMS } from "../settings/atoms";
 import { ClockTemplate, type Segment } from "./ClockTemplate";
+import { ClockFace } from "./faces/ClockFace";
 import { TimeCharacters } from "./TimeCharacters";
 import type { IconStyle } from "../layout/ClockLayout";
 import { withFlatIcons } from "../weather/FlatWeatherIcons";
@@ -29,7 +30,7 @@ interface BlockContentProps
 // Letter spacing comes from flipclockstyles.css, the same for text runs and time characters.
 const SEGMENT_STYLE: CSSProperties = { whiteSpace: "pre", display: "inline-block", unicodeBidi: "plaintext" };
 
-// Share of the block height the content may fill. Flip cards fill the block; plain text stays
+// Share of the block height the content may fill. Flip cards and faces fill the block; plain text stays
 // smaller, its line box has room above and below the letters anyway.
 const FLIP_HEIGHT_SHARE = 1;
 const TEXT_HEIGHT_SHARE = 0.62;
@@ -140,7 +141,7 @@ export function BlockContent({ segments, justify, alignItems, sizeShare, iconSty
         {
             return;
         }
-        const heightShare = template.hasFlipTime() ? FLIP_HEIGHT_SHARE : TEXT_HEIGHT_SHARE;
+        const heightShare = template.fillsHeight() ? FLIP_HEIGHT_SHARE : TEXT_HEIGHT_SHARE;
         let fontSize = 20;
 
         // Ratio that makes a measured content size fill the given share of the room's height
@@ -212,6 +213,8 @@ export function BlockContent({ segments, justify, alignItems, sizeShare, iconSty
                         />
                     );
                 }
+                case "FACE":
+                    return <ClockFace key={`face-${segmentIndex}`} style={segment.face ?? "segment"} format={segment.value} member={segment.member} />;
                 case "TEXT":
                     return (
                         <span className="normal-text-settings text-run" key={`text-${segmentIndex}`} data-member={segment.member} style={SEGMENT_STYLE}>

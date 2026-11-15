@@ -35,7 +35,7 @@ test("old rows become one grid row each, one block per placeholder", () =>
     assert.equal(layout.rows, 2);
     assert.equal(layout.columns, 6);
     const [flip, date, feels, sun] = layout.blocks;
-    assert.deepEqual([flip.kind, flip.display, flip.x, flip.y, flip.w], ["flip", "HH:mm", 0, 0, 6]);
+    assert.deepEqual([flip.kind, flip.clockStyle, flip.display, flip.x, flip.y, flip.w], ["clock", "flip", "HH:mm", 0, 0, 6]);
     assert.equal(flip.cardColor, "#ff0000ff");
     assert.deepEqual([date.kind, date.display, date.customFormat], ["date", "custom", "dddd, DD.MM"]);
     assert.deepEqual([feels.kind, feels.display, feels.weatherIcon], ["weather", "feels", true]);
@@ -90,7 +90,7 @@ test("grid: shrinking cuts blocks back and moves the ones left outside", () =>
         columns: 4,
         rows: 2,
         blocks: [
-            { id: 1, kind: "flip", x: 0, y: 0, w: 4, h: 1, display: "HH:mm" },
+            { id: 1, kind: "clock", x: 0, y: 0, w: 4, h: 1, display: "HH:mm" },
             { id: 2, kind: "text", x: 3, y: 1, w: 1, h: 1, display: "text" },
         ],
     };
@@ -165,8 +165,8 @@ test("grid: column widths follow their default until set apart, rows their highe
 test("grid: a row is as high as its highest single-row block, empty rows keep the cell height", () =>
 {
     const blocks: LayoutBlock[] = [
-        { id: 1, kind: "flip", x: 0, y: 0, w: 3, h: 1, display: "HH:mm" },
-        { id: 2, kind: "flip", x: 3, y: 0, w: 1, h: 1, display: "ss" },
+        { id: 1, kind: "clock", x: 0, y: 0, w: 3, h: 1, display: "HH:mm" },
+        { id: 2, kind: "clock", x: 3, y: 0, w: 1, h: 1, display: "ss" },
         { id: 3, kind: "secondsBar", x: 0, y: 1, w: 4, h: 1, display: "bar" },
         { id: 4, kind: "text", x: 0, y: 2, w: 1, h: 2, display: "text" },
     ];
@@ -187,7 +187,7 @@ test("grid: a row is as high as its highest single-row block, empty rows keep th
 test("grid: a row height override wins over its blocks, null goes back to automatic", () =>
 {
     const blocks: LayoutBlock[] = [
-        { id: 1, kind: "flip", x: 0, y: 0, w: 2, h: 1, display: "HH:mm" },
+        { id: 1, kind: "clock", x: 0, y: 0, w: 2, h: 1, display: "HH:mm" },
         { id: 2, kind: "text", x: 0, y: 1, w: 2, h: 1, display: "text" },
     ];
     // Stale values of older versions stay ignored.
@@ -230,7 +230,7 @@ const rowLayout = (): ClockLayout => ({
     columns: 6,
     rows: 2,
     blocks: [
-        { id: 1, kind: "flip", x: 0, y: 0, w: 6, h: 1, display: "HH:mm" },
+        { id: 1, kind: "clock", x: 0, y: 0, w: 6, h: 1, display: "HH:mm" },
         { id: 2, kind: "date", x: 0, y: 1, w: 2, h: 1, display: "custom", customFormat: "dddd", textSize: 80, color: "#ff0000ff" },
         { id: 3, kind: "weather", x: 2, y: 1, w: 1, h: 1, display: "feels", weatherIcon: false, textSize: 120 },
         { id: 4, kind: "weather", x: 3, y: 1, w: 3, h: 1, display: "sun" },
@@ -339,7 +339,7 @@ test("a group shows its members' segments in a row, spaced", () =>
 
 test("time blocks follow the global clock format, custom formats stay as typed", () =>
 {
-    const block = { id: 1, kind: "time" as const, x: 0, y: 0, w: 1, h: 1, display: "HH:mm:ss", customFormat: "HH[h]" };
+    const block = { id: 1, kind: "clock" as const, x: 0, y: 0, w: 1, h: 1, display: "HH:mm:ss", customFormat: "HH[h]" };
     assert.equal(timeFormat(block, DEFAULT_SEGMENT_CONTEXT, true), "HH:mm:ss");
     assert.equal(timeFormat(block, { hourCycle: "12", hourLeadingZero: false }, true), "h:mm:ss A");
     assert.equal(timeFormat({ ...block, display: "hh:mm" }, { hourCycle: "12", hourLeadingZero: true }, false), "hh:mm");
@@ -368,6 +368,33 @@ test("old 12-hour blocks turn the global clock format to 12-hour once", () =>
     store.items.set("hourCycle", JSON.stringify("24"));
     new LayoutMigration(store).run();
     assert.equal(store.items.get("hourCycle"), JSON.stringify("24"), "runs only once");
+});
+
+test("flip and time blocks become clock blocks that look the same, also in groups", () =>
+{
+    const before = timeLayout(["HH:mm", "HH:mm:ss"]);
+    const store = storage({ layoutMigrated: true, clockLayout: before });
+    new LayoutMigration(store).run();
+    const [flip, group] = layoutOf(store).blocks;
+    assert.deepEqual([flip.kind, flip.clockStyle], ["clock", "flip"]);
+    assert.deepEqual(group.items!.map((item) => [item.kind, item.clockStyle]), [["clock", "text"], ["date", undefined]]);
+
+    // Same segments as the old flip time and time definitions drew.
+    const segmentsOf = (block: LayoutBlock) => blockDefinition(block.kind).segments(block, DEFAULT_SEGMENT_CONTEXT);
+    assert.deepEqual(segmentsOf(flip), [{ type: "FLIPTIME", value: "HH:mm" }]);
+    assert.deepEqual(segmentsOf(group).filter((segment) => segment.member === 0), [{ type: "TIME", value: "HH:mm:ss", member: 0 }]);
+
+    store.items.set("clockLayout", JSON.stringify(before));
+    new LayoutMigration(store).run();
+    assert.equal(layoutOf(store).blocks[0].kind, "flip", "runs only once");
+});
+
+test("old rows become clock blocks with the flip or text style", () =>
+{
+    const store = storage({ format: "$FLIPTIME(HH:mm) $TIME(HH:mm:ss) $TIME(dddd)", secondRowEnabled: false });
+    new LayoutMigration(store).run();
+    const kinds = layoutOf(store).blocks.map((block) => [block.kind, block.clockStyle]);
+    assert.deepEqual(kinds, [["clock", "flip"], ["clock", "text"], ["date", undefined]]);
 });
 
 test("mixed 12- and 24-hour blocks keep the 24-hour default", () =>
