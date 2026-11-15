@@ -74,6 +74,7 @@ export function ClockBlock({ block, rect, scale, language, style }: ClockBlockPr
                 segments={stableSegments}
                 justify={JUSTIFY[align]}
                 sizeShare={(block.textSize ?? 100) / 100}
+                iconStyle={block.iconStyle ?? "colored"}
                 onLayoutChange={() => setRebuildCount((count) => count + 1)}
             />
         </div>

@@ -6,6 +6,8 @@ import { useAtomValue } from "jotai";
 import { ATOMS } from "../settings/atoms";
 import { ClockTemplate, type Segment } from "./ClockTemplate";
 import { TimeCharacters } from "./TimeCharacters";
+import type { IconStyle } from "../layout/ClockLayout";
+import { withFlatIcons } from "../weather/FlatWeatherIcons";
 import { WeatherFormatter } from "../weather/WeatherFormatter";
 
 interface BlockContentProps
@@ -14,6 +16,7 @@ interface BlockContentProps
     justify: CSSProperties["justifyContent"];
     // Share of the room the content fills (block text size setting), 1 = all of it.
     sizeShare: number;
+    iconStyle: IconStyle;
     // Called when a time string changed its length; the block is then remounted.
     onLayoutChange: () => void;
 }
@@ -33,7 +36,7 @@ const FIT_TOLERANCE = 0.01;
 //
 // Mounted once per segment list (see ClockBlock). Weather data and style changes re-render it in
 // place; the Tick.js spans inside are left alone (see TimeCharacters).
-export function BlockContent({ segments, justify, sizeShare, onLayoutChange }: BlockContentProps)
+export function BlockContent({ segments, justify, sizeShare, iconStyle, onLayoutChange }: BlockContentProps)
 {
     const weatherReport = useAtomValue(ATOMS.WEATHER_REPORT);
     const sunDays = useAtomValue(ATOMS.SUN_DAYS);
@@ -178,11 +181,14 @@ export function BlockContent({ segments, justify, sizeShare, onLayoutChange }: B
                         </span>
                     );
                 case "WEATHER":
+                {
+                    const weatherText = weatherFormatter.format(segment.value);
                     return (
                         <span className="normal-text-settings text-run" key={`weather-${segmentIndex}`} data-member={segment.member} style={SEGMENT_STYLE}>
-                            {weatherFormatter.format(segment.value)}
+                            {iconStyle === "flat" ? withFlatIcons(weatherText) : weatherText}
                         </span>
                     );
+                }
                 case "SPACE":
                     return <span className="segment-space" key={`space-${segmentIndex}`} style={{ display: "inline-block", width: `${segment.value}em` }} />;
             }

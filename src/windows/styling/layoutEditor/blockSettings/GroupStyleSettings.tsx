@@ -3,15 +3,17 @@ import { SliderControl } from "../../controls/SliderControl";
 import type { BlockSettingsProps } from "../BlockEditors";
 import { InspectorField } from "../InspectorField";
 import { FlipCardSettings } from "./FlipCardSettings";
+import { IconStyleSettings } from "./IconStyleSettings";
 
 // Look of a group beyond the shared block settings: the space between members, and the card
-// settings when a member is flip time.
+// settings when a member is flip time, the icon style when one shows a weather icon.
 export function GroupStyleSettings({ block, onChange }: BlockSettingsProps)
 {
     const hasFlip = (block.items ?? []).some((item) => item.kind === "flip");
     return (
         <>
             {hasFlip && <FlipCardSettings block={block} onChange={onChange} />}
+            <IconStyleSettings block={block} onChange={onChange} />
             <InspectorField label="Space between items">
                 <SliderControl
                     label="Space between items"
