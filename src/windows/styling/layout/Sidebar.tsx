@@ -1,4 +1,6 @@
+import { useAtomValue } from "jotai";
 import { useStrings } from "../../../i18n/useStrings";
+import { ATOMS } from "../../../settings/atoms";
 import { PAGE_GROUPS, SETTINGS_PAGES, type PageId } from "../SettingsPages";
 import { useAppVersion } from "../useAppVersion";
 import { FliqLogo } from "./FliqLogo";
@@ -9,11 +11,12 @@ interface SidebarProps
     onNavigate: (pageId: PageId) => void;
 }
 
-// Navigation: the pages of SETTINGS_PAGES, grouped.
+// Navigation: the pages of SETTINGS_PAGES, grouped. Saved layouts shows how many there are.
 export function Sidebar({ currentPage, onNavigate }: SidebarProps)
 {
     const version = useAppVersion();
     const strings = useStrings();
+    const savedLayoutCount = useAtomValue(ATOMS.SAVED_LAYOUTS).length;
 
     return (
         <nav className="styling-sidebar" aria-label={strings.sidebar.ariaLabel}>
@@ -38,6 +41,7 @@ export function Sidebar({ currentPage, onNavigate }: SidebarProps)
                         >
                             <page.icon size={17} stroke={1.8} />
                             {strings.sidebar.pages[page.id]}
+                            {page.id === "savedLayouts" && savedLayoutCount > 0 && <span className="nav-count">{savedLayoutCount}</span>}
                         </button>
                     ))}
                 </div>

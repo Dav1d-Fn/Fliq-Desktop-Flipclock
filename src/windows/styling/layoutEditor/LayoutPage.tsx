@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from "react";
-import { ActionIcon, SegmentedControl } from "@mantine/core";
-import { IconArrowBackUp, IconArrowForwardUp } from "@tabler/icons-react";
+import { ActionIcon, SegmentedControl, Tooltip } from "@mantine/core";
+import { IconArrowBackUp, IconArrowForwardUp, IconHelpCircle } from "@tabler/icons-react";
 import { useAtom } from "jotai";
 import { blockDefinition } from "../../../blocks/BlockRegistry";
 import { LayoutGrid, type BlockKind, type CellRect, type LayoutBlock, type TrackRef } from "../../../layout/ClockLayout";
 import { useStrings } from "../../../i18n/useStrings";
 import { ATOMS } from "../../../settings/atoms";
+import { LayoutSwitcher } from "../savedLayouts/LayoutSwitcher";
+import type { PageProps } from "../SettingsPages";
 import { AddBlockBar } from "./AddBlockBar";
 import { BlockInspector } from "./BlockInspector";
 import { ClockInspector } from "./ClockInspector";
@@ -27,7 +29,7 @@ const TOAST_DURATION = 2400;
 // Clock › Layout: the block editor. Canvas with the real clock in the middle, palette below,
 // inspector on the right. Every change is written to the layout setting right away, so the
 // clock on the desktop follows live; only a drag in progress stays local to the canvas.
-export function LayoutPage()
+export function LayoutPage({ onNavigate }: PageProps)
 {
     const [layout, setLayout] = useAtom(ATOMS.CLOCK_LAYOUT);
     const [mode, setMode] = useState<Mode>("edit");
@@ -260,11 +262,16 @@ export function LayoutPage()
         <div className="layout-page">
             <main className="layout-main">
                 <div className="layout-header">
-                    <div>
+                    <div className="layout-header-title">
                         <h1 className="page-title">{text.title}</h1>
-                        <p className="page-intro">{text.intro}</p>
+                        <LayoutSwitcher onManage={() => onNavigate("savedLayouts")} />
                     </div>
                     <div className="layout-header-actions">
+                        <Tooltip label={text.intro} multiline w={300} withArrow position="bottom-end" events={{ hover: true, focus: true, touch: true }}>
+                            <ActionIcon variant="default" size={34} aria-label={text.help}>
+                                <IconHelpCircle size={18} />
+                            </ActionIcon>
+                        </Tooltip>
                         <ActionIcon variant="default" size={34} aria-label={text.undo} title={text.undoTitle} disabled={!history.canUndo} onClick={history.undo}>
                             <IconArrowBackUp size={18} />
                         </ActionIcon>

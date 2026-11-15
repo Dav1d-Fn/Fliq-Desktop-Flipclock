@@ -70,7 +70,7 @@ export function GroupMembers({ block, onChange, openMember, onOpenMember }: Bloc
     }
 
     return (
-        <InspectorField label={text.items}>
+        <InspectorField label={text.items} help={text.itemsNote}>
             <div className="group-members" ref={listRef}>
                 {items.map((item, index) =>
                 {
@@ -111,7 +111,6 @@ export function GroupMembers({ block, onChange, openMember, onOpenMember }: Bloc
                     );
                 })}
             </div>
-            <p className="inspector-note">{text.itemsNote}</p>
         </InspectorField>
     );
 }

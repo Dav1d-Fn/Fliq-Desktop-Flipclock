@@ -14,11 +14,24 @@
   box-sizing: border-box;
 }
 
+/* Wraps the actions below the title and switcher in narrow windows. */
 .layout-header {
   display: flex;
-  align-items: flex-end;
+  flex-wrap: wrap;
+  align-items: center;
   justify-content: space-between;
+  gap: 10px 16px;
+}
+
+.layout-header-title {
+  display: flex;
+  flex: none;
+  align-items: center;
   gap: 16px;
+}
+
+.layout-header-title .page-title {
+  margin: 0;
 }
 
 .layout-header-actions {
@@ -444,11 +457,130 @@
 }
 
 .inspector-label {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 4px;
   font-size: 12px;
   font-weight: 600;
   color: var(--fliq-text-muted);
-  margin: 20px 0 8px;
+  margin: 16px 0 8px;
+}
+
+/* The ? behind a label: its longer explanation as a tooltip. */
+.inspector-help {
+  display: inline-flex;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--fliq-text-muted);
+  cursor: help;
+  border-radius: 50%;
+}
+
+.inspector-help:hover,
+.inspector-help:focus-visible {
+  color: var(--fliq-link);
+}
+
+/* Block header: kind icon, name, size in cells. */
+.inspector-block-heading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 2px 0 6px;
+}
+
+.inspector-block-heading h2 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.inspector-block-heading span {
+  font-size: 12px;
+  color: var(--fliq-text-muted);
+}
+
+.inspector-block-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  background: var(--fliq-nav-active-bg);
+  color: var(--fliq-link) !important;
+}
+
+/* Collapsible sections (InspectorSection). */
+.inspector-section {
+  border-top: 1px solid var(--fliq-border);
+}
+
+.inspector-section:last-of-type {
+  border-bottom: 1px solid var(--fliq-border);
+}
+
+.inspector-section-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 44px;
+  padding: 0 2px;
+}
+
+.inspector-section-title {
+  font-size: 13px;
+  font-weight: 700;
+  flex: none;
+}
+
+.inspector-section-summary {
+  flex: 1;
+  min-width: 0;
+  text-align: right;
+  font-size: 12px;
+  color: var(--fliq-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.inspector-section-chevron {
+  flex: none;
+  margin-left: auto;
+  color: var(--fliq-text-muted);
+  transition: transform .2s;
+}
+
+.inspector-section-summary + .inspector-section-chevron {
+  margin-left: 0;
+}
+
+.inspector-section.open .inspector-section-chevron {
+  transform: rotate(180deg);
+}
+
+.inspector-section-body {
+  padding-bottom: 16px;
+  animation: fliq-fade-up .2s ease-out;
+}
+
+.inspector-section-body > .inspector-field:first-child .inspector-label {
+  margin-top: 2px;
+}
+
+.color-dot {
+  display: inline-block;
+  vertical-align: -2px;
+  margin-right: 6px;
+  flex: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.18);
 }
 
 .inspector .slider-control {
@@ -772,17 +904,17 @@
 /* Clock style picker: live previews in a grid (ClockStylePicker). */
 .clock-style-picker {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 6px;
+  grid-template-columns: repeat(auto-fill, minmax(56px, 1fr));
+  gap: 5px;
 }
 
 .clock-style {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
-  padding: 4px 4px 6px;
-  border-radius: 12px;
+  gap: 3px;
+  padding: 3px 3px 4px;
+  border-radius: 10px;
   border: 1px solid var(--fliq-border-strong);
 }
 
@@ -793,8 +925,8 @@
 
 .clock-style-preview {
   width: 100%;
-  height: 52px;
-  border-radius: 8px;
+  height: 36px;
+  border-radius: 7px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -803,7 +935,9 @@
 }
 
 .clock-style-name {
-  font-size: 11px;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  font-size: 10.5px;
   line-height: 1.2;
   text-align: center;
 }
@@ -857,4 +991,164 @@
 .progress-option-label {
   font-size: 12px;
   margin-top: 4px;
+}
+
+/* Layout switcher in the header (LayoutSwitcher) and its menu. */
+.layout-switcher {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.layout-switcher > * {
+  flex: none;
+}
+
+.layout-switcher-button {
+  max-width: 260px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 44px;
+  padding: 0 10px 0 7px;
+  border: 1px solid var(--fliq-border-strong);
+  border-radius: 10px;
+  background: #ffffff;
+  min-width: 0;
+}
+
+.layout-switcher-button:hover {
+  background: var(--fliq-chip-bg);
+}
+
+.layout-switcher-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.25;
+}
+
+.layout-switcher-text strong {
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.layout-switcher-changes {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: #b45309;
+}
+
+.layout-switcher-changes i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #f59e0b;
+}
+
+.layout-thumbnail {
+  display: grid;
+  flex: none;
+  box-sizing: border-box;
+  border-radius: 4px;
+  max-width: 100%;
+}
+
+.layout-thumbnail-block {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  min-height: 0;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.14);
+  color: rgba(255, 255, 255, 0.8);
+  overflow: hidden;
+}
+
+.layout-menu-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 8px 4px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--fliq-text-muted);
+}
+
+.layout-menu-heading .text-link {
+  font-size: 12px;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.layout-menu-empty {
+  margin: 4px 8px 8px;
+  font-size: 13px;
+  color: var(--fliq-text-muted);
+}
+
+.layout-menu-item,
+.layout-menu-action {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 7px 8px;
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+.layout-menu-item:hover,
+.layout-menu-action:hover:not(:disabled) {
+  background: var(--fliq-chip-bg);
+}
+
+.layout-menu-action:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.layout-menu-item .layout-thumbnail {
+  width: 52px;
+  display: grid;
+}
+
+.layout-menu-item-text {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  line-height: 1.3;
+}
+
+.layout-menu-item-text span {
+  font-size: 12px;
+  color: var(--fliq-text-muted);
+}
+
+.layout-menu-check {
+  color: var(--fliq-link);
+  flex: none;
+}
+
+.layout-menu-divider {
+  height: 1px;
+  margin: 6px 4px;
+  background: var(--fliq-border);
+}
+
+.layout-menu-save-as {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  padding: 4px 8px 8px;
 }

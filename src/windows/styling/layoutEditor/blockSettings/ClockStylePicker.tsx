@@ -17,8 +17,8 @@ const ROUND_MAX_COLUMNS = 2;
 
 // Size of the previews, in px (the faces are sized in em): round faces fill the preview's
 // height, digits stay small enough for their width.
-const ROUND_PREVIEW_SIZE = 44;
-const DIGITS_PREVIEW_SIZE = 18;
+const ROUND_PREVIEW_SIZE = 32;
+const DIGITS_PREVIEW_SIZE = 14;
 
 function isRound(style: ClockStyle): boolean
 {
@@ -66,9 +66,10 @@ export function ClockStylePicker({ block, onChange }: BlockSettingsProps)
     const text = useStrings().clockStyle;
     const background = useAtomValue(ATOMS.BOX_BACKGROUND);
     const current = block.clockStyle ?? "flip";
+    const drawsSeconds = current !== "flip" && current !== "text" && current !== "progress";
 
     return (
-        <InspectorField label={text.label}>
+        <InspectorField label={text.label} help={drawsSeconds ? text.secondsNote : undefined}>
             <div className="clock-style-picker" role="radiogroup" aria-label={text.label}>
                 {CLOCK_STYLES.map((style) => (
                     <UnstyledButton
@@ -86,7 +87,6 @@ export function ClockStylePicker({ block, onChange }: BlockSettingsProps)
                     </UnstyledButton>
                 ))}
             </div>
-            {current !== "flip" && current !== "text" && current !== "progress" && <p className="inspector-note">{text.secondsNote}</p>}
             {current === "progress" && <ProgressOptions block={block} onChange={onChange} />}
         </InspectorField>
     );
