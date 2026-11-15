@@ -1,26 +1,24 @@
-import type { CSSProperties } from "react";
 import dayjs from "dayjs";
-import { SegmentedControl, UnstyledButton } from "@mantine/core";
-import { useAtomValue } from "jotai";
-import { withClockStyle } from "../../../../blocks/StyleSettings";
+import { SegmentedControl } from "@mantine/core";
+import { withClockStyle, withTextStyle } from "../../../../blocks/StyleSettings";
 import { ClockFace } from "../../../../clock/faces/ClockFace";
-import type { ClockStyle, LayoutBlock, ProgressMotion, ProgressShape, ProgressUnit } from "../../../../layout/ClockLayout";
+import type { ClockStyle, LayoutBlock, ProgressMotion, ProgressShape, ProgressUnit, TextStyle } from "../../../../layout/ClockLayout";
 import { useStrings } from "../../../../i18n/useStrings";
-import { ATOMS } from "../../../../settings/atoms";
 import type { BlockSettingsProps } from "../BlockEditors";
 import { InspectorField } from "../InspectorField";
+import { FlipUnitControl } from "./FlipUnitControl";
+import { StyleTiles, type StyleTile } from "./StyleTiles";
+import { TextStylePreview } from "./TextStylePreview";
 
-// Picker order.
-const CLOCK_STYLES: ClockStyle[] = ["flip", "text", "segment", "dots", "nixie", "analogMinimal", "analogClassic", "analogFine", "rings", "progress"];
+// Picker order: the text styles the digits can have, then the faces only a clock has.
+export const TEXT_STYLES: TextStyle[] = ["flip", "text", "segment", "dots", "nixie"];
+const CLOCK_FACES: Exclude<ClockStyle, "digital">[] = ["analogMinimal", "analogClassic", "analogFine", "rings", "progress"];
 
 // Round faces are as high as they are wide and the row follows (see ClockBlock), so a wider
 // block would make a huge clock: picking one narrows the block to this many columns.
 const ROUND_MAX_COLUMNS = 2;
 
-// The tiles stand in about two rows; a narrow inspector wraps them into more (layoutEditor.css).
-const PICKER_COLUMNS = Math.ceil(CLOCK_STYLES.length / 2);
-
-function isRound(style: ClockStyle): boolean
+function isRound(style: string): boolean
 {
     return style.startsWith("analog") || style === "rings";
 }
@@ -31,25 +29,10 @@ function narrowed(block: LayoutBlock, round: boolean): Partial<LayoutBlock>
     return round && block.w > ROUND_MAX_COLUMNS ? { w: ROUND_MAX_COLUMNS } : {};
 }
 
-// A small picture of a style: the real face for drawn styles, a quick look-alike for flip and
-// text (those run on Tick.js, too heavy for ten previews) and the progress bar.
-function StylePreview({ style }: { style: ClockStyle })
+// A small picture of a clock face: the real face, or the progress bar.
+function FacePreview({ face }: { face: Exclude<ClockStyle, "digital"> })
 {
-    const time = dayjs().format("HH:mm");
-    if (style === "flip")
-    {
-        return (
-            <span className="style-preview-flip">
-                {time.split("").map((character, characterIndex) =>
-                    (character === ":" ? <i key={characterIndex} /> : <b key={characterIndex}>{character}</b>))}
-            </span>
-        );
-    }
-    if (style === "text")
-    {
-        return <span className="style-preview-text">{time}</span>;
-    }
-    if (style === "progress")
+    if (face === "progress")
     {
         return (
             <span className="style-preview-bar">
@@ -57,45 +40,69 @@ function StylePreview({ style }: { style: ClockStyle })
             </span>
         );
     }
-    return <ClockFace style={style} format={isRound(style) ? "HH:mm:ss" : "HH:mm"} />;
+    return <ClockFace style={face} format={isRound(face) ? "HH:mm:ss" : "HH:mm"} />;
 }
 
-// How the clock is drawn, as a grid of live previews.
-export function ClockStylePicker({ block, onChange }: BlockSettingsProps)
+// How the clock is drawn, as a grid of live previews: digits in one of the text styles, or a
+// face. A clock in a group has one "Digital" tile instead, drawn in the group's text style
+// (a group has one text style, see TextStylePicker).
+export function ClockStylePicker({ block, onChange, inGroup }: BlockSettingsProps)
 {
     const text = useStrings().clockStyle;
-    const background = useAtomValue(ATOMS.BOX_BACKGROUND);
-    const current = block.clockStyle ?? "flip";
-    const drawsSeconds = current !== "flip" && current !== "text" && current !== "progress";
+    const face = block.clockStyle ?? "digital";
+    const textStyle = block.textStyle ?? "text";
+    const time = dayjs().format("HH:mm");
+    let current: string = face;
+    if (face === "digital" && !inGroup)
+    {
+        current = textStyle;
+    }
+
+    const textTiles: StyleTile[] = inGroup
+        ? [{ id: "digital", name: text.names.digital, preview: <TextStylePreview style={textStyle} text={time} /> }]
+        : TEXT_STYLES.map((style) => ({ id: style, name: text.names[style], preview: <TextStylePreview style={style} text={time} /> }));
+    const faceTiles: StyleTile[] = CLOCK_FACES.map((clockFace) => ({
+        id: clockFace,
+        name: text.names[clockFace],
+        round: isRound(clockFace),
+        preview: <FacePreview face={clockFace} />,
+    }));
 
     // One change, so one undo step brings back the old style with its colors.
-    function pick(style: ClockStyle)
+    function pick(id: string)
     {
-        if (style !== current)
+        if (id === current)
         {
-            onChange({ ...withClockStyle(style), ...narrowed(block, isRound(style)) });
+            return;
+        }
+        if (id === "digital")
+        {
+            onChange(withClockStyle("digital"));
+        }
+        else if ((CLOCK_FACES as string[]).includes(id))
+        {
+            onChange({ ...withClockStyle(id as ClockStyle), ...narrowed(block, isRound(id)) });
+        }
+        else
+        {
+            onChange(withTextStyle(block, id as TextStyle));
         }
     }
 
+    let help: string | undefined = undefined;
+    if (inGroup)
+    {
+        help = text.memberNote;
+    }
+    else if (isRound(face))
+    {
+        help = text.secondsNote;
+    }
+
     return (
-        <InspectorField label={text.label} help={drawsSeconds ? text.secondsNote : undefined}>
-            <div className="clock-style-picker" role="radiogroup" aria-label={text.label} style={{ "--style-columns": PICKER_COLUMNS } as CSSProperties}>
-                {CLOCK_STYLES.map((style) => (
-                    <UnstyledButton
-                        key={style}
-                        className={style === current ? "clock-style selected" : "clock-style"}
-                        role="radio"
-                        aria-label={text.names[style]}
-                        aria-checked={style === current}
-                        onClick={() => pick(style)}
-                    >
-                        <span className={isRound(style) ? "clock-style-preview round" : "clock-style-preview"} style={{ background }}>
-                            <span className="clock-style-preview-scale"><StylePreview style={style} /></span>
-                        </span>
-                        <span className="clock-style-name">{text.names[style]}</span>
-                    </UnstyledButton>
-                ))}
-            </div>
+        <InspectorField label={text.label} help={help}>
+            <StyleTiles label={text.label} tiles={[...textTiles, ...faceTiles]} current={current} block={block} onPick={pick} />
+            {current === "flip" && <FlipUnitControl block={block} onChange={onChange} />}
             {current === "progress" && <ProgressOptions block={block} onChange={onChange} />}
         </InspectorField>
     );

@@ -1,4 +1,4 @@
-import type { BlockDefinition } from "./BlockDefinition.ts";
+import { styledText, type BlockDefinition } from "./BlockDefinition.ts";
 
 export const TEXT_BLOCK: BlockDefinition = {
     kind: "text",
@@ -9,5 +9,5 @@ export const TEXT_BLOCK: BlockDefinition = {
     supportsCustomFormat: false,
     alignable: true,
     // A non-breaking space keeps an empty block from collapsing to zero height.
-    segments: (block) => [{ type: "TEXT", value: block.text || " " }],
+    segments: (block) => [{ type: "TEXT", value: block.text || " ", ...styledText(block) }],
 };

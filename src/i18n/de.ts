@@ -332,7 +332,15 @@ export const DE: Strings = {
     },
     clockStyle: {
         label: "Stil",
+        textStyle: "Schriftstil",
+        textStyleNote: "Wie Buchstaben und Ziffern gezeichnet werden. Zu LCD und Punktmatrix passen flache Icons am besten.",
+        memberNote: "„Digital“ zeichnet die Uhrzeit im Schriftstil der Gruppe (unter Text).",
+        mixedNote: "Die Elemente behalten ihre eigenen Stile, bis du einen wählst.",
+        flipUnit: "Karten",
+        perCharacter: "Pro Zeichen",
+        perWord: "Pro Wort",
         names: {
+            digital: "Digital",
             flip: "Flip",
             text: "Text",
             segment: "LCD",
