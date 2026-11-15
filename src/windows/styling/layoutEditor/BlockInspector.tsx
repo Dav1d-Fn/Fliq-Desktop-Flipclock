@@ -5,7 +5,7 @@ import { useAtomValue } from "jotai";
 import { blockDefinition } from "../../../blocks/BlockRegistry";
 import { settingsOf, type StyleSetting } from "../../../blocks/StyleSettings";
 import { BLOCK_SIZE_LIMITS } from "../../../clock/useLayoutGrid";
-import { BLOCK_DEFAULTS, LayoutGrid, type BlockAlign, type CellRect, type ClockLayout, type LayoutBlock } from "../../../layout/ClockLayout";
+import { BLOCK_DEFAULTS, LayoutGrid, type BlockAlign, type LayoutBlock } from "../../../layout/ClockLayout";
 import { named, useStrings } from "../../../i18n/useStrings";
 import { ATOMS } from "../../../settings/atoms";
 import { FONT_OPTIONS } from "../../../settings/options";
@@ -17,11 +17,9 @@ import { BACKGROUND_SWATCHES, TEXT_SWATCHES } from "./EditorSwatches";
 import { ColorDot } from "./ColorDot";
 import { InspectorField } from "./InspectorField";
 import { InspectorSection } from "./InspectorSection";
-import { SizePresets } from "./SizePresets";
 
 interface BlockInspectorProps
 {
-    layout: ClockLayout;
     block: LayoutBlock;
     onChange: (patch: Partial<LayoutBlock>) => void;
     onRemove: () => void;
@@ -55,7 +53,7 @@ function joined(parts: (string | false | undefined)[]): string
 // Settings of the selected block. Built from its BlockDefinition and BLOCK_EDITORS, so a new
 // block kind needs no change here. Look settings only when they change something the block
 // shows (settingsOf).
-export function BlockInspector({ layout, block, onChange, onRemove, onUngroup, openMember, onOpenMember }: BlockInspectorProps)
+export function BlockInspector({ block, onChange, onRemove, onUngroup, openMember, onOpenMember }: BlockInspectorProps)
 {
     const definition = blockDefinition(block.kind);
     const editor = BLOCK_EDITORS[block.kind];
@@ -108,9 +106,11 @@ export function BlockInspector({ layout, block, onChange, onRemove, onUngroup, o
     {
         lookSummary = strings.iconStyle[block.iconStyle ?? "colored"];
     }
-    const backgroundSummary = block.background
-        ? <><ColorDot color={block.backgroundColor ?? BLOCK_DEFAULTS.backgroundColor} />{block.backgroundRadius ?? BLOCK_DEFAULTS.backgroundRadius} px</>
-        : text.off;
+    // Without style settings the look is only the own background.
+    if (lookSummary === undefined && block.background)
+    {
+        lookSummary = <><ColorDot color={block.backgroundColor ?? BLOCK_DEFAULTS.backgroundColor} />{block.backgroundRadius ?? BLOCK_DEFAULTS.backgroundRadius} px</>;
+    }
     const offset = block.offsetX || block.offsetY ? text.offsetSummary(block.offsetX ?? 0, block.offsetY ?? 0) : undefined;
     const spacingSummary = joined([text.paddingSummary(block.paddingX ?? BLOCK_DEFAULTS.paddingX, block.paddingY ?? BLOCK_DEFAULTS.paddingY), offset]);
 
@@ -203,13 +203,9 @@ export function BlockInspector({ layout, block, onChange, onRemove, onUngroup, o
                 </InspectorSection>
             )}
 
-            {hasLook && StyleSettings && (
-                <InspectorSection id="look" title={text.sectionLook} summary={lookSummary} defaultOpen={block.kind === "group"}>
-                    <StyleSettings block={block} onChange={onChange} />
-                </InspectorSection>
-            )}
+            <InspectorSection id="look" title={text.sectionLook} summary={lookSummary} defaultOpen={block.kind === "group"}>
+                {hasLook && StyleSettings && <StyleSettings block={block} onChange={onChange} />}
 
-            <InspectorSection id="background" title={text.background} summary={backgroundSummary} defaultOpen={false}>
                 <Switch
                     mt={14}
                     label={text.ownBackground}
@@ -244,9 +240,20 @@ export function BlockInspector({ layout, block, onChange, onRemove, onUngroup, o
             </InspectorSection>
 
             <InspectorSection id="spacing" title={text.sectionSpacing} summary={spacingSummary} defaultOpen={false}>
-                <InspectorField label={text.size} help={text.sizeNote}>
-                    <SizePresets layout={layout} block={block} onPick={(rect: CellRect) => onChange(rect)} />
-                </InspectorField>
+                {block.kind === "group" && (
+                    <InspectorField label={strings.group.spaceBetweenItems}>
+                        <SliderControl
+                            label={strings.group.spaceBetweenItems}
+                            value={block.itemGap ?? BLOCK_DEFAULTS.itemGap}
+                            onChange={(itemGap) => onChange({ itemGap })}
+                            min={0}
+                            max={3}
+                            step={0.05}
+                            marks={[]}
+                            unit="em"
+                        />
+                    </InspectorField>
+                )}
 
                 <InspectorField label={text.padding}>
                     <SliderControl
