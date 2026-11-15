@@ -18,6 +18,9 @@ export interface GroupItem
 
 export type BlockAlign = "left" | "center" | "right";
 
+// Weather icons as colored emoji or as flat line icons in the text color.
+export type IconStyle = "colored" | "flat";
+
 export interface LayoutBlock
 {
     id: number;
@@ -39,6 +42,8 @@ export interface LayoutBlock
     itemGap?: number;
     // Optional values fall back to the clock defaults (font, color) or to BLOCK_DEFAULTS.
     align?: BlockAlign;
+    // Unset means colored, the look before this setting existed.
+    iconStyle?: IconStyle;
     font?: string;
     color?: string;
     // Flip time blocks only.

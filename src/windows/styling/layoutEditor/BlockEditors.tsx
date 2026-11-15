@@ -4,6 +4,7 @@ import type { BlockKind, LayoutBlock } from "../../../layout/ClockLayout";
 import { FlipCardSettings } from "./blockSettings/FlipCardSettings";
 import { GroupMembers } from "./blockSettings/GroupMembers";
 import { GroupStyleSettings } from "./blockSettings/GroupStyleSettings";
+import { IconStyleSettings } from "./blockSettings/IconStyleSettings";
 import { TextSettings } from "./blockSettings/TextSettings";
 import { WeatherSettings } from "./blockSettings/WeatherSettings";
 
@@ -32,7 +33,7 @@ export const BLOCK_EDITORS: Record<BlockKind, BlockEditor> = {
     flip: { icon: IconLayoutColumns, styleSettings: FlipCardSettings },
     time: { icon: IconClockHour4 },
     date: { icon: IconCalendar },
-    weather: { icon: IconCloud, contentSettings: WeatherSettings },
+    weather: { icon: IconCloud, contentSettings: WeatherSettings, styleSettings: IconStyleSettings },
     text: { icon: IconLetterT, contentSettings: TextSettings },
     group: { icon: IconStack2, styleSettings: GroupStyleSettings, memberSettings: GroupMembers },
 };
