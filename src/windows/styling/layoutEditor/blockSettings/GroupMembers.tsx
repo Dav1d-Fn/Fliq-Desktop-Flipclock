@@ -64,8 +64,8 @@ export function GroupMembers({ block, onChange, openMember, onOpenMember }: Bloc
     // Only content fields reach a member; the rest of the patch would be the group's look.
     function changeItem(index: number, patch: Partial<LayoutBlock>)
     {
-        const { display, customFormat, text, weatherIcon } = { ...items[index], ...patch };
-        const item: GroupItem = { kind: items[index].kind, display, customFormat, text, weatherIcon };
+        const { display, customFormat, text, weatherIcon, clockStyle, progressShape, progressUnit, progressMotion } = { ...items[index], ...patch };
+        const item: GroupItem = { kind: items[index].kind, display, customFormat, text, weatherIcon, clockStyle, progressShape, progressUnit, progressMotion };
         setItems(items.map((current, itemIndex) => (itemIndex === index ? item : current)));
     }
 

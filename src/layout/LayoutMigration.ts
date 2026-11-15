@@ -25,6 +25,17 @@ const GAPS_CLEANED_MARKER = "gapOverridesCleaned";
 // Set once the 12-hour display options were turned into the global clock format.
 const HOUR_CYCLE_MARKER = "hourCycleMigrated";
 
+// Set once flip time, time and seconds bar blocks became clock blocks with a style.
+const CLOCK_KIND_MARKER = "clockKindMigrated";
+
+// Block kinds before the clock block, and the clock fields each became. The seconds bar filled
+// over each minute, sliding over every second: progress, bar, minute, smooth.
+const OLD_CLOCK_KINDS: Record<string, Partial<LayoutBlock>> = {
+    flip: { clockStyle: "flip" },
+    time: { clockStyle: "text" },
+    secondsBar: { clockStyle: "progress", progressShape: "bar", progressUnit: "minute", progressMotion: "smooth" },
+};
+
 // Display ids of time blocks before Data › Time: 12-hour ones, and what they become.
 const TWELVE_HOUR_DISPLAYS = ["hh:mm", "h:mm A"];
 const HOURS_AND_MINUTES = "HH:mm";
@@ -92,6 +103,31 @@ export class LayoutMigration
         this.cleanGapOverrides();
         this.convertOldRows();
         this.moveHourCycle();
+        this.convertClockKinds();
+    }
+
+    // One-time: "flip", "time" and "secondsBar" blocks (and group members) became "clock"
+    // blocks with a style. Everything else about them stays, so they look the same.
+    private convertClockKinds(): void
+    {
+        if (this.storage.getItem(CLOCK_KIND_MARKER) !== null)
+        {
+            return;
+        }
+        this.storage.setItem(CLOCK_KIND_MARKER, "true");
+        const stored = this.storage.getItem(LAYOUT_KEYS.layout);
+        if (stored === null)
+        {
+            return;
+        }
+        const layout = JSON.parse(stored) as ClockLayout;
+        const convert = <T extends { kind: string }>(content: T): T =>
+        {
+            const fields = OLD_CLOCK_KINDS[content.kind];
+            return fields ? { ...content, kind: "clock", ...fields } : content;
+        };
+        const blocks = layout.blocks.map((block) => convert({ ...block, ...(block.items && { items: block.items.map(convert) }) }));
+        this.storage.setItem(LAYOUT_KEYS.layout, JSON.stringify({ ...layout, blocks }));
     }
 
     private convertOldRows(): void
@@ -126,7 +162,8 @@ export class LayoutMigration
         this.storage.setItem(LAYOUT_KEYS.cornerRadius, JSON.stringify(Math.min(64, cornerRadius)));
     }
 
-    // One-time: the 12-hour display options of flip time and time blocks became the global
+    // One-time: the 12-hour display options of flip time and time blocks (now clock blocks)
+    // became the global
     // clock format. Those blocks now show "Hours & minutes"; when every time block was 12-hour,
     // the clock format becomes 12-hour (without leading zero if none had one).
     private moveHourCycle(): void
@@ -143,7 +180,7 @@ export class LayoutMigration
         }
         const layout = JSON.parse(stored) as ClockLayout;
         const isTime = (content: { kind: string; display: string }) =>
-            (content.kind === "flip" || content.kind === "time") && content.display !== "custom";
+            ["flip", "time", "clock"].includes(content.kind) && content.display !== "custom";
         const contents = layout.blocks
             .flatMap((block): { kind: string; display: string }[] => (block.kind === "group" ? block.items ?? [] : [block]))
             .filter(isTime);
@@ -240,7 +277,8 @@ export class LayoutMigration
             case "FLIPTIME":
                 return {
                     ...base,
-                    kind: "flip",
+                    kind: "clock",
+                    clockStyle: "flip",
                     ...LayoutMigration.display(segment.value, FLIP_OPTIONS),
                     color: this.legacy("clockTextColor"),
                     cardColor: this.legacy("flipCardBackground"),
@@ -249,11 +287,11 @@ export class LayoutMigration
             case "TIME":
             {
                 const showsTime = /[Hhms]/.test(segment.value.replace(/\[[^\]]*\]/g, ""));
-                return {
-                    ...base,
-                    kind: showsTime ? "time" : "date",
-                    ...LayoutMigration.display(segment.value, showsTime ? TIME_OPTIONS : DATE_OPTIONS),
-                };
+                if (!showsTime)
+                {
+                    return { ...base, kind: "date", ...LayoutMigration.display(segment.value, DATE_OPTIONS) };
+                }
+                return { ...base, kind: "clock", clockStyle: "text", ...LayoutMigration.display(segment.value, TIME_OPTIONS) };
             }
             case "WEATHER":
                 return { ...base, kind: "weather", ...(LEGACY_WEATHER[segment.value.toLowerCase()] ?? LEGACY_WEATHER.fullemoji) };
@@ -262,7 +300,8 @@ export class LayoutMigration
                 return segment.value.trim() === "" ? null : { ...base, kind: "text", display: "text", text: segment.value };
             case "SPACE":
             case "BREAK":
-            case "SECONDSBAR":
+            case "PROGRESSBAR":
+            case "FACE":
                 return null;
         }
     }

@@ -1,19 +1,49 @@
 // The clock as a grid of blocks, like widgets on a phone home screen. Stored as one JSON value
 // (ATOMS.CLOCK_LAYOUT); this file holds only the shapes and the grid rules, no rendering.
 
-export type BlockKind = "flip" | "time" | "date" | "weather" | "text" | "secondsBar" | "group";
+export type BlockKind = "clock" | "date" | "weather" | "text" | "group";
 
 // Kinds a group can hold: everything but another group.
 export type MemberKind = Exclude<BlockKind, "group">;
 
+// How a clock block draws the time. "flip" and "text" were their own block kinds before
+// (see LayoutMigration); "progress" shows how far one unit is (the old seconds bar); the others
+// are drawn by ClockFace.
+export type ClockStyle = "flip" | "text" | "segment" | "dots" | "nixie" | "analogMinimal" | "analogClassic" | "analogFine" | "rings" | "progress";
+
+// Progress style: a bar as wide as the block, a ring, or dots that light up in turn.
+export type ProgressShape = "bar" | "ring" | "dots";
+
+// What the progress shows: seconds of the minute, minutes of the hour or hours of the day.
+export type ProgressUnit = "minute" | "hour" | "day";
+
+// Jumps once per step (second, or minute for hour and day) or moves on continuously.
+export type ProgressMotion = "stepped" | "smooth";
+
+// Progress fields of a block or group member; unset means the old seconds bar
+// (bar, minute, smooth).
+export interface ProgressFields
+{
+    progressShape?: ProgressShape;
+    progressUnit?: ProgressUnit;
+    progressMotion?: ProgressMotion;
+}
+
+// A progress bar fills its block's width and has no text, so it cannot join a group.
+export function isProgressBar(block: { kind: string; clockStyle?: ClockStyle; progressShape?: ProgressShape }): boolean
+{
+    return block.kind === "clock" && block.clockStyle === "progress" && (block.progressShape ?? "bar") === "bar";
+}
+
 // One member of a group block: only what the member shows. How it looks comes from the group.
-export interface GroupItem
+export interface GroupItem extends ProgressFields
 {
     kind: MemberKind;
     display: string;
     customFormat?: string;
     text?: string;
     weatherIcon?: boolean;
+    clockStyle?: ClockStyle;
 }
 
 export type BlockAlign = "left" | "center" | "right";
@@ -26,7 +56,7 @@ export type IconStyle = "colored" | "flat";
 
 export type GroupDirection = "row" | "column";
 
-export interface LayoutBlock
+export interface LayoutBlock extends ProgressFields
 {
     id: number;
     kind: BlockKind;
@@ -42,6 +72,8 @@ export interface LayoutBlock
     text?: string;
     // Weather blocks only: show the weather emoji.
     weatherIcon?: boolean;
+    // Clock blocks only: how the time is drawn ("flip" when unset).
+    clockStyle?: ClockStyle;
     // Group blocks only: the members in order, the space between them in em, and whether they
     // stand side by side ("row", also when unset) or stacked ("column").
     items?: GroupItem[];
@@ -53,7 +85,14 @@ export interface LayoutBlock
     iconStyle?: IconStyle;
     font?: string;
     color?: string;
-    // Flip time blocks only.
+    // Clock styles other than flip and text; unset means the style's own color.
+    // Lit segments, dots, tubes and rings:
+    glowColor?: string;
+    // Analog: dial, hour and minute hands (with marks and numerals), second hand.
+    dialColor?: string;
+    handColor?: string;
+    secondHandColor?: string;
+    // Flip clock style only.
     cardColor?: string;
     cardRadius?: number;
     padding?: number;
@@ -68,7 +107,7 @@ export interface LayoutBlock
     // Free nudge away from the cells, in px at scale 1. Snapping and collisions ignore it.
     offsetX?: number;
     offsetY?: number;
-    // Seconds bar blocks only: fill and track color, thickness and rounding in px at scale 1.
+    // Progress style: fill and track color; bar only: thickness and rounding in px at scale 1.
     barColor?: string;
     barTrackColor?: string;
     barThickness?: number;
@@ -162,7 +201,7 @@ export const BLOCK_DEFAULTS = {
 };
 
 // Fields that say what a block shows. Everything else besides id and position is its look.
-const CONTENT_FIELDS = ["kind", "display", "customFormat", "text", "weatherIcon", "items", "itemGap", "direction"] as const;
+const CONTENT_FIELDS = ["kind", "display", "customFormat", "text", "weatherIcon", "clockStyle", "progressShape", "progressUnit", "progressMotion", "items", "itemGap", "direction"] as const;
 const PLACEMENT_FIELDS = ["id", "x", "y", "w", "h"] as const;
 
 // What a new installation starts with.
@@ -173,7 +212,7 @@ export const DEFAULT_LAYOUT: ClockLayout = {
     columnGap: 0,
     rowGap: 0,
     blocks: [
-        { id: 1, kind: "flip", x: 0, y: 0, w: 4, h: 1, display: "HH:mm", cardColor: "#212121ff", padding: 0, letterSpacing: -0.03, textSize: 99 },
+        { id: 1, kind: "clock", clockStyle: "flip", x: 0, y: 0, w: 4, h: 1, display: "HH:mm", cardColor: "#212121ff", padding: 0, letterSpacing: -0.03, textSize: 99 },
         {
             id: 2,
             kind: "group",
@@ -348,8 +387,8 @@ export class LayoutGrid
         const blocks = this.layout.blocks
             .filter((block) => blockIds.includes(block.id))
             .sort((a, b) => a.x - b.x);
-        // A seconds bar is no text, it cannot share a line with other members.
-        if (blocks.length < 2 || blocks.length !== new Set(blockIds).size || blocks.some((block) => block.kind === "secondsBar"))
+        // A progress bar is no text, it cannot share a line with other members.
+        if (blocks.length < 2 || blocks.length !== new Set(blockIds).size || blocks.some(isProgressBar))
         {
             return null;
         }
@@ -399,7 +438,7 @@ export class LayoutGrid
     {
         const target = this.layout.blocks.find((block) => block.id === targetId);
         const dropped = this.layout.blocks.find((block) => block.id === droppedId);
-        if (!target || !dropped || target === dropped || target.kind === "secondsBar" || dropped.kind === "secondsBar")
+        if (!target || !dropped || target === dropped || isProgressBar(target) || isProgressBar(dropped))
         {
             return null;
         }
@@ -430,7 +469,7 @@ export class LayoutGrid
     // the others; null when none can.
     static dropZone(target: LayoutBlock, dropped: LayoutBlock, shareX: number, shareY = 0.5, canAddRow = false): DropZone | null
     {
-        const canGroup = target.kind !== "secondsBar" && dropped.kind !== "secondsBar";
+        const canGroup = !isProgressBar(target) && !isProgressBar(dropped);
         // Distance to every edge that can take the block. On a tie the first one wins.
         const edges: [DropZone, number][] = [];
         if (target.h === dropped.h)
@@ -754,7 +793,7 @@ export class LayoutGrid
             return block.items ?? [];
         }
         const item: GroupItem = { kind: block.kind, display: block.display };
-        for (const field of ["customFormat", "text", "weatherIcon"] as const)
+        for (const field of ["customFormat", "text", "weatherIcon", "clockStyle", "progressShape", "progressUnit", "progressMotion"] as const)
         {
             if (block[field] !== undefined)
             {

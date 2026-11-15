@@ -1,5 +1,5 @@
 import { useAtomValue } from "jotai";
-import { BLOCK_DEFAULTS } from "../../../../layout/ClockLayout";
+import { BLOCK_DEFAULTS, isProgressBar } from "../../../../layout/ClockLayout";
 import { named, useStrings } from "../../../../i18n/useStrings";
 import { ATOMS } from "../../../../settings/atoms";
 import { SliderControl } from "../../controls/SliderControl";
@@ -8,6 +8,7 @@ import { ColorSwatches } from "../ColorSwatches";
 import { BACKGROUND_SWATCHES, TEXT_SWATCHES } from "../EditorSwatches";
 import { InspectorField } from "../InspectorField";
 
+// Colors of the progress style; thickness and rounding only for the bar.
 export function SecondsBarSettings({ block, onChange }: BlockSettingsProps)
 {
     const defaultColor = useAtomValue(ATOMS.TEXT_COLOR);
@@ -33,28 +34,32 @@ export function SecondsBarSettings({ block, onChange }: BlockSettingsProps)
                     swatches={[{ color: BLOCK_DEFAULTS.barTrackColor, label: named(strings, "Faint white") }, ...BACKGROUND_SWATCHES]}
                 />
             </InspectorField>
-            <InspectorField label={text.thickness}>
-                <SliderControl
-                    label={text.barThickness}
-                    value={block.barThickness ?? BLOCK_DEFAULTS.barThickness}
-                    onChange={(barThickness) => onChange({ barThickness })}
-                    min={1}
-                    max={24}
-                    marks={[]}
-                    unit="px"
-                />
-            </InspectorField>
-            <InspectorField label={text.rounding}>
-                <SliderControl
-                    label={text.barRounding}
-                    value={block.barRadius ?? BLOCK_DEFAULTS.barRadius}
-                    onChange={(barRadius) => onChange({ barRadius })}
-                    min={0}
-                    max={12}
-                    marks={[]}
-                    unit="px"
-                />
-            </InspectorField>
+            {isProgressBar(block) && (
+                <>
+                    <InspectorField label={text.thickness}>
+                        <SliderControl
+                            label={text.barThickness}
+                            value={block.barThickness ?? BLOCK_DEFAULTS.barThickness}
+                            onChange={(barThickness) => onChange({ barThickness })}
+                            min={1}
+                            max={24}
+                            marks={[]}
+                            unit="px"
+                        />
+                    </InspectorField>
+                    <InspectorField label={text.rounding}>
+                        <SliderControl
+                            label={text.barRounding}
+                            value={block.barRadius ?? BLOCK_DEFAULTS.barRadius}
+                            onChange={(barRadius) => onChange({ barRadius })}
+                            min={0}
+                            max={12}
+                            marks={[]}
+                            unit="px"
+                        />
+                    </InspectorField>
+                </>
+            )}
         </>
     );
 }
