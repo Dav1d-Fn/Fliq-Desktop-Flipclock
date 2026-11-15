@@ -46,10 +46,10 @@ export default function StylingApp()
                 <Sidebar currentPage={currentPage.id} onNavigate={navigate} />
                 <main className={currentPage.wide ? "styling-main wide" : "styling-main"} ref={mainRef}>
                     {currentPage.wide
-                        ? <PageComponent />
+                        ? <PageComponent onNavigate={navigate} />
                         : (
                             <div className="styling-page">
-                                <PageComponent />
+                                <PageComponent onNavigate={navigate} />
                             </div>
                         )}
                 </main>
