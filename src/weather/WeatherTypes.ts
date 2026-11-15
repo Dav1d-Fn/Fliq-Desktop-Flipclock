@@ -17,6 +17,10 @@ export interface WeatherReport
     lowFahrenheit?: string;
     descriptionEnglish: string;
     descriptionLocalized: string;
+    // The place wttr.in resolved the location to, shown in the settings to check it.
+    areaName?: string;
+    region?: string;
+    country?: string;
     latitude: string;
     longitude: string;
 }

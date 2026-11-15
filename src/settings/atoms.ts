@@ -3,6 +3,7 @@ import type { HourCycle } from "../blocks/BlockDefinition";
 import { DEFAULT_LAYOUT, type ClockLayout } from "../layout/ClockLayout";
 import { LAYOUT_KEYS, LayoutMigration } from "../layout/LayoutMigration";
 import type { SunDays, WeatherReport } from "../weather/WeatherTypes";
+import type { WeatherPlace } from "../weather/WeatherPlace";
 import { systemDateLanguage, systemUiLanguage } from "../i18n/UiLanguage";
 import type { UiLanguage } from "./options";
 
@@ -33,6 +34,8 @@ export const ATOMS = {
     TEXT_FONT: atomWithStorage("textFont", "\"JetBrains Mono Variable\", monospace"),
     TEXT_COLOR: atomWithStorage("textColor", "#fafafaff"),
     WEATHER_LOCATION: atomWithStorage("weatherLocation", ""), // Empty: wttr.in locates by IP
+    // The place picked from the city search; used while WEATHER_LOCATION still shows its label.
+    WEATHER_PLACE: atomWithStorage<WeatherPlace | null>("weatherPlace", null),
     WEATHER_UNIT: atomWithStorage("weatherUnit", "C"),
     // Caches written by useWeatherUpdates, not settings.
     WEATHER_REPORT: atomWithStorage<WeatherReport | null>("weatherReport", null),

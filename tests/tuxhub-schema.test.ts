@@ -16,8 +16,9 @@ test("schema covers every stored setting except caches", () =>
 {
     const atoms = readFileSync(new URL("../src/settings/atoms.ts", import.meta.url), "utf8");
     const stored = [...atoms.matchAll(/atomWithStorage(?:<[^>]*>)?\("([^"]+)"/g)].map((m) => m[1]);
-    // Caches, and the block layout, which only the styling window edits.
-    const caches = ["weatherReport", "sunDays", "clockLayout"];
+    // Caches, the block layout, which only the styling window edits, and the picked weather
+    // place (tuxhub sets the location as text, which replaces the place).
+    const caches = ["weatherReport", "sunDays", "clockLayout", "weatherPlace"];
     const keys = fields(schema("en")).map((f) => f.key);
     for (const key of stored.filter((k) => !caches.includes(k))) 
     {
