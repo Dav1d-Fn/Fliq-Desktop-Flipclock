@@ -3,7 +3,7 @@ import { useSetAtom } from "jotai";
 import { blockDefinition } from "../blocks/BlockRegistry";
 import { BLOCK_DEFAULTS, isProgressBar, type LayoutBlock, type PixelRect, type RowAlign } from "../layout/ClockLayout";
 import { BlockContent } from "./BlockContent";
-import { BLOCK_HEIGHTS } from "./useLayoutGrid";
+import { BLOCK_HEIGHTS, BLOCK_SIZE_LIMITS } from "./useLayoutGrid";
 import { useSegmentContext } from "./useSegmentContext";
 
 interface ClockBlockProps
@@ -12,6 +12,8 @@ interface ClockBlockProps
     rect: PixelRect;
     scale: number;
     rowAlign: RowAlign;
+    // The block's row grows with its content: one row high, row height automatic.
+    heightFollows: boolean;
     language: string;
     // Extra style from the editor (lift, transitions, animations).
     style?: CSSProperties;
@@ -19,10 +21,6 @@ interface ClockBlockProps
 
 // Width of a Tick.js flip card in em (its min-width); card rounding is a percentage of it.
 const FLIP_CARD_WIDTH_EM = 1.125;
-
-// Least room above and below the content, in px at scale 1. Vertically a block gets half its
-// padding, at least this, so wide flip blocks (limited by their height) react to padding too.
-const MIN_VERTICAL_PADDING = 4;
 
 // Natural heights closer than this (px at scale 1) count as the same, so rounding in the
 // measurement cannot make rows twitch.
@@ -41,7 +39,7 @@ const ROW_ALIGN_ITEMS: Record<RowAlign, CSSProperties["alignItems"]> = {
 };
 
 // One block of the grid: its box, colors and font, and the content inside.
-export function ClockBlock({ block, rect, scale, rowAlign, language, style }: ClockBlockProps)
+export function ClockBlock({ block, rect, scale, rowAlign, heightFollows, language, style }: ClockBlockProps)
 {
     const definition = blockDefinition(block.kind);
     const segments = definition.segments(block, useSegmentContext());
@@ -51,13 +49,18 @@ export function ClockBlock({ block, rect, scale, rowAlign, language, style }: Cl
     const [rebuildCount, setRebuildCount] = useState(0);
     // Content height per px of content width, measured by BlockContent (null until then).
     const [heightPerWidth, setHeightPerWidth] = useState<number | null>(null);
+    // Largest size share that still makes the content bigger, measured with heightPerWidth.
+    const [maxShare, setMaxShare] = useState<number | null>(null);
     const setBlockHeights = useSetAtom(BLOCK_HEIGHTS);
+    const setSizeLimits = useSetAtom(BLOCK_SIZE_LIMITS);
 
-    const padding = (block.padding ?? BLOCK_DEFAULTS.padding) * scale;
+    const padding = (block.paddingX ?? BLOCK_DEFAULTS.paddingX) * scale;
+    const verticalPadding = (block.paddingY ?? BLOCK_DEFAULTS.paddingY) * scale;
     const cardRadius = block.cardRadius ?? BLOCK_DEFAULTS.cardRadius;
     const sizeShare = (block.textSize ?? 100) / 100;
+    // A stored text size above the limit draws like the limit, the row included.
+    const effectiveShare = maxShare === null ? sizeShare : Math.min(sizeShare, maxShare);
     const align = definition.alignable ? block.align ?? BLOCK_DEFAULTS.align : "center";
-    const verticalPadding = Math.max(MIN_VERTICAL_PADDING * scale, padding / 2);
     const barThickness = block.barThickness ?? BLOCK_DEFAULTS.barThickness;
 
     // What the block needs at its width, in px at scale 1: its row is as high as the highest.
@@ -71,7 +74,7 @@ export function ClockBlock({ block, rect, scale, rowAlign, language, style }: Cl
     }
     else if (heightPerWidth !== null && contentWidth > 0)
     {
-        contentHeight = contentWidth * heightPerWidth * sizeShare;
+        contentHeight = contentWidth * heightPerWidth * effectiveShare;
     }
     const naturalHeight = contentHeight === null ? null : contentHeight + 2 * verticalPadding / scale;
 
@@ -91,6 +94,17 @@ export function ClockBlock({ block, rect, scale, rowAlign, language, style }: Cl
             return { ...heights, [block.id]: naturalHeight };
         });
     }, [block.id, naturalHeight, setBlockHeights]);
+
+    // In whole percent, rounded down so the slider's end still fits.
+    const sizeLimit = maxShare === null ? null : Math.floor(maxShare * 100);
+    useEffect(() =>
+    {
+        if (sizeLimit === null)
+        {
+            return;
+        }
+        setSizeLimits((limits) => (limits[block.id] === sizeLimit ? limits : { ...limits, [block.id]: sizeLimit }));
+    }, [block.id, sizeLimit, setSizeLimits]);
 
     // Unset color and font fall back to the clock defaults set on the container.
     const blockStyle = {
@@ -140,9 +154,14 @@ export function ClockBlock({ block, rect, scale, rowAlign, language, style }: Cl
                 justify={JUSTIFY[align]}
                 alignItems={ROW_ALIGN_ITEMS[rowAlign]}
                 sizeShare={sizeShare}
+                heightFollows={heightFollows}
                 iconStyle={block.iconStyle ?? "colored"}
                 onLayoutChange={() => setRebuildCount((count) => count + 1)}
-                onMeasure={setHeightPerWidth}
+                onMeasure={(measuredHeightPerWidth, measuredMaxShare) =>
+                {
+                    setHeightPerWidth(measuredHeightPerWidth);
+                    setMaxShare(measuredMaxShare);
+                }}
             />
         </div>
     );

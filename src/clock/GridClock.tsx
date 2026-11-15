@@ -72,6 +72,7 @@ export default function GridClock({ layout, scale, blockRect, blockStyle, underl
                         rect={blockRect?.(block) ?? grid.pixelRect(block, scale)}
                         scale={scale}
                         rowAlign={grid.rowAlign(block.y)}
+                        heightFollows={block.h === 1 && grid.rowHeightOverride(block.y) === null}
                         language={language}
                         style={blockStyle?.(block)}
                     />

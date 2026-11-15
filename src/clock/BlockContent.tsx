@@ -7,6 +7,7 @@ import { ATOMS } from "../settings/atoms";
 import { ClockTemplate, type Segment } from "./ClockTemplate";
 import { ClockFace } from "./faces/ClockFace";
 import { progressShare } from "./ProgressShare";
+import { maxSizeShare } from "./SizeLimit";
 import { TimeCharacters } from "./TimeCharacters";
 import type { IconStyle } from "../layout/ClockLayout";
 import { withFlatIcons } from "../weather/FlatWeatherIcons";
@@ -20,12 +21,15 @@ interface BlockContentProps
     alignItems: CSSProperties["alignItems"];
     // Share of the room the content fills (block text size setting), 1 = all of it.
     sizeShare: number;
+    // The block's row grows with its content (see FitMeasure.heightFollows).
+    heightFollows: boolean;
     iconStyle: IconStyle;
     // Called when a time string changed its length; the block is then remounted.
     onLayoutChange: () => void;
     // Content height per px of content width at which it fills the block exactly; the row
-    // height comes from it (see ClockBlock). Not called for the progress bar.
-    onMeasure: (heightPerWidth: number) => void;
+    // height comes from it (see ClockBlock). Also the largest size share that still makes the
+    // content bigger (see maxSizeShare). Not called for the progress bar.
+    onMeasure: (heightPerWidth: number, maxShare: number) => void;
 }
 
 // Letter spacing comes from flipclockstyles.css, the same for text runs and time characters.
@@ -43,7 +47,7 @@ const FIT_TOLERANCE = 0.01;
 //
 // Mounted once per segment list (see ClockBlock). Weather data and style changes re-render it in
 // place; the Tick.js spans inside are left alone (see TimeCharacters).
-export function BlockContent({ segments, justify, alignItems, sizeShare, iconStyle, onLayoutChange, onMeasure }: BlockContentProps)
+export function BlockContent({ segments, justify, alignItems, sizeShare, heightFollows, iconStyle, onLayoutChange, onMeasure }: BlockContentProps)
 {
     const weatherReport = useAtomValue(ATOMS.WEATHER_REPORT);
     const sunDays = useAtomValue(ATOMS.SUN_DAYS);
@@ -167,15 +171,22 @@ export function BlockContent({ segments, justify, alignItems, sizeShare, iconSty
             {
                 return;
             }
-            // 100 % is the usual fit; the text size scales it either way. Above 100 % the content
-            // may grow past the block's edges on purpose (the user's call, like an offset).
             // Height at which neither the height nor the width limits the fit (letter spacing
             // only widens), per px of width. Font size cancels out, so this stays put.
-            onMeasure(unspaced.height / heightShare / spaced.width);
+            const maxShare = maxSizeShare({
+                spacedWidth: spaced.width,
+                unspacedWidth: unspaced.width,
+                unspacedHeight: unspaced.height,
+                areaWidth: available.width,
+                areaHeight: available.height,
+                heightShare,
+                heightFollows,
+            });
+            onMeasure(unspaced.height / heightShare / spaced.width, maxShare);
             // The text size scales the width fit only: the row height already follows it (see
             // ClockBlock), scaling the height fit too would shrink the content twice.
-            // ponytail: blocks spanning rows do not size them, so their text size no longer
-            // shrinks content that the height limits. Tell them apart here if that matters.
+            // Where the height limits (row set by hand, block over several rows), the text size
+            // only shrinks below maxShare; the inspector's slider ends there.
             const ratio = Math.min(sizeShare * available.width / spaced.width, fill(unspaced, available, heightShare));
             if (Math.abs(ratio - 1) < FIT_TOLERANCE)
             {
@@ -190,7 +201,7 @@ export function BlockContent({ segments, justify, alignItems, sizeShare, iconSty
         observer.observe(area);
         observer.observe(content);
         return () => observer.disconnect();
-    }, [template, sizeShare]);
+    }, [template, sizeShare, heightFollows]);
 
     const weatherFormatter = new WeatherFormatter(weatherReport, sunDays, weatherUnit, currentMinute);
 
