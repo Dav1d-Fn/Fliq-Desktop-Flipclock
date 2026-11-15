@@ -59,7 +59,8 @@ gtk-layer-shell, X11 fallback). macOS is not shipped. Meant to grow into a widge
   blocks only choose "with seconds" or not, `timeFormat` builds the hours from the context. `StyleSettings`
   maps every clock style to the look settings it uses; the inspector shows only those. The styling-window side of a kind (icon, extra
   settings) is `layoutEditor/BlockEditors`.
-- `src/clock/` — `GridClock` (container + blocks; used by clock, ghost and editor), `ClockBlock`
+- `src/clock/` — `GridClock` (container + blocks; used by clock, ghost, editor and the saved
+  layout thumbnails, which wrap it in `ClockPreviewContext`: own block heights, frozen, no timers), `ClockBlock`
   (one block's box and colors; remounts its content when its segments or the language change),
   `BlockContent` (own Tick.js root and timer per block, font size fitted to the block).
   Clock blocks have a `clockStyle`: flip and text run on Tick.js, every other style (LCD, dot

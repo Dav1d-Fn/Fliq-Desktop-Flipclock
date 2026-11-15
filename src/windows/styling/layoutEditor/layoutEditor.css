@@ -1052,7 +1052,7 @@
   background: #f59e0b;
 }
 
-.layout-thumbnail {
+.layout-schematic {
   display: grid;
   flex: none;
   box-sizing: border-box;
@@ -1060,7 +1060,20 @@
   max-width: 100%;
 }
 
-.layout-thumbnail-block {
+/* The real clock, drawn full size and scaled down (LayoutThumbnail). */
+.layout-thumbnail {
+  display: block;
+  flex: none;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.layout-thumbnail-clock {
+  display: block;
+  transform-origin: 0 0;
+}
+
+.layout-schematic-block {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1115,11 +1128,6 @@
 .layout-menu-action:disabled {
   opacity: 0.45;
   cursor: default;
-}
-
-.layout-menu-item .layout-thumbnail {
-  width: 52px;
-  display: grid;
 }
 
 .layout-menu-item-text {

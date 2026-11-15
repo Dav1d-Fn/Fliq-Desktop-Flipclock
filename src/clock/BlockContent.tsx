@@ -4,6 +4,7 @@ import "../styles/flipclockstyles.css";
 import { CSSProperties, ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { useAtomValue } from "jotai";
 import { ATOMS } from "../settings/atoms";
+import { useClockPreview } from "./ClockPreview";
 import { ClockTemplate, type Segment } from "./ClockTemplate";
 import { ClockFace } from "./faces/ClockFace";
 import { progressShare } from "./ProgressShare";
@@ -50,6 +51,7 @@ export function BlockContent({ segments, justify, alignItems, sizeShare, iconSty
     const weatherUnit = useAtomValue(ATOMS.WEATHER_UNIT);
 
     const template = useMemo(() => new ClockTemplate(segments), [segments]);
+    const { frozen } = useClockPreview();
     const stacked = segments.some((segment) => segment.type === "BREAK");
 
     // Current minute, so weather text that depends on the time (next sun event, day/night
@@ -76,7 +78,11 @@ export function BlockContent({ segments, justify, alignItems, sizeShare, iconSty
         let lastBarShare = Infinity;
         const update = () =>
         {
-            timer = window.setTimeout(update, 1000 - (Date.now() % 1000));
+            // A still picture is drawn once.
+            if (!frozen)
+            {
+                timer = window.setTimeout(update, 1000 - (Date.now() % 1000));
+            }
 
             if (template.layoutSignature() !== renderedLayout)
             {

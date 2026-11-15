@@ -335,7 +335,8 @@ body {
   background: var(--fliq-divider);
 }
 
-.saved-layout-preview .layout-thumbnail {
+.saved-layout-preview .layout-thumbnail,
+.saved-layout-preview .layout-schematic {
   max-height: 100%;
   border-radius: 8px;
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.18);
