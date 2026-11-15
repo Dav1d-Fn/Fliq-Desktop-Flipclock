@@ -38,6 +38,17 @@ async function start(): Promise<void>
         return;
     }
 
+    // tuxhub reports its appearance once, right when the page announces itself, and again on
+    // every change. Listening starts here, before anything is awaited, so the first report is
+    // not missed; until it arrives the desktop's own preference stands in.
+    let dark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+    const themeListeners = new Set<(dark: boolean) => void>();
+    bridge.on("theme", (params) =>
+    {
+        dark = asRecord(params).dark === true;
+        themeListeners.forEach((listener) => listener(dark));
+    });
+
     const settings = await bridge.call("settings.get") as ClockSettings;
     // Lets the styles drop the page's own background: it sits on tuxhub's.
     document.documentElement.classList.add("fliq-embedded");
@@ -65,8 +76,17 @@ async function start(): Promise<void>
         };
     }
 
+    function onTheme(listener: (dark: boolean) => void): () => void
+    {
+        themeListeners.add(listener);
+        return () =>
+        {
+            themeListeners.delete(listener);
+        };
+    }
+
     ReactDOM.createRoot(document.getElementById("colorpicker-root") as HTMLElement).render(
-        <EmbeddedSettings bridge={bridge} host={host} onRefusal={onRefusal} />
+        <EmbeddedSettings bridge={bridge} host={host} initiallyDark={dark} onTheme={onTheme} onRefusal={onRefusal} />
     );
 }
 

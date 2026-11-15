@@ -7,6 +7,9 @@ interface EmbeddedSettingsProps
 {
     bridge: TuxhubPageBridge;
     host: SettingsHost;
+    // tuxhub's appearance when the page starts, and every change of it afterwards.
+    initiallyDark: boolean;
+    onTheme: (listener: (dark: boolean) => void) => () => void;
     // Calls `listener` with the message of every value Fliq refused; returns the unsubscribe.
     onRefusal: (listener: (message: string) => void) => () => void;
 }
@@ -17,25 +20,15 @@ const REFUSAL_VISIBLE_MS = 5000;
 // Fliq's settings inside tuxhub: the same StylingApp as in Fliq's own window, in tuxhub's
 // light or dark appearance, with the two things only this place needs: a note for a value Fliq
 // refused, and a cover once Fliq is gone.
-export function EmbeddedSettings({ bridge, host, onRefusal }: EmbeddedSettingsProps)
+export function EmbeddedSettings({ bridge, host, initiallyDark, onTheme, onRefusal }: EmbeddedSettingsProps)
 {
-    const [dark, setDark] = useState(false);
+    const [dark, setDark] = useState(initiallyDark);
     const [closed, setClosed] = useState(false);
     const [refusal, setRefusal] = useState<string | null>(null);
 
-    useEffect(() =>
-    {
-        const stopTheme = bridge.on("theme", (params) =>
-        {
-            setDark((params as { dark?: unknown } | null)?.dark === true);
-        });
-        const stopClosed = bridge.on("closed", () => setClosed(true));
-        return () =>
-        {
-            stopTheme();
-            stopClosed();
-        };
-    }, [bridge]);
+    useEffect(() => onTheme(setDark), [onTheme]);
+
+    useEffect(() => bridge.on("closed", () => setClosed(true)), [bridge]);
 
     useEffect(() => onRefusal(setRefusal), [onRefusal]);
 
