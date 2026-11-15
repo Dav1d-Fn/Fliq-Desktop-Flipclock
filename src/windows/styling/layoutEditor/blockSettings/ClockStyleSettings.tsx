@@ -1,77 +1,101 @@
-import { LayoutGrid, type ClockStyle } from "../../../../layout/ClockLayout";
+import { LayoutGrid, type ClockStyle, type LayoutBlock } from "../../../../layout/ClockLayout";
+import { settingsOf } from "../../../../blocks/StyleSettings";
 import { useStrings } from "../../../../i18n/useStrings";
+import { SliderControl } from "../../controls/SliderControl";
 import type { BlockSettingsProps } from "../BlockEditors";
 import { ColorSwatches } from "../ColorSwatches";
-import { DIAL_SWATCHES, GLOW_SWATCHES, HAND_SWATCHES } from "../EditorSwatches";
+import { DIAL_SWATCHES, GLOW_SWATCHES, HAND_SWATCHES, type Swatch } from "../EditorSwatches";
 import { InspectorField } from "../InspectorField";
 import { FlipCardSettings } from "./FlipCardSettings";
 import { SecondsBarSettings } from "./SecondsBarSettings";
 
 // Each style's own colors, shown on the "default" swatch. Same values as faces.css.
-const GLOW_DEFAULTS: Partial<Record<ClockStyle, string>> = { segment: "#ff3b30", dots: "#7fdcff", nixie: "#ffa64d", rings: "#ff5a4e" };
+const GLOW_DEFAULTS: Partial<Record<ClockStyle, string>> = { segment: "#ff3b30", dots: "#7fdcff", nixie: "#ffa64d" };
 const ANALOG_DEFAULTS: Partial<Record<ClockStyle, { dial: string; hand: string; second: string }>> = {
     analogMinimal: { dial: "#20242b", hand: "#f2f4f7", second: "#ff5a4e" },
     analogClassic: { dial: "#f3efe6", hand: "#222222", second: "#b8322a" },
     analogFine: { dial: "#00000000", hand: "#ffffff", second: "#7fdcff" },
 };
+const RING_DEFAULTS = { hour: "#ff5a4e", minute: "#ffb547", second: "#6fe3a6" };
 
-// Colors of the clock styles a block shows: card settings for flip, glow color for the lit
-// styles, dial and hand colors for analog, fill and track (and bar size) for progress. For a group, of every clock member's style.
+type ColorFieldName = "glowColor" | "dialColor" | "handColor" | "secondHandColor" | "hourRingColor" | "minuteRingColor" | "secondRingColor";
+
+interface ColorFieldProps extends BlockSettingsProps
+{
+    field: ColorFieldName;
+    label: string;
+    swatches: Swatch[];
+    defaultColor: string | undefined;
+}
+
+function ColorField({ block, onChange, field, label, swatches, defaultColor }: ColorFieldProps)
+{
+    return (
+        <InspectorField label={label}>
+            <ColorSwatches
+                label={label}
+                value={block[field]}
+                onChange={(color) => onChange({ [field]: color } as Partial<LayoutBlock>)}
+                swatches={swatches}
+                defaultColor={defaultColor}
+            />
+        </InspectorField>
+    );
+}
+
+// What the clock styles a block shows draw with, only what they use (settingsOf): card
+// settings for flip, glow color for the lit styles, dial and hand colors for analog, ring
+// colors and the time's size for rings, progress colors (and bar size). For a group, of every
+// clock member's style.
 export function ClockStyleSettings({ block, onChange }: BlockSettingsProps)
 {
     const text = useStrings().clockStyle;
+    const settings = settingsOf(block);
     const styles = LayoutGrid.itemsOf(block)
         .filter((item) => item.kind === "clock")
         .map((item) => item.clockStyle ?? "flip");
     const glowStyle = styles.find((style) => GLOW_DEFAULTS[style]);
     const analogStyle = styles.find((style) => ANALOG_DEFAULTS[style]);
-    const analog = analogStyle && ANALOG_DEFAULTS[analogStyle];
+    const analog = analogStyle ? ANALOG_DEFAULTS[analogStyle] : undefined;
+    const fieldProps = { block, onChange };
 
     return (
         <>
-            {styles.includes("flip") && <FlipCardSettings block={block} onChange={onChange} />}
-            {styles.includes("progress") && <SecondsBarSettings block={block} onChange={onChange} />}
-            {glowStyle && (
-                <InspectorField label={text.glowColor}>
-                    <ColorSwatches
-                        label={text.glowColor}
-                        value={block.glowColor}
-                        onChange={(glowColor) => onChange({ glowColor })}
-                        swatches={GLOW_SWATCHES}
-                        defaultColor={GLOW_DEFAULTS[glowStyle]}
+            {settings.has("cards") && <FlipCardSettings block={block} onChange={onChange} />}
+            {settings.has("progressColors") && <SecondsBarSettings block={block} onChange={onChange} withBarShape={settings.has("barShape")} />}
+            {settings.has("glowColor") && (
+                <ColorField {...fieldProps} field="glowColor" label={text.glowColor} swatches={GLOW_SWATCHES} defaultColor={glowStyle && GLOW_DEFAULTS[glowStyle]} />
+            )}
+            {settings.has("dialColor") && (
+                <ColorField {...fieldProps} field="dialColor" label={text.dialColor} swatches={DIAL_SWATCHES} defaultColor={analog?.dial} />
+            )}
+            {settings.has("handColor") && (
+                <ColorField {...fieldProps} field="handColor" label={text.handColor} swatches={HAND_SWATCHES} defaultColor={analog?.hand} />
+            )}
+            {settings.has("secondHandColor") && (
+                <ColorField {...fieldProps} field="secondHandColor" label={text.secondHandColor} swatches={GLOW_SWATCHES} defaultColor={analog?.second} />
+            )}
+            {settings.has("hourRingColor") && (
+                <ColorField {...fieldProps} field="hourRingColor" label={text.hourRingColor} swatches={GLOW_SWATCHES} defaultColor={RING_DEFAULTS.hour} />
+            )}
+            {settings.has("minuteRingColor") && (
+                <ColorField {...fieldProps} field="minuteRingColor" label={text.minuteRingColor} swatches={GLOW_SWATCHES} defaultColor={RING_DEFAULTS.minute} />
+            )}
+            {settings.has("secondRingColor") && (
+                <ColorField {...fieldProps} field="secondRingColor" label={text.secondRingColor} swatches={GLOW_SWATCHES} defaultColor={RING_DEFAULTS.second} />
+            )}
+            {settings.has("labelSize") && (
+                <InspectorField label={text.labelSize}>
+                    <SliderControl
+                        label={text.labelSize}
+                        value={block.labelSize ?? 100}
+                        onChange={(labelSize) => onChange({ labelSize })}
+                        min={0}
+                        max={120}
+                        marks={[]}
+                        unit="%"
                     />
                 </InspectorField>
-            )}
-            {analog && (
-                <>
-                    <InspectorField label={text.dialColor}>
-                        <ColorSwatches
-                            label={text.dialColor}
-                            value={block.dialColor}
-                            onChange={(dialColor) => onChange({ dialColor })}
-                            swatches={DIAL_SWATCHES}
-                            defaultColor={analog.dial}
-                        />
-                    </InspectorField>
-                    <InspectorField label={text.handColor}>
-                        <ColorSwatches
-                            label={text.handColor}
-                            value={block.handColor}
-                            onChange={(handColor) => onChange({ handColor })}
-                            swatches={HAND_SWATCHES}
-                            defaultColor={analog.hand}
-                        />
-                    </InspectorField>
-                    <InspectorField label={text.secondHandColor}>
-                        <ColorSwatches
-                            label={text.secondHandColor}
-                            value={block.secondHandColor}
-                            onChange={(secondHandColor) => onChange({ secondHandColor })}
-                            swatches={GLOW_SWATCHES}
-                            defaultColor={analog.second}
-                        />
-                    </InspectorField>
-                </>
             )}
         </>
     );

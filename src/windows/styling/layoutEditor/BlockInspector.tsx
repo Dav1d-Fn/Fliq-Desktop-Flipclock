@@ -2,6 +2,7 @@ import { Button, Select, SegmentedControl, Switch } from "@mantine/core";
 import { IconAlignCenter, IconAlignLeft, IconAlignRight, IconStackPop, IconTrash } from "@tabler/icons-react";
 import { useAtomValue } from "jotai";
 import { blockDefinition } from "../../../blocks/BlockRegistry";
+import { settingsOf } from "../../../blocks/StyleSettings";
 import { BLOCK_DEFAULTS, type BlockAlign, type CellRect, type ClockLayout, type LayoutBlock } from "../../../layout/ClockLayout";
 import { named, useStrings } from "../../../i18n/useStrings";
 import { ATOMS } from "../../../settings/atoms";
@@ -35,7 +36,8 @@ function fontLabel(font: string): string
 }
 
 // Settings of the selected block. Built from its BlockDefinition and BLOCK_EDITORS, so a new
-// block kind needs no change here.
+// block kind needs no change here. Look settings only when they change something the block
+// shows (settingsOf).
 export function BlockInspector({ layout, block, onChange, onRemove, onUngroup, openMember, onOpenMember }: BlockInspectorProps)
 {
     const definition = blockDefinition(block.kind);
@@ -50,6 +52,11 @@ export function BlockInspector({ layout, block, onChange, onRemove, onUngroup, o
         { value: "right", label: <IconAlignRight size={16} aria-label={text.alignRight} /> },
     ];
 
+    const settings = settingsOf(block);
+    // A drawn style's whole picture scales with the size slider, text with the text size.
+    const sizeLabel = settings.has("size") ? text.drawnSize : text.textSize;
+    // On rings alone the text color is only the time in the middle.
+    const colorLabel = settings.has("labelSize") && !settings.has("textSize") ? strings.clockStyle.labelColor : text.color;
     const StyleSettings = editor.styleSettings;
     const MemberSettings = editor.memberSettings;
 
@@ -64,7 +71,7 @@ export function BlockInspector({ layout, block, onChange, onRemove, onUngroup, o
 
             <ContentEditor block={block} onChange={onChange} />
 
-            {definition.alignable && (
+            {settings.has("align") && (
                 <InspectorField label={text.alignment}>
                     <SegmentedControl
                         fullWidth
@@ -75,64 +82,63 @@ export function BlockInspector({ layout, block, onChange, onRemove, onUngroup, o
                 </InspectorField>
             )}
 
-            {!definition.textless?.(block) && (
-                <>
-                    <InspectorField label={text.font} htmlFor="block-font">
-                        <Select
-                            id="block-font"
-                            value={block.font ?? CLOCK_DEFAULT_FONT}
-                            onChange={(font) => onChange({ font: font === CLOCK_DEFAULT_FONT || !font ? undefined : font })}
-                            data={[
-                                { value: CLOCK_DEFAULT_FONT, label: text.clockDefaultFont(fontLabel(defaultFont)) },
-                                ...FONT_OPTIONS,
-                            ]}
-                            allowDeselect={false}
-                        />
-                    </InspectorField>
+            {settings.has("font") && (
+                <InspectorField label={text.font} htmlFor="block-font">
+                    <Select
+                        id="block-font"
+                        value={block.font ?? CLOCK_DEFAULT_FONT}
+                        onChange={(font) => onChange({ font: font === CLOCK_DEFAULT_FONT || !font ? undefined : font })}
+                        data={[
+                            { value: CLOCK_DEFAULT_FONT, label: text.clockDefaultFont(fontLabel(defaultFont)) },
+                            ...FONT_OPTIONS,
+                        ]}
+                        allowDeselect={false}
+                    />
+                </InspectorField>
+            )}
 
-                    <InspectorField label={text.color}>
-                        <ColorSwatches
-                            label={text.blockColor}
-                            value={block.color}
-                            onChange={(color) => onChange({ color })}
-                            swatches={TEXT_SWATCHES}
-                            defaultColor={defaultColor}
-                        />
-                    </InspectorField>
-
-                </>
+            {settings.has("color") && (
+                <InspectorField label={colorLabel}>
+                    <ColorSwatches
+                        label={text.blockColor}
+                        value={block.color}
+                        onChange={(color) => onChange({ color })}
+                        swatches={TEXT_SWATCHES}
+                        defaultColor={defaultColor}
+                    />
+                </InspectorField>
             )}
 
             {StyleSettings && <StyleSettings block={block} onChange={onChange} />}
 
-            {!definition.textless?.(block) && (
-                <>
-                    <InspectorField label={text.textSize}>
-                        <SliderControl
-                            label={text.textSize}
-                            value={block.textSize ?? 100}
-                            onChange={(textSize) => onChange({ textSize })}
-                            min={30}
-                            max={250}
-                            marks={[]}
-                            unit="%"
-                        />
-                        <p className="inspector-note">{text.textSizeNote}</p>
-                    </InspectorField>
+            {(settings.has("textSize") || settings.has("size")) && (
+                <InspectorField label={sizeLabel}>
+                    <SliderControl
+                        label={sizeLabel}
+                        value={block.textSize ?? 100}
+                        onChange={(textSize) => onChange({ textSize })}
+                        min={30}
+                        max={250}
+                        marks={[]}
+                        unit="%"
+                    />
+                    <p className="inspector-note">{settings.has("size") ? text.drawnSizeNote : text.textSizeNote}</p>
+                </InspectorField>
+            )}
 
-                    <InspectorField label={text.letterSpacing}>
-                        <SliderControl
-                            label={text.letterSpacing}
-                            value={block.letterSpacing ?? 0}
-                            onChange={(letterSpacing) => onChange({ letterSpacing })}
-                            min={-1}
-                            max={0.5}
-                            step={0.01}
-                            marks={[]}
-                            unit="em"
-                        />
-                    </InspectorField>
-                </>
+            {settings.has("letterSpacing") && (
+                <InspectorField label={text.letterSpacing}>
+                    <SliderControl
+                        label={text.letterSpacing}
+                        value={block.letterSpacing ?? 0}
+                        onChange={(letterSpacing) => onChange({ letterSpacing })}
+                        min={-1}
+                        max={0.5}
+                        step={0.01}
+                        marks={[]}
+                        unit="em"
+                    />
+                </InspectorField>
             )}
 
             <InspectorField label={text.background}>

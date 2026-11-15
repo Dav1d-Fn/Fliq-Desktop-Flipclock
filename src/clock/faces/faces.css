@@ -96,13 +96,13 @@
 .analog-second { stroke: var(--face-second); }
 .analog-second-fill { fill: var(--face-second); }
 
-/* Rings: the glow color for all three when set, else red, amber, green. */
+/* Rings: each ring's own color when set, else red, amber, green. */
 .face-rings circle { fill: none; }
 .face-rings .ring-track { stroke: rgba(255, 255, 255, 0.1); }
 .face-rings .ring-fill { stroke-linecap: round; }
-.face-rings .ring-hours .ring-fill { stroke: var(--glow-color, #ff5a4e); }
-.face-rings .ring-minutes .ring-fill { stroke: var(--glow-color, #ffb547); }
-.face-rings .ring-seconds .ring-fill { stroke: var(--glow-color, #6fe3a6); }
+.face-rings .ring-hours .ring-fill { stroke: var(--hour-ring-color, #ff5a4e); }
+.face-rings .ring-minutes .ring-fill { stroke: var(--minute-ring-color, #ffb547); }
+.face-rings .ring-seconds .ring-fill { stroke: var(--second-ring-color, #6fe3a6); }
 .face-rings .ring-label {
    fill: var(--text-color, #ffffff);
    font-family: var(--text-font, system-ui), sans-serif;

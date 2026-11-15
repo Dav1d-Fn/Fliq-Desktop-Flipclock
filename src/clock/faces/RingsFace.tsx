@@ -33,7 +33,7 @@ export function RingsFace({ now, label, withSeconds, member }: RingsFaceProps)
                     </g>
                 );
             })}
-            <text className="ring-label" x={100} y={100} fontSize={withSeconds ? 34 : 44} textAnchor="middle" dominantBaseline="central">{label}</text>
+            <text className="ring-label" x={100} y={100} style={{ fontSize: `calc(${withSeconds ? 34 : 44}px * var(--label-size, 1))` }} textAnchor="middle" dominantBaseline="central">{label}</text>
         </svg>
     );
 }

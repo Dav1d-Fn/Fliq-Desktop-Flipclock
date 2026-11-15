@@ -51,7 +51,8 @@ gtk-layer-shell, X11 fallback). macOS is not shipped. Meant to grow into a widge
 - `src/blocks/` — one `BlockDefinition` per block kind (name, default size, display options,
   the segments it shows) and `BlockRegistry`. `segments` gets a `SegmentContext` with the
   global Data › Time settings (12/24-hour, leading zero; read with `useSegmentContext`): time
-  blocks only choose "with seconds" or not, `timeFormat` builds the hours from the context. The styling-window side of a kind (icon, extra
+  blocks only choose "with seconds" or not, `timeFormat` builds the hours from the context. `StyleSettings`
+  maps every clock style to the look settings it uses; the inspector shows only those. The styling-window side of a kind (icon, extra
   settings) is `layoutEditor/BlockEditors`.
 - `src/clock/` — `GridClock` (container + blocks; used by clock, ghost and editor), `ClockBlock`
   (one block's box and colors; remounts its content when its segments or the language change),
