@@ -1,5 +1,5 @@
 import { ClockTemplate, type Segment } from "../clock/ClockTemplate.ts";
-import { BLOCK_DEFAULTS, CELL_HEIGHT, GRID_LIMITS, LayoutGrid, type ClockLayout, type LayoutBlock } from "./ClockLayout.ts";
+import { CELL_HEIGHT, GRID_LIMITS, LayoutGrid, type ClockLayout, type LayoutBlock } from "./ClockLayout.ts";
 
 export interface KeyValueStorage
 {
@@ -14,6 +14,7 @@ export const LAYOUT_KEYS = {
     cornerRadius: "clockCornerRadius",
     hourCycle: "hourCycle",
     hourLeadingZero: "hourLeadingZero",
+    savedLayouts: "savedLayouts",
 };
 
 // Set once the old settings were looked at, so a reset does not bring the old rows back.
@@ -27,6 +28,13 @@ const HOUR_CYCLE_MARKER = "hourCycleMigrated";
 
 // Set once flip time, time and seconds bar blocks became clock blocks with a style.
 const CLOCK_KIND_MARKER = "clockKindMigrated";
+
+// Set once the one block padding became a horizontal and a vertical one.
+const PADDING_SPLIT_MARKER = "paddingSplit";
+
+// Before the split: horizontally the padding, vertically half of it but at least this (px).
+const OLD_MIN_VERTICAL_PADDING = 4;
+const OLD_DEFAULT_PADDING = 8;
 
 // Block kinds before the clock block, and the clock fields each became. The seconds bar filled
 // over each minute, sliding over every second: progress, bar, minute, smooth.
@@ -104,6 +112,44 @@ export class LayoutMigration
         this.convertOldRows();
         this.moveHourCycle();
         this.convertClockKinds();
+        this.splitPadding();
+    }
+
+    // One-time: blocks had one "padding", used fully left and right and half (at least 4 px)
+    // above and below. They get both values as they were drawn, so they look the same.
+    private splitPadding(): void
+    {
+        if (this.storage.getItem(PADDING_SPLIT_MARKER) !== null)
+        {
+            return;
+        }
+        this.storage.setItem(PADDING_SPLIT_MARKER, "true");
+        const stored = this.storage.getItem(LAYOUT_KEYS.layout);
+        if (stored !== null)
+        {
+            this.storage.setItem(LAYOUT_KEYS.layout, JSON.stringify(LayoutMigration.withSplitPadding(JSON.parse(stored) as ClockLayout)));
+        }
+        // Saved layouts were stored with the same one padding.
+        const saved = this.storage.getItem(LAYOUT_KEYS.savedLayouts);
+        if (saved !== null)
+        {
+            const layouts = (JSON.parse(saved) as { layout: ClockLayout }[]).map((entry) => ({ ...entry, layout: LayoutMigration.withSplitPadding(entry.layout) }));
+            this.storage.setItem(LAYOUT_KEYS.savedLayouts, JSON.stringify(layouts));
+        }
+    }
+
+    private static withSplitPadding(layout: ClockLayout): ClockLayout
+    {
+        const blocks = layout.blocks.map((oldBlock) =>
+        {
+            const { padding, ...block } = oldBlock as LayoutBlock & { padding?: number };
+            if (padding === undefined)
+            {
+                return block;
+            }
+            return { ...block, paddingX: padding, paddingY: Math.max(OLD_MIN_VERTICAL_PADDING, padding / 2) };
+        });
+        return { ...layout, blocks };
     }
 
     // One-time: "flip", "time" and "secondsBar" blocks (and group members) became "clock"
@@ -148,7 +194,7 @@ export class LayoutMigration
 
         const layout = this.convertRows();
         const textSize = this.legacy("clockTextSize");
-        const blockHeight = CELL_HEIGHT - 2 * BLOCK_DEFAULTS.padding;
+        const blockHeight = CELL_HEIGHT - 2 * OLD_DEFAULT_PADDING;
         const scalePercent = Math.round(textSize * OLD_CARD_HEIGHT_PER_FONT_PX / blockHeight * 100);
 
         // Old rounding: percent of half the shorter side of the box.

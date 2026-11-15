@@ -100,12 +100,16 @@ export interface LayoutBlock extends ProgressFields
     // Flip clock style only.
     cardColor?: string;
     cardRadius?: number;
-    padding?: number;
+    // Room between the block's edges and its content, left/right and top/bottom, in px at
+    // scale 1. Older versions stored one "padding" (see LayoutMigration.splitPadding).
+    paddingX?: number;
+    paddingY?: number;
     // Own card behind the block's content, in front of the clock background.
     background?: boolean;
     backgroundColor?: string;
     backgroundRadius?: number; // px at scale 1
-    // Share of the fitted size the content fills, in % (100 = fill the block).
+    // Share of the fitted size the content fills, in % (100 = fill the block). Values above
+    // what the block's room allows act like that largest size (see SizeLimit).
     textSize?: number;
     // Extra space between characters (between flip cards for flip time), in em.
     letterSpacing?: number;
@@ -195,7 +199,8 @@ export const BLOCK_DEFAULTS = {
     align: "center" as BlockAlign,
     cardColor: "#1f1f1fff",
     cardRadius: 16, // % of the card width
-    padding: 8, // px at scale 1
+    paddingX: 8, // px at scale 1
+    paddingY: 4, // px at scale 1
     backgroundColor: "#3f3f46ff",
     backgroundRadius: 12, // px at scale 1
     itemGap: 0.3, // em
@@ -217,7 +222,7 @@ export const DEFAULT_LAYOUT: ClockLayout = {
     columnGap: 0,
     rowGap: 0,
     blocks: [
-        { id: 1, kind: "clock", clockStyle: "flip", x: 0, y: 0, w: 4, h: 1, display: "HH:mm", cardColor: "#212121ff", padding: 0, letterSpacing: -0.03, textSize: 99 },
+        { id: 1, kind: "clock", clockStyle: "flip", x: 0, y: 0, w: 4, h: 1, display: "HH:mm", cardColor: "#212121ff", paddingX: 0, paddingY: 4, letterSpacing: -0.03, textSize: 99 },
         {
             id: 2,
             kind: "group",
@@ -232,9 +237,10 @@ export const DEFAULT_LAYOUT: ClockLayout = {
                 { kind: "weather", display: "temp", weatherIcon: true },
             ],
             itemGap: 0.9,
-            padding: 0,
+            paddingX: 0,
+            paddingY: 8,
             letterSpacing: -0.14,
-            textSize: 111,
+            textSize: 100,
         },
     ],
 };
