@@ -15,70 +15,6 @@
   --fliq-nav-active-text: #13652b;
   --fliq-link: #1a7f37;
   --fliq-badge-bg: #e8f6ec;
-  --fliq-surface: #ffffff;
-  --fliq-hover: #eceef2;
-  --fliq-danger: #e03131;
-  --fliq-danger-border: #f3c7c3;
-  --fliq-warning: #f59e0b;
-  --fliq-warning-fill: rgba(245, 158, 11, 0.16);
-  --fliq-accent-border: #b9e2c4;
-  --fliq-accent-fill: rgba(47, 168, 79, 0.16);
-  --fliq-accent-fill-strong: rgba(47, 168, 79, 0.28);
-  --fliq-accent-gap: rgba(47, 168, 79, 0.3);
-  --fliq-accent-gap-strong: rgba(47, 168, 79, 0.4);
-  --fliq-accent-track: rgba(47, 168, 79, 0.6);
-  --fliq-on-accent-fill: #0b2e15;
-  --fliq-canvas-dot: #d3d7de;
-  --fliq-knob: rgba(150, 158, 170, 0.75);
-  --fliq-knob-soft: rgba(150, 158, 170, 0.35);
-  --fliq-swatch-dash: #9aa1ad;
-  --fliq-toast-text: #ffffff;
-  --fliq-shadow-soft: rgba(16, 24, 40, 0.08);
-  --fliq-shadow-strong: rgba(16, 24, 40, 0.14);
-  /* The same in both appearances: they sit on the clock or are the logo. */
-  --fliq-cell-outline: rgba(255, 255, 255, 0.16);
-  --fliq-handle: #ffffff;
-  --fliq-logo-bg: #121212;
-  --fliq-logo-light: #fafafa;
-}
-
-/* Dark appearance. Only inside tuxhub, which tells the page whether it is dark; Fliq's own
-   settings window stays light. Mantine sets the attribute (forceColorScheme). */
-:root[data-mantine-color-scheme="dark"] {
-  --fliq-text: #eceef2;
-  --fliq-text-muted: #a3aab6;
-  --fliq-text-soft: #c9ced7;
-  --fliq-border: #33373f;
-  --fliq-border-strong: #454a54;
-  --fliq-divider: #2a2d33;
-  --fliq-sidebar-bg: #1b1d21;
-  --fliq-page-bg: #1f2125;
-  --fliq-chip-bg: #2f3239;
-  --fliq-accent: #3dbb60;
-  --fliq-nav-active-bg: #1e3b27;
-  --fliq-nav-active-text: #9be3ae;
-  --fliq-link: #74d48d;
-  --fliq-badge-bg: #1e3b27;
-  --fliq-surface: #26292e;
-  --fliq-hover: #2f3239;
-  --fliq-danger: #ff8f8f;
-  --fliq-danger-border: #6e3330;
-  --fliq-warning: #fbbf24;
-  --fliq-warning-fill: rgba(251, 191, 36, 0.18);
-  --fliq-accent-border: #2f6b41;
-  --fliq-accent-fill: rgba(61, 187, 96, 0.2);
-  --fliq-accent-fill-strong: rgba(61, 187, 96, 0.32);
-  --fliq-accent-gap: rgba(61, 187, 96, 0.34);
-  --fliq-accent-gap-strong: rgba(61, 187, 96, 0.46);
-  --fliq-accent-track: rgba(61, 187, 96, 0.65);
-  --fliq-on-accent-fill: #dcf7e3;
-  --fliq-canvas-dot: #3d424b;
-  --fliq-knob: rgba(170, 178, 190, 0.75);
-  --fliq-knob-soft: rgba(170, 178, 190, 0.35);
-  --fliq-swatch-dash: #7d8491;
-  --fliq-toast-text: #16181d;
-  --fliq-shadow-soft: rgba(0, 0, 0, 0.3);
-  --fliq-shadow-strong: rgba(0, 0, 0, 0.45);
 }
 
 html,
@@ -179,7 +115,7 @@ body {
 }
 
 .nav-item:hover {
-  background: var(--fliq-hover);
+  background: #eceef2;
 }
 
 .nav-item[aria-current="page"] {
@@ -200,7 +136,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--fliq-logo-bg);
+  background: #121212;
   flex: none;
 }
 
@@ -209,7 +145,7 @@ body {
 }
 
 .fliq-logo span:last-child {
-  background: var(--fliq-logo-light);
+  background: #fafafa;
 }
 
 /* Page header */
@@ -254,7 +190,7 @@ body {
 }
 
 .settings-card {
-  background: var(--fliq-surface);
+  background: #ffffff;
   border: 1px solid var(--fliq-border);
   border-radius: 12px;
   overflow: hidden;
@@ -342,175 +278,3 @@ body {
   padding-top: 40px;
 }
 
-
-
-/* Sizes. The page fills whatever room it gets: Fliq's own window (at least 1000 px wide) or the
-   area tuxhub gives it, down to 480 px. The steps measure the page itself, not the screen. */
-
-.styling-frame {
-  height: 100%;
-  container: fliq-settings / size;
-}
-
-/* Medium: the sidebar shrinks to an icon rail. */
-@container fliq-settings (max-width: 999px) {
-  .styling-sidebar {
-    width: 60px;
-    padding: 14px 8px;
-  }
-
-  .sidebar-brand {
-    justify-content: center;
-    padding: 0 0 12px;
-  }
-
-  .sidebar-brand-text,
-  .nav-label,
-  .sidebar-version {
-    display: none;
-  }
-
-  /* The group names become thin dividers. */
-  .nav-group {
-    height: 1px;
-    margin: 10px 8px;
-    padding: 0;
-    overflow: hidden;
-    font-size: 0;
-    background: var(--fliq-border);
-  }
-
-  .nav-section:first-of-type .nav-group {
-    display: none;
-  }
-
-  .nav-item {
-    justify-content: center;
-    padding: 0;
-  }
-}
-
-/* Narrow: the navigation moves to the top, rows stack. */
-@container fliq-settings (max-width: 759px) {
-  .styling-window {
-    flex-direction: column;
-  }
-
-  .styling-sidebar {
-    width: auto;
-    flex-direction: row;
-    align-items: center;
-    gap: 4px;
-    padding: 8px 10px;
-    border-right: 0;
-    border-bottom: 1px solid var(--fliq-border);
-    overflow: hidden;
-  }
-
-  .sidebar-brand {
-    padding: 0 6px 0 0;
-  }
-
-  .nav-section {
-    display: contents;
-  }
-
-  .nav-group,
-  .nav-section:first-of-type .nav-group {
-    display: none;
-  }
-
-  .nav-item {
-    flex: 1 1 0;
-    width: auto;
-    min-width: 40px;
-    gap: 8px;
-    padding: 0 8px;
-  }
-
-  .styling-main {
-    flex: 1;
-    min-height: 0;
-    height: auto;
-  }
-
-  .styling-main.wide {
-    overflow-y: auto;
-  }
-
-  .styling-page {
-    padding: 14px 16px 28px;
-  }
-
-  .page-header {
-    margin-top: 12px;
-  }
-
-  .setting-row {
-    flex-wrap: wrap;
-    gap: 10px 24px;
-  }
-
-  .setting-row > div:first-child {
-    flex: 1 1 200px;
-    min-width: 0;
-  }
-
-  .setting-description {
-    max-width: none;
-  }
-
-  .setting-control {
-    max-width: 100%;
-  }
-
-  .slider-control {
-    width: min(260px, 100%);
-  }
-}
-
-/* Narrow, but wide enough for the names next to the icons. */
-@container fliq-settings (min-width: 620px) and (max-width: 759px) {
-  .nav-label {
-    display: inline;
-  }
-}
-
-/* Embedded in tuxhub: the page sits on tuxhub's own background. */
-
-html.fliq-embedded body,
-html.fliq-embedded .styling-main,
-html.fliq-embedded .styling-sidebar {
-  background: transparent;
-}
-
-.embedded-note {
-  position: fixed;
-  left: 50%;
-  bottom: 18px;
-  transform: translate(-50%, 0);
-  z-index: 400;
-  max-width: calc(100% - 32px);
-  box-sizing: border-box;
-  padding: 10px 16px;
-  border-radius: 12px;
-  border: 1px solid var(--fliq-danger-border);
-  background: var(--fliq-surface);
-  color: var(--fliq-danger);
-  font: 500 13px var(--mantine-font-family);
-  box-shadow: 0 8px 18px var(--fliq-shadow-strong);
-}
-
-.embedded-cover {
-  position: fixed;
-  inset: 0;
-  z-index: 500;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
-  text-align: center;
-  background: var(--fliq-page-bg);
-  color: var(--fliq-text);
-  font: 500 15px var(--mantine-font-family);
-}

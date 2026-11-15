@@ -195,11 +195,11 @@ impl Server {
                 self.send(conn, &json!({"id": id, "result": true}));
                 self.frontend.quit();
             }
-            // `settings.*` and `links.open` serve Fliq's own settings page embedded in tuxhub:
-            // every stored setting including the layout, not only the fields of the schema.
+            // `settings.*` reach every stored setting including the layout, not only the fields
+            // of the schema, so tuxhub can build its own editor for them.
             Some(
                 method @ ("schema" | "get" | "set" | "action" | "settings.get" | "settings.set"
-                | "settings.reset" | "links.open"),
+                | "settings.reset"),
             ) => {
                 let rid = self.next.fetch_add(1, Ordering::SeqCst);
                 {
@@ -278,7 +278,7 @@ impl Server {
         );
     }
 
-    /// Like `changed`, for the embedded settings page: any stored setting, by storage key.
+    /// Like `changed`, for the `settings.*` methods: any stored setting, by storage key.
     pub fn settings_changed(&self, values: Value, exclude: Option<u64>) {
         self.broadcast(
             &json!({"method": "settings-changed", "params": {"values": values}}),
@@ -694,7 +694,7 @@ mod tests {
         let t = setup("settings");
         let (s, rx, _q) = server(&t.path);
         let mut c = Client::connect(&t.path);
-        for (id, method) in ["settings.get", "settings.set", "settings.reset", "links.open"]
+        for (id, method) in ["settings.get", "settings.set", "settings.reset"]
             .into_iter()
             .enumerate()
         {

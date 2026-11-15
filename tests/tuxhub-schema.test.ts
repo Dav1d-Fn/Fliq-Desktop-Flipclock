@@ -150,7 +150,7 @@ test("refusals are worded in the requested language", () =>
     assert.match(de, /300/);
 });
 
-test("the embedded settings page may write schema fields and the layout, nothing else", () =>
+test("settings.set may write schema fields and the layout, nothing else", () =>
 {
     assert.equal(checkStored("clockScale", 120.4), 120);
     assert.equal(checkStored("textColor", "#FF0000"), "#ff0000ff");

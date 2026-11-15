@@ -5,8 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build && npm run build:tuxhub",
-    "build:tuxhub": "vite build --config vite.tuxhub.config.ts",
+    "build": "tsc && vite build",
     "preview": "vite preview",
     "tauri": "tauri",
     "test": "node --test \"tests/*.test.ts\"",

@@ -266,8 +266,8 @@ export function check(key: string, value: unknown, locale: unknown = "en"): unkn
 }
 
 /**
- * Checks a value for `settings.set`, the write of Fliq's own settings page embedded in tuxhub.
- * Besides the schema fields that page edits the block layout. Everything else Fliq stores
+ * Checks a value for `settings.set`. Besides the schema fields tuxhub may write the block
+ * layout. Everything else Fliq stores
  * (the weather caches) is not writable from outside.
  */
 export function checkStored(key: string, value: unknown, locale: unknown = "en"): unknown 
