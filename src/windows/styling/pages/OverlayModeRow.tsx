@@ -26,6 +26,7 @@ export function OverlayModeRow()
                 setPreference(state.preference);
             })
             .catch(() => setPlatformMode("native"));
+        return host.onOverlayChange((state) => setPreference(state.preference));
     }, [host]);
 
     if (platformMode === "native")

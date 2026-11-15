@@ -200,7 +200,8 @@ export class TuxhubBridge
             case "settings.set":
             {
                 const key = typeof params.key === "string" ? params.key : "";
-                const value = checkStored(key, params.value, this.locale);
+                // The embedded settings page is English, whatever language tuxhub uses.
+                const value = checkStored(key, params.value, "en");
                 await this.applyStored(key, value, request.conn);
                 return { result: { value } };
             }
@@ -286,12 +287,12 @@ export class TuxhubBridge
     // the version, which that page cannot ask Tauri for.
     private async storedSettings(): Promise<Record<string, unknown>>
     {
-        const values = await this.values();
+        const overlay = await invoke<{ mode: string; preference: string }>("get_overlay_state");
+        const values = this.valuesWith(overlay.preference);
         for (const [key, atom] of Object.entries(STORED_ONLY))
         {
             values[key] = this.store.get(atom);
         }
-        const overlay = await invoke<{ mode: string; preference: string }>("get_overlay_state");
         return { values, overlay, version: await getVersion() };
     }
 
@@ -310,13 +311,19 @@ export class TuxhubBridge
 
     private async values(): Promise<Record<string, unknown>>
     {
+        const overlay = await invoke<{ preference: string }>("get_overlay_state");
+        return this.valuesWith(overlay.preference);
+    }
+
+    // The schema fields; the overlay mode lives in Rust and is passed in.
+    private valuesWith(overlayMode: string): Record<string, unknown>
+    {
         const values: Record<string, unknown> = {};
         for (const [key, atom] of Object.entries(SETTINGS))
         {
             values[key] = this.store.get(atom);
         }
-        const overlay = await invoke<{ preference: string }>("get_overlay_state");
-        values.overlayMode = overlay.preference;
+        values.overlayMode = overlayMode;
         return values;
     }
 

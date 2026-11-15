@@ -1,6 +1,6 @@
 // Checks a layout that comes from outside Fliq (the tuxhub socket) before it is stored and
 // drawn. Pure, no React, Jotai or Tauri, so `npm test` runs it with plain Node.
-import { GRID_LIMITS, LayoutGrid, type BlockAlign, type BlockKind, type ClockLayout, type GroupItem, type LayoutBlock, type MemberKind } from "./ClockLayout.ts";
+import { CONTENT_LIMITS, GRID_LIMITS, LayoutGrid, type BlockAlign, type BlockKind, type ClockLayout, type GroupItem, type LayoutBlock, type MemberKind } from "./ClockLayout.ts";
 
 interface NumberBounds
 {
@@ -9,8 +9,8 @@ interface NumberBounds
 }
 
 const MAX_BLOCKS = 32;
-const MAX_GROUP_MEMBERS = 8;
-const MAX_TEXT_LENGTH = 200;
+const MAX_GROUP_MEMBERS = CONTENT_LIMITS.groupMembers;
+const MAX_TEXT_LENGTH = CONTENT_LIMITS.textLength;
 const MAX_FONT_LENGTH = 120;
 
 const MEMBER_KINDS: MemberKind[] = ["flip", "time", "date", "weather", "text"];

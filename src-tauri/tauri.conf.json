@@ -3,7 +3,7 @@
   "version": "2.0.0",
   "identifier": "com.flipclock.dev",
   "build": {
-    "beforeDevCommand": "npm run dev",
+    "beforeDevCommand": "npm run build:tuxhub && npm run dev",
     "devUrl": "http://localhost:1420",
     "beforeBuildCommand": "npm run build",
     "frontendDist": "../dist"

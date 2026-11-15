@@ -1,7 +1,7 @@
 // Runs with `npm test` (node --test, no extra dependency).
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { DEFAULT_LAYOUT, type ClockLayout } from "../src/layout/ClockLayout.ts";
+import { CONTENT_LIMITS, DEFAULT_LAYOUT, LayoutGrid, type ClockLayout } from "../src/layout/ClockLayout.ts";
 import { LayoutValidator } from "../src/layout/LayoutValidator.ts";
 
 const validator = new LayoutValidator();
@@ -138,7 +138,7 @@ test("numbers have to be finite and inside their bounds", () =>
     assert.ok(refused(layoutWith((layout) => (layout.rowHeight = "56"))));
 });
 
-test("groups hold one to eight members and no group", () =>
+test("groups hold up to the member limit and no group", () =>
 {
     const group = (items: unknown) => layoutWith((layout) =>
     {
@@ -148,7 +148,7 @@ test("groups hold one to eight members and no group", () =>
     assert.ok(refused(group([])));
     assert.ok(refused(group("date")));
     assert.ok(refused(group([{ kind: "group", display: "group" }])));
-    assert.ok(refused(group(Array.from({ length: 9 }, () => ({ kind: "date", display: "dddd" })))));
+    assert.ok(refused(group(Array.from({ length: CONTENT_LIMITS.groupMembers + 1 }, () => ({ kind: "date", display: "dddd" })))));
     assert.ok(refused(group([{ kind: "text", display: "text", text: "x".repeat(201) }])));
     assert.ok(refused(layoutWith((layout) => (layout.blocks[1].kind = "group"))), "a group without members");
 });
@@ -175,4 +175,34 @@ test("unknown fields are dropped, not stored", () =>
     assert.equal("script" in layout, false);
     assert.equal("onclick" in layout.blocks[1], false);
     assert.equal((layout.blocks[1] as unknown as Record<string, unknown>).polluted, undefined);
+});
+
+test("the editor never builds a group the validator refuses", () =>
+{
+    // One group with the most members allowed, and a text block beside it.
+    const members = Array.from({ length: CONTENT_LIMITS.groupMembers }, () => ({ kind: "date" as const, display: "dddd" }));
+    const layout: ClockLayout = {
+        columns: 4,
+        rows: 1,
+        blocks: [
+            { id: 1, kind: "group", x: 0, y: 0, w: 2, h: 1, display: "group", items: members },
+            { id: 2, kind: "text", x: 2, y: 0, w: 2, h: 1, display: "text", text: "Hi" },
+        ],
+    };
+    assert.ok(validator.validated(structuredClone(layout)), "a full group is valid");
+    const grid = new LayoutGrid(layout);
+    assert.equal(grid.mergedInto(1, 2, false), null, "dropping onto a full group");
+    assert.equal(grid.mergedInto(2, 1, true), null, "dropping a full group onto a block");
+    assert.equal(grid.groupable([1, 2]), null, "grouping a full group with a block");
+    assert.equal(grid.grouped([1, 2]), null);
+
+    const tooMany = { ...layout, blocks: [{ ...layout.blocks[0], items: [...members, members[0]] }, layout.blocks[1]] };
+    assert.equal(validator.validated(tooMany), null);
+});
+
+test("text limits are the ones the editor's fields enforce", () =>
+{
+    const text = (value: string) => layoutWith((layout) => (layout.blocks[1].text = value));
+    assert.ok(!refused(text("x".repeat(CONTENT_LIMITS.textLength))));
+    assert.ok(refused(text("x".repeat(CONTENT_LIMITS.textLength + 1))));
 });
