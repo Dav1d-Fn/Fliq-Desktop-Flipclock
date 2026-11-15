@@ -5,7 +5,7 @@ import tseslint from "typescript-eslint";
 import stylistic from "@stylistic/eslint-plugin";
 
 export default tseslint.config(
-    { ignores: ["dist", "src-tauri", "node_modules", "docs"] },
+    { ignores: ["dist", "dist-tuxhub", "src-tauri", "node_modules", "docs"] },
     js.configs.recommended,
     ...tseslint.configs.recommended,
     {

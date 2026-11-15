@@ -39,7 +39,7 @@ export function GeneralPage()
 
             <SettingsCard title="Reset">
                 <SettingRow label="Reset all settings" description="Restores every option to its default. Can't be undone.">
-                    <Button variant="default" color="red" c="red.8" onClick={resetAllSettings}>
+                    <Button variant="default" color="red" c="var(--fliq-danger)" onClick={resetAllSettings}>
                         Reset…
                     </Button>
                 </SettingRow>

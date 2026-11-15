@@ -36,17 +36,20 @@ export default function StylingApp({ host, colorScheme = "light" }: StylingAppPr
     return (
         <SettingsHostContext.Provider value={host}>
             <MantineProvider theme={stylingTheme} forceColorScheme={colorScheme}>
-                <div className={host.embedded ? "styling-window embedded" : "styling-window"}>
-                    <Sidebar currentPage={currentPage.id} onNavigate={navigate} />
-                    <main className={currentPage.wide ? "styling-main wide" : "styling-main"} ref={mainRef}>
-                        {currentPage.wide
-                            ? <PageComponent />
-                            : (
-                                <div className="styling-page">
-                                    <PageComponent />
-                                </div>
-                            )}
-                    </main>
+                {/* The frame is what the size steps in the styles measure. */}
+                <div className="styling-frame">
+                    <div className="styling-window">
+                        <Sidebar currentPage={currentPage.id} onNavigate={navigate} />
+                        <main className={currentPage.wide ? "styling-main wide" : "styling-main"} ref={mainRef}>
+                            {currentPage.wide
+                                ? <PageComponent />
+                                : (
+                                    <div className="styling-page">
+                                        <PageComponent />
+                                    </div>
+                                )}
+                        </main>
+                    </div>
                 </div>
             </MantineProvider>
         </SettingsHostContext.Provider>

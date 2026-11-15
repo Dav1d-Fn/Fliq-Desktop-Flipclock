@@ -1,0 +1,20 @@
+/* Shown before the settings UI and its styles are loaded: the notice when the page runs
+   outside tuxhub or Fliq does not answer. */
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+}
+
+.embedded-message {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 24px;
+  box-sizing: border-box;
+  text-align: center;
+  font: 500 15px system-ui, sans-serif;
+  color: GrayText;
+}
