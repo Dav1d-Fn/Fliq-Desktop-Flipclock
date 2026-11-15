@@ -82,3 +82,31 @@ export function settingsOf(block: LayoutBlock): Set<StyleSetting>
     }
     return settings;
 }
+
+// Colors a clock style draws with. Unset, each falls back to the style's own color (faces.css,
+// BLOCK_DEFAULTS) or the clock's text color, which is what the picker's previews show.
+export const STYLE_COLOR_FIELDS = [
+    "color",
+    "cardColor",
+    "glowColor",
+    "dialColor",
+    "handColor",
+    "secondHandColor",
+    "hourRingColor",
+    "minuteRingColor",
+    "secondRingColor",
+    "barColor",
+    "barTrackColor",
+] as const;
+
+// Switches a block to `style` and drops the colors chosen for the old one, so it looks like
+// the new style's preview. The block's own background stays.
+export function withClockStyle(style: ClockStyle): Partial<LayoutBlock>
+{
+    const patch: Partial<LayoutBlock> = { clockStyle: style };
+    for (const field of STYLE_COLOR_FIELDS)
+    {
+        patch[field] = undefined;
+    }
+    return patch;
+}

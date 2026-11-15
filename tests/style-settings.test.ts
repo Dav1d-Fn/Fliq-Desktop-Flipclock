@@ -1,7 +1,7 @@
 // Runs with `npm test`: which look settings the inspector shows for each clock style.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { settingsOf } from "../src/blocks/StyleSettings.ts";
+import { settingsOf, STYLE_COLOR_FIELDS, withClockStyle } from "../src/blocks/StyleSettings.ts";
 import type { LayoutBlock } from "../src/layout/ClockLayout.ts";
 
 function clock(extra: Partial<LayoutBlock>): LayoutBlock
@@ -50,4 +50,16 @@ test("a group shows what any member uses, text size wins over size", () =>
         items: [{ kind: "clock", display: "HH:mm", clockStyle: "segment" }, { kind: "date", display: "dddd" }],
     });
     assert.deepEqual(shown(group), ["align", "color", "font", "glowColor", "letterSpacing", "textSize"]);
+});
+
+test("switching the clock style drops the old style's colors", () =>
+{
+    const block = clock({ clockStyle: "analogClassic", dialColor: "#000000", handColor: "#ff0000", color: "#00ff00", backgroundColor: "#123456" });
+    const switched = JSON.parse(JSON.stringify({ ...block, ...withClockStyle("segment") })) as LayoutBlock;
+    assert.equal(switched.clockStyle, "segment");
+    for (const field of STYLE_COLOR_FIELDS)
+    {
+        assert.equal(field in switched, false, field);
+    }
+    assert.equal(switched.backgroundColor, "#123456");
 });

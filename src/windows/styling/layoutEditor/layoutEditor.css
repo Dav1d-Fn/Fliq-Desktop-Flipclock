@@ -904,8 +904,8 @@
 /* Clock style picker: live previews in a grid (ClockStylePicker). */
 .clock-style-picker {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(56px, 1fr));
-  gap: 5px;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
 }
 
 .clock-style {
@@ -925,7 +925,7 @@
 
 .clock-style-preview {
   width: 100%;
-  height: 36px;
+  height: 64px;
   border-radius: 7px;
   display: flex;
   align-items: center;
@@ -937,7 +937,7 @@
 .clock-style-name {
   max-width: 100%;
   overflow-wrap: anywhere;
-  font-size: 10.5px;
+  font-size: 12px;
   line-height: 1.2;
   text-align: center;
 }
