@@ -1,9 +1,10 @@
 import type { ComponentType } from "react";
-import { IconCalendar, IconClockHour4, IconCloud, IconLayoutColumns, IconLetterT, IconStack2, type Icon } from "@tabler/icons-react";
+import { IconCalendar, IconClockHour4, IconCloud, IconLayoutColumns, IconLetterT, IconMinus, IconStack2, type Icon } from "@tabler/icons-react";
 import type { BlockKind, LayoutBlock } from "../../../layout/ClockLayout";
 import { FlipCardSettings } from "./blockSettings/FlipCardSettings";
 import { GroupMembers } from "./blockSettings/GroupMembers";
 import { GroupStyleSettings } from "./blockSettings/GroupStyleSettings";
+import { SecondsBarSettings } from "./blockSettings/SecondsBarSettings";
 import { TextSettings } from "./blockSettings/TextSettings";
 import { WeatherSettings } from "./blockSettings/WeatherSettings";
 
@@ -34,5 +35,6 @@ export const BLOCK_EDITORS: Record<BlockKind, BlockEditor> = {
     date: { icon: IconCalendar },
     weather: { icon: IconCloud, contentSettings: WeatherSettings },
     text: { icon: IconLetterT, contentSettings: TextSettings },
+    secondsBar: { icon: IconMinus, styleSettings: SecondsBarSettings },
     group: { icon: IconStack2, styleSettings: GroupStyleSettings, memberSettings: GroupMembers },
 };

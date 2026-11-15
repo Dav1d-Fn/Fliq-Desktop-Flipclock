@@ -12,10 +12,15 @@ interface BlockContentProps
 {
     segments: Segment[];
     justify: CSSProperties["justifyContent"];
+    // Where the content sits when the block is higher than it needs (the row's alignment).
+    alignItems: CSSProperties["alignItems"];
     // Share of the room the content fills (block text size setting), 1 = all of it.
     sizeShare: number;
     // Called when a time string changed its length; the block is then remounted.
     onLayoutChange: () => void;
+    // Content height per px of content width at which it fills the block exactly; the row
+    // height comes from it (see ClockBlock). Not called for the seconds bar.
+    onMeasure: (heightPerWidth: number) => void;
 }
 
 // Letter spacing comes from flipclockstyles.css, the same for text runs and time characters.
@@ -33,7 +38,7 @@ const FIT_TOLERANCE = 0.01;
 //
 // Mounted once per segment list (see ClockBlock). Weather data and style changes re-render it in
 // place; the Tick.js spans inside are left alone (see TimeCharacters).
-export function BlockContent({ segments, justify, sizeShare, onLayoutChange }: BlockContentProps)
+export function BlockContent({ segments, justify, alignItems, sizeShare, onLayoutChange, onMeasure }: BlockContentProps)
 {
     const weatherReport = useAtomValue(ATOMS.WEATHER_REPORT);
     const sunDays = useAtomValue(ATOMS.SUN_DAYS);
@@ -47,12 +52,14 @@ export function BlockContent({ segments, justify, sizeShare, onLayoutChange }: B
 
     const areaRef = useRef<HTMLDivElement>(null);
     const contentRef = useRef<HTMLDivElement>(null);
+    const barFillRef = useRef<HTMLDivElement>(null);
 
     // Tick.js and the once-per-second update.
     useEffect(() =>
     {
+        // A seconds bar block has no Tick.js content, only the bar.
         const root = contentRef.current;
-        const tick = Tick.DOM.create(root);
+        const tick = root ? Tick.DOM.create(root) : null;
         const renderedLayout = template.layoutSignature();
 
         // Own timer instead of Tick.helper.interval: that one pauses while document.hidden and
@@ -60,6 +67,7 @@ export function BlockContent({ segments, justify, sizeShare, onLayoutChange }: B
         // so an exception in one tick cannot end the loop; aligned to the full second.
         let timer = 0;
         let lastMinute = Math.floor(Date.now() / 60000);
+        let lastBarShare = Infinity;
         const update = () =>
         {
             timer = window.setTimeout(update, 1000 - (Date.now() % 1000));
@@ -70,9 +78,13 @@ export function BlockContent({ segments, justify, sizeShare, onLayoutChange }: B
                 return;
             }
 
-            const values: Record<string, string> = {};
-            template.collectValues(values);
-            tick.value = values;
+            if (tick)
+            {
+                const values: Record<string, string> = {};
+                template.collectValues(values);
+                tick.value = values;
+            }
+            updateSecondsBar();
 
             const minute = Math.floor(Date.now() / 60000);
             if (minute !== lastMinute)
@@ -81,12 +93,30 @@ export function BlockContent({ segments, justify, sizeShare, onLayoutChange }: B
                 setCurrentMinute(new Date());
             }
         };
+        // Full after second 59, then back to one step at :00. Each step slides over the coming
+        // second (CSS transition); the jump back is drawn without one, never sliding backwards.
+        const updateSecondsBar = () =>
+        {
+            const fill = barFillRef.current;
+            if (!fill)
+            {
+                return;
+            }
+            const share = (new Date().getSeconds() + 1) / 60;
+            fill.style.transition = share < lastBarShare ? "none" : "";
+            fill.style.width = `${share * 100}%`;
+            lastBarShare = share;
+        };
+
         timer = window.setTimeout(update, 0);
 
         return () =>
         {
             window.clearTimeout(timer);
-            Tick.DOM.destroy(root);
+            if (root)
+            {
+                Tick.DOM.destroy(root);
+            }
         };
         // The block is remounted for new segments, so this runs once per mount on purpose.
     }, []);
@@ -130,7 +160,14 @@ export function BlockContent({ segments, justify, sizeShare, onLayoutChange }: B
             }
             // 100 % is the usual fit; the text size scales it either way. Above 100 % the content
             // may grow past the block's edges on purpose (the user's call, like an offset).
-            const ratio = sizeShare * Math.min(fill(unspaced, available, heightShare), fill(spaced, available, 1));
+            // Height at which neither the height nor the width limits the fit (letter spacing
+            // only widens), per px of width. Font size cancels out, so this stays put.
+            onMeasure(unspaced.height / heightShare / spaced.width);
+            // The text size scales the width fit only: the row height already follows it (see
+            // ClockBlock), scaling the height fit too would shrink the content twice.
+            // ponytail: blocks spanning rows do not size them, so their text size no longer
+            // shrinks content that the height limits. Tell them apart here if that matters.
+            const ratio = Math.min(sizeShare * available.width / spaced.width, fill(unspaced, available, heightShare));
             if (Math.abs(ratio - 1) < FIT_TOLERANCE)
             {
                 return;
@@ -189,8 +226,19 @@ export function BlockContent({ segments, justify, sizeShare, onLayoutChange }: B
         });
     }
 
+    if (template.hasSecondsBar())
+    {
+        return (
+            <div className="clock-block-fit" ref={areaRef} style={{ alignItems }}>
+                <div className="seconds-bar">
+                    <div className="seconds-bar-fill" ref={barFillRef} />
+                </div>
+            </div>
+        );
+    }
+
     return (
-        <div className="clock-block-fit" ref={areaRef} style={{ justifyContent: justify }}>
+        <div className="clock-block-fit" ref={areaRef} style={{ justifyContent: justify, alignItems }}>
             <div className="tick block-content" ref={contentRef} data-credits="false">
                 {renderSegments()}
             </div>

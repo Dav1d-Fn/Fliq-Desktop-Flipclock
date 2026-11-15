@@ -11,6 +11,7 @@ import { ClockInspector } from "./ClockInspector";
 import { GapInspector } from "./GapInspector";
 import { LayoutCanvas } from "./LayoutCanvas";
 import { PreviewModeNote } from "./PreviewModeNote";
+import { RowInspector } from "./RowInspector";
 import { SelectionInspector } from "./SelectionInspector";
 import { TrackInspector } from "./TrackInspector";
 import { useEditorHistory } from "./useEditorHistory";
@@ -282,7 +283,7 @@ export function LayoutPage()
                 <div className="layout-header">
                     <div>
                         <h1 className="page-title">Layout</h1>
-                        <p className="page-intro">Drag blocks to move them. Pull the green handles to resize. Click between two rows or columns to change the space, or the bar above a column or beside a row to size it. Drop a block onto another to group them, or shift-click blocks side by side.</p>
+                        <p className="page-intro">Drag blocks to move them. Pull the green handles to resize. Click between two rows or columns to change the space, the bar above a column to size it, or the bar beside a row to align its blocks. Drop a block onto another to group them, or shift-click blocks side by side.</p>
                     </div>
                     <div className="layout-header-actions">
                         <ActionIcon variant="default" size={34} aria-label="Undo" title="Undo (Ctrl+Z)" disabled={!history.canUndo} onClick={history.undo}>
@@ -372,12 +373,19 @@ export function LayoutPage()
                         onChange={(value) => setLayout((current) => new LayoutGrid(current).withGap(activeGap, value))}
                     />
                 )}
-                {shownTab === "selection" && activeTrack && (
+                {shownTab === "selection" && activeTrack?.axis === "column" && (
                     <TrackInspector
-                        track={activeTrack}
+                        column={activeTrack.index}
                         value={new LayoutGrid(layout).trackSize(activeTrack)}
-                        overridden={new LayoutGrid(layout).trackOverride(activeTrack) !== null}
-                        onChange={(value) => setLayout((current) => new LayoutGrid(current).withTrackSize(activeTrack, value))}
+                        overridden={new LayoutGrid(layout).columnWidthOverride(activeTrack.index) !== null}
+                        onChange={(value) => setLayout((current) => new LayoutGrid(current).withColumnWidth(activeTrack.index, value))}
+                    />
+                )}
+                {shownTab === "selection" && activeTrack?.axis === "row" && (
+                    <RowInspector
+                        row={activeTrack.index}
+                        value={new LayoutGrid(layout).rowAlign(activeTrack.index)}
+                        onChange={(align) => setLayout((current) => new LayoutGrid(current).withRowAlign(activeTrack.index, align))}
                     />
                 )}
                 {editing && shownTab === "clock" && <ClockInspector />}

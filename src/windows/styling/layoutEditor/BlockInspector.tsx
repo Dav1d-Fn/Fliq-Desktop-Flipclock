@@ -73,56 +73,65 @@ export function BlockInspector({ layout, block, onChange, onRemove, onUngroup, o
                 </InspectorField>
             )}
 
-            <InspectorField label="Font" htmlFor="block-font">
-                <Select
-                    id="block-font"
-                    value={block.font ?? CLOCK_DEFAULT_FONT}
-                    onChange={(font) => onChange({ font: font === CLOCK_DEFAULT_FONT || !font ? undefined : font })}
-                    data={[
-                        { value: CLOCK_DEFAULT_FONT, label: `Clock default (${fontLabel(defaultFont)})` },
-                        ...FONT_OPTIONS,
-                    ]}
-                    allowDeselect={false}
-                />
-            </InspectorField>
+            {!definition.textless && (
+                <>
+                    <InspectorField label="Font" htmlFor="block-font">
+                        <Select
+                            id="block-font"
+                            value={block.font ?? CLOCK_DEFAULT_FONT}
+                            onChange={(font) => onChange({ font: font === CLOCK_DEFAULT_FONT || !font ? undefined : font })}
+                            data={[
+                                { value: CLOCK_DEFAULT_FONT, label: `Clock default (${fontLabel(defaultFont)})` },
+                                ...FONT_OPTIONS,
+                            ]}
+                            allowDeselect={false}
+                        />
+                    </InspectorField>
 
-            <InspectorField label="Color">
-                <ColorSwatches
-                    label="Block color"
-                    value={block.color}
-                    onChange={(color) => onChange({ color })}
-                    swatches={TEXT_SWATCHES}
-                    defaultColor={defaultColor}
-                />
-            </InspectorField>
+                    <InspectorField label="Color">
+                        <ColorSwatches
+                            label="Block color"
+                            value={block.color}
+                            onChange={(color) => onChange({ color })}
+                            swatches={TEXT_SWATCHES}
+                            defaultColor={defaultColor}
+                        />
+                    </InspectorField>
+
+                </>
+            )}
 
             {StyleSettings && <StyleSettings block={block} onChange={onChange} />}
 
-            <InspectorField label="Text size">
-                <SliderControl
-                    label="Text size"
-                    value={block.textSize ?? 100}
-                    onChange={(textSize) => onChange({ textSize })}
-                    min={30}
-                    max={250}
-                    marks={[]}
-                    unit="%"
-                />
-                <p className="inspector-note">Letter spacing first uses free room. A block whose text already fills it shrinks the text instead; lower the text size to make room. Above 100 % the text grows past the block if needed.</p>
-            </InspectorField>
+            {!definition.textless && (
+                <>
+                    <InspectorField label="Text size">
+                        <SliderControl
+                            label="Text size"
+                            value={block.textSize ?? 100}
+                            onChange={(textSize) => onChange({ textSize })}
+                            min={30}
+                            max={250}
+                            marks={[]}
+                            unit="%"
+                        />
+                        <p className="inspector-note">Letter spacing first uses free room. A block whose text already fills it shrinks the text instead; lower the text size to make room. The row grows or shrinks with the text size; above 100 % the text may reach past the block sideways.</p>
+                    </InspectorField>
 
-            <InspectorField label="Letter spacing">
-                <SliderControl
-                    label="Letter spacing"
-                    value={block.letterSpacing ?? 0}
-                    onChange={(letterSpacing) => onChange({ letterSpacing })}
-                    min={-1}
-                    max={0.5}
-                    step={0.01}
-                    marks={[]}
-                    unit="em"
-                />
-            </InspectorField>
+                    <InspectorField label="Letter spacing">
+                        <SliderControl
+                            label="Letter spacing"
+                            value={block.letterSpacing ?? 0}
+                            onChange={(letterSpacing) => onChange({ letterSpacing })}
+                            min={-1}
+                            max={0.5}
+                            step={0.01}
+                            marks={[]}
+                            unit="em"
+                        />
+                    </InspectorField>
+                </>
+            )}
 
             <InspectorField label="Background">
                 <Switch
