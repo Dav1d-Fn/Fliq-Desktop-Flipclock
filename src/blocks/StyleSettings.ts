@@ -51,6 +51,16 @@ export function showsSeconds(item: GroupItem): boolean
     return format.includes("s");
 }
 
+// Shows emoji that can be drawn as colored or flat icons (IconStyleSettings).
+export function showsIcons(item: GroupItem): boolean
+{
+    if (item.kind === "weather")
+    {
+        return item.weatherIcon !== false;
+    }
+    return item.kind === "calendar" && item.display !== "week" && item.calendar?.icons !== false;
+}
+
 function itemSettings(item: GroupItem): StyleSetting[]
 {
     if (item.kind !== "clock")

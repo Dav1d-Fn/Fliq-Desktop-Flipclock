@@ -1,11 +1,12 @@
 import dayjs from "dayjs";
+import type { CalendarBlockSettings } from "../calendar/CalendarTypes.ts";
 import type { ClockStyle, ProgressMotion, ProgressUnit } from "../layout/ClockLayout.ts";
 
 // SPACE: empty room between group members, value = width in em. BREAK: the same in a stacked
 // group, a new line with value = room above it in em. PROGRESSBAR: the progress bar, alone in its
 // block. FACE: a clock style drawn by ClockFace (`face`), value = Day.js time format. None of
-// them is in the old templates.
-export type SegmentType = "TIME" | "FLIPTIME" | "TEXT" | "WEATHER" | "SPACE" | "BREAK" | "PROGRESSBAR" | "FACE";
+// them is in the old templates. CALENDAR: upcoming events (CalendarSegment), value = layout.
+export type SegmentType = "TIME" | "FLIPTIME" | "TEXT" | "WEATHER" | "SPACE" | "BREAK" | "PROGRESSBAR" | "FACE" | "CALENDAR";
 
 // What ClockFace draws: the clock styles it owns plus the round progress shapes.
 export type FaceStyle = Exclude<ClockStyle, "flip" | "text" | "progress"> | "progressRing" | "progressDots";
@@ -21,6 +22,8 @@ export interface Segment
     // PROGRESSBAR and the progress faces: what fills up and how it moves.
     unit?: ProgressUnit;
     motion?: ProgressMotion;
+    // CALENDAR only: which events and how.
+    calendar?: CalendarBlockSettings;
 }
 
 const SUPPORTED_TYPES: SegmentType[] = ["TIME", "FLIPTIME", "TEXT", "WEATHER"];
@@ -99,8 +102,9 @@ export class ClockTemplate
             .join(",");
     }
 
-    // The block as plain text, for previews in the settings window.
-    plainText(formatWeather: (key: string) => string): string
+    // The block as plain text, for previews in the settings window. Calendar segments only
+    // show something when `formatCalendar` is given.
+    plainText(formatWeather: (key: string) => string, formatCalendar?: (segment: Segment) => string): string
     {
         return this.segments
             .map((segment) =>
@@ -120,6 +124,8 @@ export class ClockTemplate
                         return " ";
                     case "PROGRESSBAR":
                         return "";
+                    case "CALENDAR":
+                        return formatCalendar?.(segment) ?? "";
                 }
             })
             .join("");

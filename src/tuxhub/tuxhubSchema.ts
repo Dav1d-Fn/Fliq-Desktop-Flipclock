@@ -135,6 +135,13 @@ const SECTIONS: { id: string; label: Text; fields: FieldDef[] }[] = [
         ],
     },
     {
+        id: "calendar",
+        label: { en: "Calendar", de: "Kalender" },
+        fields: [
+            number("calendarRefreshMinutes", { en: "Refresh every", de: "Aktualisieren alle" }, { min: 5, max: 240, unit: "min" }),
+        ],
+    },
+    {
         id: "window",
         label: { en: "Window", de: "Fenster" },
         fields: [

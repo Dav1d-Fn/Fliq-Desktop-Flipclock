@@ -1,6 +1,7 @@
 import type { ComponentType } from "react";
-import { IconCalendar, IconClockHour4, IconCloud, IconLetterT, IconStack2, type Icon } from "@tabler/icons-react";
+import { IconCalendar, IconCalendarEvent, IconClockHour4, IconCloud, IconLetterT, IconStack2, type Icon } from "@tabler/icons-react";
 import type { BlockKind, LayoutBlock } from "../../../layout/ClockLayout";
+import { CalendarSettings } from "./blockSettings/CalendarSettings";
 import { ClockStylePicker } from "./blockSettings/ClockStylePicker";
 import { ClockStyleSettings } from "./blockSettings/ClockStyleSettings";
 import { GroupMembers } from "./blockSettings/GroupMembers";
@@ -34,6 +35,7 @@ export const BLOCK_EDITORS: Record<BlockKind, BlockEditor> = {
     clock: { icon: IconClockHour4, contentSettings: ClockStylePicker, styleSettings: ClockStyleSettings },
     date: { icon: IconCalendar },
     weather: { icon: IconCloud, contentSettings: WeatherSettings, styleSettings: IconStyleSettings },
+    calendar: { icon: IconCalendarEvent, contentSettings: CalendarSettings, styleSettings: IconStyleSettings },
     text: { icon: IconLetterT, contentSettings: TextSettings },
     group: { icon: IconStack2, styleSettings: GroupStyleSettings, memberSettings: GroupMembers },
 };
