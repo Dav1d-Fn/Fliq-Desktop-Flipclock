@@ -1,6 +1,6 @@
 import dayjs from "dayjs";
 import type { CalendarBlockSettings } from "../calendar/CalendarTypes.ts";
-import type { ClockStyle, ProgressMotion, ProgressUnit } from "../layout/ClockLayout.ts";
+import type { ClockStyle, FlipUnit, ProgressMotion, ProgressUnit, TextStyle } from "../layout/ClockLayout.ts";
 
 // SPACE: empty room between group members, value = width in em. BREAK: the same in a stacked
 // group, a new line with value = room above it in em. PROGRESSBAR: the progress bar, alone in its
@@ -8,8 +8,11 @@ import type { ClockStyle, ProgressMotion, ProgressUnit } from "../layout/ClockLa
 // them is in the old templates. CALENDAR: upcoming events (CalendarSegment), value = layout.
 export type SegmentType = "TIME" | "FLIPTIME" | "TEXT" | "WEATHER" | "SPACE" | "BREAK" | "PROGRESSBAR" | "FACE" | "CALENDAR";
 
-// What ClockFace draws: the clock styles it owns plus the round progress shapes.
-export type FaceStyle = Exclude<ClockStyle, "flip" | "text" | "progress"> | "progressRing" | "progressDots";
+// Text styles drawn as pictures instead of letters (StyledText, and ClockFace for time).
+export type DrawnTextStyle = Exclude<TextStyle, "flip" | "text">;
+
+// What ClockFace draws: time in a drawn text style, the clock faces and the round progress shapes.
+export type FaceStyle = DrawnTextStyle | Exclude<ClockStyle, "digital" | "progress"> | "progressRing" | "progressDots";
 
 export interface Segment
 {
@@ -24,6 +27,10 @@ export interface Segment
     motion?: ProgressMotion;
     // CALENDAR only: which events and how.
     calendar?: CalendarBlockSettings;
+    // TEXT, WEATHER and CALENDAR: how their characters are drawn, unset for plain text; flip
+    // only: cards per word (unset: per character). FLIPTIME also takes flipUnit.
+    textStyle?: TextStyle;
+    flipUnit?: FlipUnit;
 }
 
 const SUPPORTED_TYPES: SegmentType[] = ["TIME", "FLIPTIME", "TEXT", "WEATHER"];
@@ -68,10 +75,10 @@ export class ClockTemplate
         return `time${timeSegmentIndex}Character`;
     }
 
-    // Flip cards and clock faces fill the block's height; text keeps room above and below.
+    // Flip cards, clock faces and drawn text fill the block's height; text keeps room above and below.
     fillsHeight(): boolean
     {
-        return this.segments.some((segment) => segment.type === "FLIPTIME" || segment.type === "FACE");
+        return this.segments.some((segment) => segment.type === "FLIPTIME" || segment.type === "FACE" || segment.textStyle !== undefined);
     }
 
     progressBar(): Segment | undefined
@@ -79,26 +86,36 @@ export class ClockTemplate
         return this.segments.find((segment) => segment.type === "PROGRESSBAR");
     }
 
-    // Writes the current character of every time slot into `values`, keyed like the spans.
+    // Splits text into the pieces drawn one by one: per character, or for flip cards per word
+    // the runs between spaces and commas with the separators between them.
+    static slots(text: string, unit: FlipUnit = "character"): string[]
+    {
+        if (unit === "character")
+        {
+            return text.split("");
+        }
+        return text.split(/([\s,]+)/u).filter((slot) => slot !== "");
+    }
+
+    // Writes the current text of every time slot into `values`, keyed like the spans.
     collectValues(values: Record<string, string>): void
     {
         this.timeSegments().forEach((segment, timeSegmentIndex) =>
         {
-            const formatted = dayjs().format(segment.value);
             const keyPrefix = ClockTemplate.characterKeyPrefix(timeSegmentIndex);
-            for (let characterIndex = 0; characterIndex < formatted.length; characterIndex++)
+            ClockTemplate.slots(dayjs().format(segment.value), segment.flipUnit).forEach((slot, slotIndex) =>
             {
-                values[`${keyPrefix}${characterIndex}`] = formatted.charAt(characterIndex);
-            }
+                values[`${keyPrefix}${slotIndex}`] = slot;
+            });
         });
     }
 
-    // Lengths of all formatted time strings. The spans have one slot per character, so when a
-    // length changes (at midnight "Sonntag" -> "Montag") the block has to be rebuilt.
+    // Slot lengths of all formatted time strings. The spans have one slot per character (or
+    // word), so when one changes (at midnight "Sonntag" -> "Montag") the block has to be rebuilt.
     layoutSignature(): string
     {
         return this.timeSegments()
-            .map((segment) => dayjs().format(segment.value).length)
+            .map((segment) => ClockTemplate.slots(dayjs().format(segment.value), segment.flipUnit).map((slot) => slot.length).join("."))
             .join(",");
     }
 

@@ -1,4 +1,4 @@
-import type { BlockDefinition } from "./BlockDefinition.ts";
+import { styledText, type BlockDefinition } from "./BlockDefinition.ts";
 
 // Upcoming events of the calendars set up under Data › Calendar. The display is the layout;
 // what it shows (calendars, keywords, range…) is in `calendar`.
@@ -14,5 +14,5 @@ export const CALENDAR_BLOCK: BlockDefinition = {
     ],
     supportsCustomFormat: false,
     alignable: true,
-    segments: (block) => [{ type: "CALENDAR", value: block.display, calendar: block.calendar ?? {} }],
+    segments: (block) => [{ type: "CALENDAR", value: block.display, calendar: block.calendar ?? {}, ...styledText(block) }],
 };

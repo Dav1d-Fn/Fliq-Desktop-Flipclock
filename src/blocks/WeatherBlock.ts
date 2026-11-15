@@ -1,4 +1,4 @@
-import type { BlockDefinition } from "./BlockDefinition.ts";
+import { styledText, type BlockDefinition } from "./BlockDefinition.ts";
 
 // Display option -> WeatherFormatter key without and with the weather emoji.
 const WEATHER_KEYS: Record<string, [string, string]> = {
@@ -27,6 +27,6 @@ export const WEATHER_BLOCK: BlockDefinition = {
     segments: (block) =>
     {
         const [plainKey, emojiKey] = WEATHER_KEYS[block.display] ?? WEATHER_KEYS.temp;
-        return [{ type: "WEATHER", value: block.weatherIcon === false ? plainKey : emojiKey }];
+        return [{ type: "WEATHER", value: block.weatherIcon === false ? plainKey : emojiKey, ...styledText(block) }];
     },
 };

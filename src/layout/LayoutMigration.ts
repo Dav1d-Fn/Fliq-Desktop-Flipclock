@@ -1,5 +1,5 @@
 import { ClockTemplate, type Segment } from "../clock/ClockTemplate.ts";
-import { CELL_HEIGHT, GRID_LIMITS, LayoutGrid, type ClockLayout, type LayoutBlock } from "./ClockLayout.ts";
+import { CELL_HEIGHT, GRID_LIMITS, LayoutGrid, type ClockLayout, type GroupItem, type LayoutBlock, type TextStyle } from "./ClockLayout.ts";
 
 export interface KeyValueStorage
 {
@@ -29,6 +29,12 @@ const HOUR_CYCLE_MARKER = "hourCycleMigrated";
 // Set once flip time, time and seconds bar blocks became clock blocks with a style.
 const CLOCK_KIND_MARKER = "clockKindMigrated";
 
+// Set once the clock's flip, text, LCD, dot matrix and nixie styles became text styles.
+const TEXT_STYLE_MARKER = "textStylesMigrated";
+
+// Clock styles that only said how digits are drawn; they are text styles now.
+const OLD_TEXT_STYLES: readonly string[] = ["flip", "text", "segment", "dots", "nixie"] satisfies TextStyle[];
+
 // Set once the one block padding became a horizontal and a vertical one.
 const PADDING_SPLIT_MARKER = "paddingSplit";
 
@@ -38,7 +44,8 @@ const OLD_DEFAULT_PADDING = 8;
 
 // Block kinds before the clock block, and the clock fields each became. The seconds bar filled
 // over each minute, sliding over every second: progress, bar, minute, smooth.
-const OLD_CLOCK_KINDS: Record<string, Partial<LayoutBlock>> = {
+// The digit styles are converted on by withTextStyles.
+const OLD_CLOCK_KINDS: Record<string, Record<string, string>> = {
     flip: { clockStyle: "flip" },
     time: { clockStyle: "text" },
     secondsBar: { clockStyle: "progress", progressShape: "bar", progressUnit: "minute", progressMotion: "smooth" },
@@ -112,7 +119,82 @@ export class LayoutMigration
         this.convertOldRows();
         this.moveHourCycle();
         this.convertClockKinds();
+        this.convertTextStyles();
         this.splitPadding();
+    }
+
+    // One-time: the clock's digit styles became the text style every block has (a look
+    // setting, one per group). Saved layouts too, after the clock kinds they also missed.
+    private convertTextStyles(): void
+    {
+        if (this.storage.getItem(TEXT_STYLE_MARKER) !== null)
+        {
+            return;
+        }
+        this.storage.setItem(TEXT_STYLE_MARKER, "true");
+        const stored = this.storage.getItem(LAYOUT_KEYS.layout);
+        if (stored !== null)
+        {
+            this.storage.setItem(LAYOUT_KEYS.layout, JSON.stringify(LayoutMigration.withTextStyles(JSON.parse(stored) as ClockLayout)));
+        }
+        const saved = this.storage.getItem(LAYOUT_KEYS.savedLayouts);
+        if (saved !== null)
+        {
+            const layouts = (JSON.parse(saved) as { layout: ClockLayout }[]).map((entry) => ({
+                ...entry,
+                layout: LayoutMigration.withTextStyles(LayoutMigration.withClockKinds(entry.layout)),
+            }));
+            this.storage.setItem(LAYOUT_KEYS.savedLayouts, JSON.stringify(layouts));
+        }
+    }
+
+    // A clock block's or member's old digit style (unset meant flip), or null for a face.
+    private static oldTextStyle(content: { clockStyle?: string }): TextStyle | null
+    {
+        const style = content.clockStyle ?? "flip";
+        return OLD_TEXT_STYLES.includes(style) ? style as TextStyle : null;
+    }
+
+    // Moves old digit styles out of clockStyle. A clock block keeps its look as its text
+    // style; other blocks were plain text, which is the default. A group gets the one style
+    // all its text members were drawn in; where they differed, it stays plain text and each
+    // member drawn differently keeps its style as its own (GroupItem.textStyle).
+    static withTextStyles(layout: ClockLayout): ClockLayout
+    {
+        const withoutOldStyle = <T extends { kind: string; clockStyle?: string }>(content: T): T =>
+        {
+            if (content.kind !== "clock" || LayoutMigration.oldTextStyle(content) === null)
+            {
+                return content;
+            }
+            const converted = { ...content };
+            delete converted.clockStyle;
+            return converted;
+        };
+        const blocks = layout.blocks.map((block): LayoutBlock =>
+        {
+            // Clock blocks of the old rows are written with their text style already.
+            if (block.kind === "clock" && block.textStyle === undefined)
+            {
+                const style = LayoutMigration.oldTextStyle(block);
+                return style === null ? block : { ...withoutOldStyle(block), textStyle: style };
+            }
+            if (block.kind !== "group" || !block.items || block.textStyle !== undefined)
+            {
+                return block;
+            }
+            const memberStyles = block.items.map((item) => (item.kind === "clock" ? LayoutMigration.oldTextStyle(item) : "text"));
+            const drawnStyles = new Set(memberStyles.filter((style): style is TextStyle => style !== null));
+            const groupStyle: TextStyle = drawnStyles.size === 1 ? [...drawnStyles][0] : "text";
+            const items = block.items.map((item, index): GroupItem =>
+            {
+                const style = memberStyles[index];
+                const converted = withoutOldStyle(item);
+                return style === null || style === groupStyle ? converted : { ...converted, textStyle: style };
+            });
+            return { ...block, items, ...(groupStyle !== "text" && { textStyle: groupStyle }) };
+        });
+        return { ...layout, blocks };
     }
 
     // One-time: blocks had one "padding", used fully left and right and half (at least 4 px)
@@ -166,14 +248,18 @@ export class LayoutMigration
         {
             return;
         }
-        const layout = JSON.parse(stored) as ClockLayout;
+        this.storage.setItem(LAYOUT_KEYS.layout, JSON.stringify(LayoutMigration.withClockKinds(JSON.parse(stored) as ClockLayout)));
+    }
+
+    private static withClockKinds(layout: ClockLayout): ClockLayout
+    {
         const convert = <T extends { kind: string }>(content: T): T =>
         {
             const fields = OLD_CLOCK_KINDS[content.kind];
             return fields ? { ...content, kind: "clock", ...fields } : content;
         };
         const blocks = layout.blocks.map((block) => convert({ ...block, ...(block.items && { items: block.items.map(convert) }) }));
-        this.storage.setItem(LAYOUT_KEYS.layout, JSON.stringify({ ...layout, blocks }));
+        return { ...layout, blocks };
     }
 
     private convertOldRows(): void
@@ -324,7 +410,7 @@ export class LayoutMigration
                 return {
                     ...base,
                     kind: "clock",
-                    clockStyle: "flip",
+                    textStyle: "flip",
                     ...LayoutMigration.display(segment.value, FLIP_OPTIONS),
                     color: this.legacy("clockTextColor"),
                     cardColor: this.legacy("flipCardBackground"),
@@ -337,7 +423,7 @@ export class LayoutMigration
                 {
                     return { ...base, kind: "date", ...LayoutMigration.display(segment.value, DATE_OPTIONS) };
                 }
-                return { ...base, kind: "clock", clockStyle: "text", ...LayoutMigration.display(segment.value, TIME_OPTIONS) };
+                return { ...base, kind: "clock", textStyle: "text", ...LayoutMigration.display(segment.value, TIME_OPTIONS) };
             }
             case "WEATHER":
                 return { ...base, kind: "weather", ...(LEGACY_WEATHER[segment.value.toLowerCase()] ?? LEGACY_WEATHER.fullemoji) };

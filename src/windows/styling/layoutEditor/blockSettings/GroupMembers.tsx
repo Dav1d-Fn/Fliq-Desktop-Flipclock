@@ -67,7 +67,9 @@ export function GroupMembers({ block, onChange, openMember, onOpenMember }: Bloc
     function changeItem(index: number, patch: Partial<LayoutBlock>)
     {
         const { display, customFormat, text, weatherIcon, clockStyle, calendar, progressShape, progressUnit, progressMotion } = { ...items[index], ...patch };
-        const item: GroupItem = { kind: items[index].kind, display, customFormat, text, weatherIcon, clockStyle, calendar, progressShape, progressUnit, progressMotion };
+        // A member's own text style (from the migration) is not content, but it stays.
+        const { textStyle } = items[index];
+        const item: GroupItem = { kind: items[index].kind, display, customFormat, text, weatherIcon, clockStyle, calendar, progressShape, progressUnit, progressMotion, textStyle };
         setItems(items.map((current, itemIndex) => (itemIndex === index ? item : current)));
     }
 
@@ -106,7 +108,7 @@ export function GroupMembers({ block, onChange, openMember, onOpenMember }: Bloc
                             </div>
                             {open && (
                                 <div className="group-member-settings">
-                                    <ContentEditor block={merged} onChange={(patch) => changeItem(index, patch)} />
+                                    <ContentEditor block={merged} onChange={(patch) => changeItem(index, patch)} inGroup />
                                 </div>
                             )}
                         </div>
