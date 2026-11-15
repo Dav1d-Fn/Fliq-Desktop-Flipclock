@@ -86,8 +86,13 @@ export interface LayoutBlock extends ProgressFields
     font?: string;
     color?: string;
     // Clock styles other than flip and text; unset means the style's own color.
-    // Lit segments, dots, tubes and rings:
+    // Lit segments, dots and tubes:
     glowColor?: string;
+    // Rings: each ring's color, and the time in the middle in % of its own size.
+    hourRingColor?: string;
+    minuteRingColor?: string;
+    secondRingColor?: string;
+    labelSize?: number;
     // Analog: dial, hour and minute hands (with marks and numerals), second hand.
     dialColor?: string;
     handColor?: string;

@@ -112,6 +112,10 @@ export function ClockBlock({ block, rect, scale, rowAlign, language, style }: Cl
         ...(block.dialColor && { "--dial-color": block.dialColor }),
         ...(block.handColor && { "--hand-color": block.handColor }),
         ...(block.secondHandColor && { "--second-hand-color": block.secondHandColor }),
+        ...(block.hourRingColor && { "--hour-ring-color": block.hourRingColor }),
+        ...(block.minuteRingColor && { "--minute-ring-color": block.minuteRingColor }),
+        ...(block.secondRingColor && { "--second-ring-color": block.secondRingColor }),
+        "--label-size": (block.labelSize ?? 100) / 100,
         translate: `${(block.offsetX ?? 0) * scale}px ${(block.offsetY ?? 0) * scale}px`,
         // Progress colors (bar, ring, dots, also in groups) and the bar's size.
         "--bar-color": block.barColor ?? "var(--text-color)",

@@ -1,5 +1,5 @@
 import { useAtomValue } from "jotai";
-import { BLOCK_DEFAULTS, isProgressBar } from "../../../../layout/ClockLayout";
+import { BLOCK_DEFAULTS } from "../../../../layout/ClockLayout";
 import { named, useStrings } from "../../../../i18n/useStrings";
 import { ATOMS } from "../../../../settings/atoms";
 import { SliderControl } from "../../controls/SliderControl";
@@ -8,8 +8,14 @@ import { ColorSwatches } from "../ColorSwatches";
 import { BACKGROUND_SWATCHES, TEXT_SWATCHES } from "../EditorSwatches";
 import { InspectorField } from "../InspectorField";
 
-// Colors of the progress style; thickness and rounding only for the bar.
-export function SecondsBarSettings({ block, onChange }: BlockSettingsProps)
+interface SecondsBarSettingsProps extends BlockSettingsProps
+{
+    // Thickness and rounding, only for the bar.
+    withBarShape: boolean;
+}
+
+// Fill and track colors of the progress style (bar, ring, dots).
+export function SecondsBarSettings({ block, onChange, withBarShape }: SecondsBarSettingsProps)
 {
     const defaultColor = useAtomValue(ATOMS.TEXT_COLOR);
     const strings = useStrings();
@@ -34,7 +40,7 @@ export function SecondsBarSettings({ block, onChange }: BlockSettingsProps)
                     swatches={[{ color: BLOCK_DEFAULTS.barTrackColor, label: named(strings, "Faint white") }, ...BACKGROUND_SWATCHES]}
                 />
             </InspectorField>
-            {isProgressBar(block) && (
+            {withBarShape && (
                 <>
                     <InspectorField label={text.thickness}>
                         <SliderControl

@@ -1,4 +1,3 @@
-import { isProgressBar } from "../layout/ClockLayout.ts";
 import { timeFormat, type BlockDefinition } from "./BlockDefinition.ts";
 
 // The time in one of several styles (ClockStyle). Flip and text are drawn by Tick.js like
@@ -16,7 +15,6 @@ export const CLOCK_BLOCK: BlockDefinition = {
     ],
     supportsCustomFormat: true,
     alignable: true,
-    textless: isProgressBar,
     // Progress has its own unit choice instead (ClockStylePicker).
     hidesDisplay: (block) => block.clockStyle === "progress",
     segments: (block, context) =>
