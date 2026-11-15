@@ -57,6 +57,9 @@ gtk-layer-shell, X11 fallback). macOS is not shipped. Meant to grow into a widge
 - `src/clock/` — `GridClock` (container + blocks; used by clock, ghost and editor), `ClockBlock`
   (one block's box and colors; remounts its content when its segments or the language change),
   `BlockContent` (own Tick.js root and timer per block, font size fitted to the block).
+  `SizeLimit` gives the text size above which the content stops growing (unspaced width,
+  or the room's height when the row does not follow the block); the inspector's size slider
+  ends there (`BLOCK_SIZE_LIMITS`), and a larger stored value draws (and sizes the row) like it.
   Clock blocks have a `clockStyle`: flip and text run on Tick.js, every other style (LCD, dot
   matrix, nixie, analog, rings, progress ring/dots) is a `faces/ClockFace` (SVG/CSS sized in
   em, own once-a-second timer, colors from CSS variables in `faces.css`). The progress bar (the

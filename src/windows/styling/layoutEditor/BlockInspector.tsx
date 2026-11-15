@@ -3,6 +3,7 @@ import { IconAlignCenter, IconAlignLeft, IconAlignRight, IconStackPop, IconTrash
 import { useAtomValue } from "jotai";
 import { blockDefinition } from "../../../blocks/BlockRegistry";
 import { settingsOf } from "../../../blocks/StyleSettings";
+import { BLOCK_SIZE_LIMITS } from "../../../clock/useLayoutGrid";
 import { BLOCK_DEFAULTS, type BlockAlign, type CellRect, type ClockLayout, type LayoutBlock } from "../../../layout/ClockLayout";
 import { named, useStrings } from "../../../i18n/useStrings";
 import { ATOMS } from "../../../settings/atoms";
@@ -30,6 +31,11 @@ interface BlockInspectorProps
 
 const CLOCK_DEFAULT_FONT = "clock-default";
 
+// Text size slider range in %. The end is where the content stops growing in the block's room
+// (measured by the clock, see maxSizeShare); the fallback only until it is measured.
+const SIZE_MIN = 30;
+const SIZE_FALLBACK_MAX = 250;
+
 function fontLabel(font: string): string
 {
     return FONT_OPTIONS.find((option) => option.value === font)?.label ?? font;
@@ -44,6 +50,11 @@ export function BlockInspector({ layout, block, onChange, onRemove, onUngroup, o
     const editor = BLOCK_EDITORS[block.kind];
     const defaultFont = useAtomValue(ATOMS.TEXT_FONT);
     const defaultColor = useAtomValue(ATOMS.TEXT_COLOR);
+    const sizeLimit = useAtomValue(BLOCK_SIZE_LIMITS)[block.id] ?? SIZE_FALLBACK_MAX;
+    // A block whose content stops growing below SIZE_MIN (e.g. strongly negative letter
+    // spacing) still gets a range that changes something.
+    const sizeMin = Math.max(1, Math.min(SIZE_MIN, Math.floor(sizeLimit / 2)));
+    const sizeMax = Math.max(sizeMin + 1, sizeLimit);
     const strings = useStrings();
     const text = strings.blockInspector;
     const alignData = [
@@ -115,10 +126,10 @@ export function BlockInspector({ layout, block, onChange, onRemove, onUngroup, o
                 <InspectorField label={sizeLabel}>
                     <SliderControl
                         label={sizeLabel}
-                        value={block.textSize ?? 100}
+                        value={Math.min(block.textSize ?? 100, sizeMax)}
                         onChange={(textSize) => onChange({ textSize })}
-                        min={30}
-                        max={250}
+                        min={sizeMin}
+                        max={sizeMax}
                         marks={[]}
                         unit="%"
                     />
@@ -176,13 +187,22 @@ export function BlockInspector({ layout, block, onChange, onRemove, onUngroup, o
 
             <InspectorField label={text.padding}>
                 <SliderControl
-                    label={text.blockPadding}
-                    value={block.padding ?? BLOCK_DEFAULTS.padding}
-                    onChange={(padding) => onChange({ padding })}
+                    label={text.horizontalPadding}
+                    value={block.paddingX ?? BLOCK_DEFAULTS.paddingX}
+                    onChange={(paddingX) => onChange({ paddingX })}
                     min={0}
                     max={24}
                     marks={[]}
-                    unit="px"
+                    unit="px ↔"
+                />
+                <SliderControl
+                    label={text.verticalPadding}
+                    value={block.paddingY ?? BLOCK_DEFAULTS.paddingY}
+                    onChange={(paddingY) => onChange({ paddingY })}
+                    min={0}
+                    max={24}
+                    marks={[]}
+                    unit="px ↕"
                 />
             </InspectorField>
 

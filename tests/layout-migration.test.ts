@@ -431,3 +431,25 @@ test("mixed 12- and 24-hour blocks keep the 24-hour default", () =>
     assert.equal(store.items.has("hourCycle"), false);
     assert.equal(layoutOf(store).blocks[1].items![0].display, "HH:mm");
 });
+
+test("one block padding becomes horizontal and vertical padding drawn as before", () =>
+{
+    const block = (id: number, padding?: number) => ({ id, kind: "text", display: "text", x: id, y: 0, w: 1, h: 1, ...(padding !== undefined && { padding }) });
+    const layout = { columns: 4, rows: 1, blocks: [block(0, 0), block(1, 6), block(2, 16), block(3)] };
+    const store = storage({ layoutMigrated: true, clockLayout: layout });
+    new LayoutMigration(store).run();
+    const blocks = layoutOf(store).blocks as (LayoutBlock & { padding?: number })[];
+    // Old: horizontal the padding, vertical half of it but at least 4 px.
+    assert.deepEqual(blocks.map((migrated) => [migrated.paddingX, migrated.paddingY, migrated.padding]), [
+        [0, 4, undefined],
+        [6, 4, undefined],
+        [16, 8, undefined],
+        // Unset stays unset: the new defaults (8 / 4) are the old default 8.
+        [undefined, undefined, undefined],
+    ]);
+
+    // Once only: a later run keeps what the user set since.
+    store.setItem("clockLayout", JSON.stringify({ ...layout, blocks: [{ ...block(0), paddingX: 3, paddingY: 0 }] }));
+    new LayoutMigration(store).run();
+    assert.deepEqual([layoutOf(store).blocks[0].paddingX, layoutOf(store).blocks[0].paddingY], [3, 0]);
+});
