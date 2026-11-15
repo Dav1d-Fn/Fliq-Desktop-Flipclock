@@ -86,6 +86,7 @@ export const EN = {
         edit: "Edit",
         preview: "Preview",
         inspectorAria: "Block settings",
+        inspectorResize: "Settings width: drag, arrow keys, double-click for automatic",
         wholeClock: "Whole clock",
         selection: "Selection",
         block: "Block",
