@@ -2,13 +2,11 @@ import { getDefaultStore, type WritableAtom } from "jotai";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getVersion } from "@tauri-apps/api/app";
-import { open } from "@tauri-apps/plugin-shell";
 import { ATOMS } from "../settings/atoms";
 import { AppActions } from "../settings/AppActions";
 import { SettingsReset } from "../settings/SettingsReset";
 import { LAYOUT_KEYS } from "../layout/LayoutMigration";
 import { schema, check, checkStored, toLocale, Refusal, ACTION_IDS } from "./tuxhubSchema.ts";
-import { PROJECT_LINKS } from "./projectLinks.ts";
 
 interface Request
 {
@@ -53,7 +51,7 @@ const SETTINGS: Record<string, Setting> = {
 };
 
 // What Fliq stores besides the schema fields: the block layout, and the weather caches the
-// layout editor needs to draw weather blocks. Only the embedded settings page sees these.
+// layout editor needs to draw weather blocks. Only `settings.get` returns these.
 const STORED_ONLY: Record<string, Setting> = {
     [LAYOUT_KEYS.layout]: ATOMS.CLOCK_LAYOUT,
     weatherReport: ATOMS.WEATHER_REPORT,
@@ -64,9 +62,9 @@ const STORED_ONLY: Record<string, Setting> = {
 // clock window and reports changes of the settings, including those made in the styling window
 // (they arrive here through the localStorage sync of atomWithStorage).
 //
-// Fliq's own settings page embedded in tuxhub talks through `settings.get`, `settings.set` and
-// `settings.reset` and follows `settings-changed`: every stored setting by its storage key,
-// while `get`, `set` and `changed` stay limited to the schema fields.
+// `settings.get`, `settings.set` and `settings.reset` with the notification `settings-changed`
+// cover every stored setting by its storage key, including the layout, so tuxhub can build its
+// own editor for them. `get`, `set` and `changed` stay limited to the schema fields.
 //
 // Without the Rust side (Windows, macOS) `tuxhub_ready` fails and the bridge stays idle.
 export class TuxhubBridge
@@ -200,7 +198,7 @@ export class TuxhubBridge
             case "settings.set":
             {
                 const key = typeof params.key === "string" ? params.key : "";
-                // The embedded settings page is English, whatever language tuxhub uses.
+                // Refusal messages are English for these keys, whatever language tuxhub uses.
                 const value = checkStored(key, params.value, "en");
                 await this.applyStored(key, value, request.conn);
                 return { result: { value } };
@@ -208,8 +206,6 @@ export class TuxhubBridge
             case "settings.reset":
                 await SettingsReset.resetAll();
                 return { result: true };
-            case "links.open":
-                return this.openLink(params.id);
         }
         throw new Error(`unknown method ${request.method}`);
     }
@@ -283,8 +279,7 @@ export class TuxhubBridge
         }
     }
 
-    // Everything the embedded settings page shows: all stored settings, the overlay state and
-    // the version, which that page cannot ask Tauri for.
+    // Every stored setting, the overlay state and the version.
     private async storedSettings(): Promise<Record<string, unknown>>
     {
         const overlay = await invoke<{ mode: string; preference: string }>("get_overlay_state");
@@ -294,19 +289,6 @@ export class TuxhubBridge
             values[key] = this.store.get(atom);
         }
         return { values, overlay, version: await getVersion() };
-    }
-
-    // The embedded page cannot open a browser itself. Only Fliq's own fixed links are opened,
-    // never an address from outside.
-    private async openLink(id: unknown): Promise<HandlerResult>
-    {
-        const url = id === "github" || id === "kofi" ? PROJECT_LINKS[id] : null;
-        if (!url)
-        {
-            throw new Error(`unknown link ${JSON.stringify(id)}`);
-        }
-        await open(url);
-        return { result: true };
     }
 
     private async values(): Promise<Record<string, unknown>>

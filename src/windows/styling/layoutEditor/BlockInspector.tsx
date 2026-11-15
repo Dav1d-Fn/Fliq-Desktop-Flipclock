@@ -215,7 +215,7 @@ export function BlockInspector({ layout, block, onChange, onRemove, onUngroup, o
             <Button
                 className="remove-block"
                 variant="default"
-                c="var(--fliq-danger)"
+                c="red.8"
                 leftSection={<IconTrash size={15} />}
                 onClick={onRemove}
                 fullWidth

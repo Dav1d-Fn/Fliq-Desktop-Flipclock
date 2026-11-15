@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Select } from "@mantine/core";
-import { useSettingsHost } from "../host/SettingsHost";
+import { invoke } from "@tauri-apps/api/core";
 import { SettingRow } from "../controls/SettingRow";
 
 const OVERLAY_MODE_OPTIONS = [
@@ -13,21 +13,19 @@ const OVERLAY_MODE_OPTIONS = [
 // in linux.json on the Rust side, not in localStorage, and applies after a restart.
 export function OverlayModeRow()
 {
-    const host = useSettingsHost();
     const [platformMode, setPlatformMode] = useState("native");
     const [preference, setPreference] = useState("auto");
 
     useEffect(() =>
     {
-        host.overlayState()
+        invoke<{ mode: string; preference: string }>("get_overlay_state")
             .then((state) =>
             {
                 setPlatformMode(state.mode);
                 setPreference(state.preference);
             })
             .catch(() => setPlatformMode("native"));
-        return host.onOverlayChange((state) => setPreference(state.preference));
-    }, [host]);
+    }, []);
 
     if (platformMode === "native")
     {
@@ -44,9 +42,9 @@ export function OverlayModeRow()
         // choice that was never saved.
         const previous = preference;
         setPreference(value);
-        host.setOverlayMode(value).catch((error) =>
+        invoke("set_overlay_mode", { mode: value }).catch((error) =>
         {
-            console.error("Setting the overlay mode failed:", error);
+            console.error("set_overlay_mode failed:", error);
             setPreference(previous);
         });
     }

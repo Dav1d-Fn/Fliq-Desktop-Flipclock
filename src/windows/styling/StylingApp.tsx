@@ -3,27 +3,21 @@ import "@fontsource-variable/inter";
 import "@fontsource-variable/jetbrains-mono";
 import "./styling.css";
 import "./layoutEditor/layoutEditor.css";
+
 import { useRef, useState } from "react";
 import { MantineProvider } from "@mantine/core";
-import { SettingsHostContext, type SettingsHost } from "./host/SettingsHost";
 import { Sidebar } from "./layout/Sidebar";
 import { SETTINGS_PAGES, type PageId } from "./SettingsPages";
 import { stylingTheme } from "./theme";
 
-interface StylingAppProps
-{
-    host: SettingsHost;
-    // Fliq's own window is always light; embedded in tuxhub the page follows tuxhub.
-    colorScheme?: "light" | "dark";
-}
-
-// The settings: sidebar with the pages of SETTINGS_PAGES, the current page on the right.
+// The styling window: sidebar with the pages of SETTINGS_PAGES, the current page on the right.
 // Every page reads and writes the settings atoms directly; the clock window follows through the
-// shared localStorage (or, embedded in tuxhub, through the socket, see SettingsStorage).
-export default function StylingApp({ host, colorScheme = "light" }: StylingAppProps)
+// shared localStorage.
+export default function StylingApp()
 {
     const [currentPageId, setCurrentPageId] = useState<PageId>("layout");
     const mainRef = useRef<HTMLElement>(null);
+
     const currentPage = SETTINGS_PAGES.find((page) => page.id === currentPageId) ?? SETTINGS_PAGES[0];
     const PageComponent = currentPage.component;
 
@@ -34,24 +28,19 @@ export default function StylingApp({ host, colorScheme = "light" }: StylingAppPr
     }
 
     return (
-        <SettingsHostContext.Provider value={host}>
-            <MantineProvider theme={stylingTheme} forceColorScheme={colorScheme}>
-                {/* The frame is what the size steps in the styles measure. */}
-                <div className="styling-frame">
-                    <div className="styling-window">
-                        <Sidebar currentPage={currentPage.id} onNavigate={navigate} />
-                        <main className={currentPage.wide ? "styling-main wide" : "styling-main"} ref={mainRef}>
-                            {currentPage.wide
-                                ? <PageComponent />
-                                : (
-                                    <div className="styling-page">
-                                        <PageComponent />
-                                    </div>
-                                )}
-                        </main>
-                    </div>
-                </div>
-            </MantineProvider>
-        </SettingsHostContext.Provider>
+        <MantineProvider theme={stylingTheme} forceColorScheme="light">
+            <div className="styling-window">
+                <Sidebar currentPage={currentPage.id} onNavigate={navigate} />
+                <main className={currentPage.wide ? "styling-main wide" : "styling-main"} ref={mainRef}>
+                    {currentPage.wide
+                        ? <PageComponent />
+                        : (
+                            <div className="styling-page">
+                                <PageComponent />
+                            </div>
+                        )}
+                </main>
+            </div>
+        </MantineProvider>
     );
 }

@@ -28,7 +28,7 @@ export function SelectionInspector({ count, groupable, onGroup, onRemove }: Sele
             {!groupable && (
                 <p className="inspector-note">Only blocks next to each other in the same rows, without a gap between them, can be grouped.</p>
             )}
-            <Button className="remove-block" variant="default" c="var(--fliq-danger)" leftSection={<IconTrash size={15} />} onClick={onRemove} fullWidth>
+            <Button className="remove-block" variant="default" c="red.8" leftSection={<IconTrash size={15} />} onClick={onRemove} fullWidth>
                 Remove {count} blocks
             </Button>
         </div>
