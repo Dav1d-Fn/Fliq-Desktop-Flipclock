@@ -7,6 +7,8 @@ import { ATOMS } from "../../../settings/atoms";
 interface EditorSnapshot
 {
     layout: ClockLayout;
+    // Loading a saved layout switches this too.
+    activeLayoutId: number | null;
     scale: number;
     background: string;
     cornerRadius: number;
@@ -39,13 +41,14 @@ function isTextField(target: EventTarget | null): boolean
 export function useEditorHistory(): EditorHistory
 {
     const [layout, setLayout] = useAtom(ATOMS.CLOCK_LAYOUT);
+    const [activeLayoutId, setActiveLayoutId] = useAtom(ATOMS.ACTIVE_LAYOUT_ID);
     const [scale, setScale] = useAtom(ATOMS.CLOCK_SCALE);
     const [background, setBackground] = useAtom(ATOMS.BOX_BACKGROUND);
     const [cornerRadius, setCornerRadius] = useAtom(ATOMS.CLOCK_CORNER_RADIUS);
     const [padding, setPadding] = useAtom(ATOMS.CLOCK_PADDING);
     const [font, setFont] = useAtom(ATOMS.TEXT_FONT);
     const [textColor, setTextColor] = useAtom(ATOMS.TEXT_COLOR);
-    const snapshot: EditorSnapshot = { layout, scale, background, cornerRadius, padding, font, textColor };
+    const snapshot: EditorSnapshot = { layout, activeLayoutId, scale, background, cornerRadius, padding, font, textColor };
     const serialized = JSON.stringify(snapshot);
 
     const past = useRef<EditorSnapshot[]>([]);
@@ -118,6 +121,7 @@ export function useEditorHistory(): EditorHistory
     {
         base.current = target;
         setLayout(target.layout);
+        setActiveLayoutId(target.activeLayoutId);
         setScale(target.scale);
         setBackground(target.background);
         setCornerRadius(target.cornerRadius);

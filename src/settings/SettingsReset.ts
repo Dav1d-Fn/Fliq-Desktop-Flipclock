@@ -9,14 +9,15 @@ type ResettableAtom = WritableAtom<unknown, [typeof RESET], void>;
 export class SettingsReset
 {
     // RESET removes each key from localStorage; the other windows pick that up through the
-    // storage event. Autostart stays: it mirrors the system entry, not a style choice. The clock
+    // storage event. Autostart stays: it mirrors the system entry, not a style choice. Saved
+    // layouts stay: they are the user's work, not options. The clock
     // position stays too (it lives in Rust), otherwise the clock would jump away.
     static async resetAll(): Promise<void>
     {
         const store = getDefaultStore();
         for (const [name, atom] of Object.entries(ATOMS))
         {
-            if (name !== "AUTOSTART")
+            if (name !== "AUTOSTART" && name !== "SAVED_LAYOUTS")
             {
                 store.set(atom as ResettableAtom, RESET);
             }
