@@ -48,6 +48,7 @@ export function BlockContent({ segments, justify, alignItems, sizeShare, iconSty
     const weatherUnit = useAtomValue(ATOMS.WEATHER_UNIT);
 
     const template = useMemo(() => new ClockTemplate(segments), [segments]);
+    const stacked = segments.some((segment) => segment.type === "BREAK");
 
     // Current minute, so weather text that depends on the time (next sun event, day/night
     // emoji) moves on without new weather data.
@@ -232,6 +233,29 @@ export function BlockContent({ segments, justify, alignItems, sizeShare, iconSty
         });
     }
 
+    // A stacked group: one line per member, each BREAK starts the next one after its room.
+    function renderLines(): ReactNode[]
+    {
+        const nodes = renderSegments();
+        const lines: { room: string; nodes: ReactNode[] }[] = [{ room: "0", nodes: [] }];
+        template.segments.forEach((segment, segmentIndex) =>
+        {
+            if (segment.type === "BREAK")
+            {
+                lines.push({ room: segment.value, nodes: [] });
+            }
+            else
+            {
+                lines[lines.length - 1].nodes.push(nodes[segmentIndex]);
+            }
+        });
+        return lines.map((line, lineIndex) => (
+            <div className="block-content" key={`line-${lineIndex}`} style={{ marginTop: `${line.room}em` }}>
+                {line.nodes}
+            </div>
+        ));
+    }
+
     if (template.hasSecondsBar())
     {
         return (
@@ -245,9 +269,17 @@ export function BlockContent({ segments, justify, alignItems, sizeShare, iconSty
 
     return (
         <div className="clock-block-fit" ref={areaRef} style={{ justifyContent: justify, alignItems }}>
-            <div className="tick block-content" ref={contentRef} data-credits="false">
-                {renderSegments()}
-            </div>
+            {stacked
+                ? (
+                    <div className="tick block-content stacked" ref={contentRef} data-credits="false" style={{ alignItems: justify }}>
+                        {renderLines()}
+                    </div>
+                )
+                : (
+                    <div className="tick block-content" ref={contentRef} data-credits="false">
+                        {renderSegments()}
+                    </div>
+                )}
         </div>
     );
 }

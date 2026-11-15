@@ -107,6 +107,7 @@ export const DE: Strings = {
         dropToGroup: "Loslassen zum Gruppieren",
         occupied: "Belegt",
         dropHere: "Hier ablegen",
+        dropToNewRow: "Loslassen für neue Zeile",
         dropToSlideIn: "Loslassen zum Einschieben",
         resizeWidth: "Breite ändern",
         resizeHeight: "Höhe ändern",
@@ -196,6 +197,9 @@ export const DE: Strings = {
     group: {
         items: "Elemente",
         spaceBetweenItems: "Abstand zwischen Elementen",
+        direction: "Anordnung",
+        sideBySide: "Nebeneinander",
+        stacked: "Untereinander",
         moveLeft: (name: string) => `${name} nach links`,
         moveRight: (name: string) => `${name} nach rechts`,
         remove: (name: string) => `${name} aus der Gruppe entfernen`,

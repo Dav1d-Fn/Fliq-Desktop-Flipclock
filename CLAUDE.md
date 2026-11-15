@@ -35,7 +35,8 @@ gtk-layer-shell, X11 fallback). macOS is not shipped. Meant to grow into a widge
   display, custom format, text, weather icon) and `itemGap`. Every other field (text size,
   spacing, padding, offset, font, color, background, cards) is the group's look, shared by
   all members. It renders as one BlockContent (`GroupBlock` joins the members' segments with
-  `SPACE` segments), so all members get one font size, like a line of the old template rows.
+  `SPACE` segments, or `BREAK` segments when `direction` is `"column"`: one line per member),
+  so all members get one font size, like a line of the old template rows.
   `LayoutGrid.grouped` merges touching blocks of the same rows (groups among them are
   flattened, the leftmost block gives the look); `ungrouped` splits back into even widths
   with the group's look; `mergedInto` handles a block dropped onto another in the canvas
