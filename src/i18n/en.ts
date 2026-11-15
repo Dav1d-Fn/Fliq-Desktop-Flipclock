@@ -106,6 +106,7 @@ export const EN = {
         dropToGroup: "Drop to group",
         occupied: "Occupied",
         dropHere: "Drop here",
+        dropToSlideIn: "Drop to slide in here",
         resizeWidth: "Resize width",
         resizeHeight: "Resize height",
         resizeBoth: "Resize width and height",

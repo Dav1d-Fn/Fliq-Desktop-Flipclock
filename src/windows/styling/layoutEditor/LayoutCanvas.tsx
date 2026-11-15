@@ -2,7 +2,7 @@ import { CSSProperties, MouseEvent, PointerEvent, useEffect, useRef, useState } 
 import { useAtomValue } from "jotai";
 import GridClock from "../../../clock/GridClock";
 import { useLayoutGrid } from "../../../clock/useLayoutGrid";
-import { type CellRect, type ClockLayout, type GapRef, type LayoutBlock, type PixelRect, type TrackRef } from "../../../layout/ClockLayout";
+import { LayoutGrid, type CellRect, type ClockLayout, type DropZone, type GapRef, type LayoutBlock, type PixelRect, type TrackRef } from "../../../layout/ClockLayout";
 import { useStrings } from "../../../i18n/useStrings";
 import { ATOMS } from "../../../settings/atoms";
 import { MemberMenu } from "./MemberMenu";
@@ -34,11 +34,14 @@ interface MemberTarget
     y: number;
 }
 
-// A block the dragged one would join on drop, and on which side of its members.
-interface MergeTarget
+// A block the dragged one was dropped onto: join it (on which side of its members), or slide
+// in beside it, with the layout that gives (`inserted`).
+interface DropTarget
 {
     block: LayoutBlock;
+    zone: DropZone;
     before: boolean;
+    inserted: ClockLayout | null;
 }
 
 interface LayoutCanvasProps
@@ -60,6 +63,8 @@ interface LayoutCanvasProps
     onPlace: (blockId: number, rect: CellRect) => void;
     // A block dropped onto another: they become a group, or it joins the target group.
     onMerge: (targetId: number, droppedId: number, before: boolean) => void;
+    // A block dropped near another's edge: it slides in there, the line makes room.
+    onInsert: (layout: ClockLayout) => void;
     // Group member menu (right-click on a member).
     onMoveMember: (groupId: number, index: number, step: number) => void;
     onDetachMember: (groupId: number, index: number) => void;
@@ -86,7 +91,7 @@ const TRACK_BAR_INSET = 7;
 // snap ghost, one hit box per block with its resize handles).
 export function LayoutCanvas(props: LayoutCanvasProps)
 {
-    const { layout, editing, selectedIds, selectedGap, selectedTrack, poppingId, removingIds, shaking, toast, onSelect, onSelectGap, onSelectTrack, onPlace, onMerge, onMoveMember, onDetachMember, onOpenMember } = props;
+    const { layout, editing, selectedIds, selectedGap, selectedTrack, poppingId, removingIds, shaking, toast, onSelect, onSelectGap, onSelectTrack, onPlace, onMerge, onInsert, onMoveMember, onDetachMember, onOpenMember } = props;
     const padding = useAtomValue(ATOMS.CLOCK_PADDING);
     const strings = useStrings();
     const stageRef = useRef<HTMLDivElement>(null);
@@ -180,8 +185,8 @@ export function LayoutCanvas(props: LayoutCanvasProps)
 
     const draggedBlock = drag ? layout.blocks.find((block) => block.id === drag.blockId) : undefined;
 
-    // The block under the pointer while one is moved, if any; left half means before its members.
-    function mergeTarget(current: Drag | null): MergeTarget | null
+    // The block under the pointer while one is moved, if any, and what dropping there does.
+    function dropTarget(current: Drag | null): DropTarget | null
     {
         const dragged = current && layout.blocks.find((block) => block.id === current.blockId);
         if (!current || !dragged || !current.moved || current.mode !== "move")
@@ -196,13 +201,23 @@ export function LayoutCanvas(props: LayoutCanvasProps)
             const rect = grid.pixelRect(block, 1);
             if (block.id !== dragged.id && pointerX >= rect.left && pointerX < rect.left + rect.width && pointerY >= rect.top && pointerY < rect.top + rect.height)
             {
-                return { block, before: pointerX < rect.left + rect.width / 2 };
+                const share = (pointerX - rect.left) / rect.width;
+                const zone = LayoutGrid.dropZone(block, dragged, share);
+                if (zone === "group")
+                {
+                    return { block, zone, before: share < 0.5, inserted: null };
+                }
+                const inserted = zone && grid.withBlockInserted(block.id, dragged.id, zone === "before");
+                return inserted ? { block, zone: zone!, before: zone === "before", inserted } : null;
             }
         }
         return null;
     }
 
-    const merge = mergeTarget(drag);
+    const drop = dropTarget(drag);
+    const merge = drop?.zone === "group" ? drop : null;
+    // While a block hovers near another's edge, the others already stand where they would go.
+    const preview = drop?.inserted ? new Map(drop.inserted.blocks.map((block) => [block.id, block])) : null;
 
     function target(block: LayoutBlock, current: Drag): CellRect
     {
@@ -217,7 +232,7 @@ export function LayoutCanvas(props: LayoutCanvasProps)
         const rect = grid.pixelRect(block, scale);
         if (!drag || !drag.moved || drag.blockId !== block.id)
         {
-            return rect;
+            return preview ? grid.pixelRect(preview.get(block.id) ?? block, scale) : rect;
         }
         if (drag.mode === "move")
         {
@@ -322,6 +337,10 @@ export function LayoutCanvas(props: LayoutCanvasProps)
         {
             onMerge(merge.block.id, draggedBlock.id, merge.before);
         }
+        else if (drop?.inserted)
+        {
+            onInsert(drop.inserted);
+        }
         else if (drag?.moved && draggedBlock)
         {
             const rect = target(draggedBlock, drag);
@@ -344,6 +363,14 @@ export function LayoutCanvas(props: LayoutCanvasProps)
             return (
                 <div className="snap-ghost merge" style={{ ...grid.pixelRect(merge.block, scale), borderRadius: 10 * scale }}>
                     <span>{merge.block.kind === "group" ? strings.canvas.dropToAddToGroup : strings.canvas.dropToGroup}</span>
+                </div>
+            );
+        }
+        if (preview)
+        {
+            return (
+                <div className="snap-ghost" style={{ ...grid.pixelRect(preview.get(draggedBlock.id)!, scale), borderRadius: 10 * scale }}>
+                    <span>{strings.canvas.dropToSlideIn}</span>
                 </div>
             );
         }

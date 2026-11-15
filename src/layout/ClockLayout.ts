@@ -104,6 +104,12 @@ export interface GapRef
     index: number;
 }
 
+// What dropping a block onto another does: join it ("group") or slide in beside it.
+export type DropZone = "group" | "before" | "after";
+
+// Share of a block's width, around its middle, where a dropped block groups with it.
+export const GROUP_ZONE = 0.4;
+
 export interface CellRect
 {
     x: number;
@@ -387,6 +393,137 @@ export class LayoutGrid
             .filter((block) => block.id !== droppedId)
             .map((block) => (block.id === targetId ? group : block));
         return { ...this.layout, blocks };
+    }
+
+    // What a block dropped onto `target` does, from where the pointer is along the target:
+    // the middle groups them, the left and right edges slide the dropped block in before or
+    // after it. Zones that cannot happen give way to the others; null when none can.
+    // ponytail: horizontal only; top and bottom edges would need rows to be inserted.
+    static dropZone(target: LayoutBlock, dropped: LayoutBlock, share: number): DropZone | null
+    {
+        const canGroup = target.kind !== "secondsBar" && dropped.kind !== "secondsBar";
+        const canInsert = target.h === dropped.h;
+        if (canGroup && (!canInsert || Math.abs(share - 0.5) <= GROUP_ZONE / 2))
+        {
+            return "group";
+        }
+        if (!canInsert)
+        {
+            return null;
+        }
+        return share < 0.5 ? "before" : "after";
+    }
+
+    // The layout with a block slid in before or after `target`, on the target's rows. The
+    // blocks of that line (same rows as the target) make room by sliding left or right, keeping
+    // their order and skipping cells other blocks hold; whichever way moves less wins. Null
+    // when there is no room.
+    withBlockInserted(targetId: number, droppedId: number, before: boolean): ClockLayout | null
+    {
+        const target = this.layout.blocks.find((block) => block.id === targetId);
+        const dropped = this.layout.blocks.find((block) => block.id === droppedId);
+        if (!target || !dropped || target === dropped || target.h !== dropped.h)
+        {
+            return null;
+        }
+        const inLine = (block: LayoutBlock) => block.id !== droppedId && block.y === target.y && block.h === target.h;
+        const line = this.layout.blocks.filter(inLine).sort((a, b) => a.x - b.x);
+        const blocked = new Set<number>();
+        for (const block of this.layout.blocks)
+        {
+            const crossesLine = block.y < target.y + target.h && target.y < block.y + block.h;
+            if (block.id !== droppedId && !inLine(block) && crossesLine)
+            {
+                for (let column = block.x; column < block.x + block.w; column++)
+                {
+                    blocked.add(column);
+                }
+            }
+        }
+        const insertAt = line.indexOf(target) + (before ? 0 : 1);
+        const sequence = [...line.slice(0, insertAt), { ...dropped, y: target.y }, ...line.slice(insertAt)];
+        const anchor = before ? target.x : target.x + target.w;
+        const placements = [this.slid(sequence, insertAt, anchor, 1, blocked), this.slid(sequence, insertAt, anchor, -1, blocked)]
+            .filter((placement): placement is Map<number, number> => placement !== null);
+        if (placements.length === 0)
+        {
+            return null;
+        }
+        // Distance every block travels, the dropped one included, so its old spot gets filled.
+        const travel = (placement: Map<number, number>) => [...placement].reduce((sum, [id, x]) =>
+        {
+            const original = this.layout.blocks.find((block) => block.id === id)!;
+            return sum + Math.abs(original.x - x) + Math.abs(original.y - (id === droppedId ? target.y : original.y));
+        }, 0);
+        const best = placements.reduce((shortest, placement) => (travel(placement) < travel(shortest) ? placement : shortest));
+        const blocks = this.layout.blocks.map((block) =>
+        {
+            const x = best.get(block.id);
+            if (x === undefined)
+            {
+                return block;
+            }
+            return block.id === droppedId ? { ...block, x, y: target.y } : { ...block, x };
+        });
+        return { ...this.layout, blocks };
+    }
+
+    // New x of the blocks from `start` onwards (direction 1) or from `start` back (direction
+    // -1), packed against the anchor in that direction; the others stay. The block at `start`
+    // starts (or ends, going left) at the anchor. Null when they run out of the grid.
+    private slid(sequence: LayoutBlock[], start: number, anchor: number, direction: 1 | -1, blocked: Set<number>): Map<number, number> | null
+    {
+        const placement = new Map<number, number>();
+        const isFree = (x: number, w: number) =>
+        {
+            for (let column = x; column < x + w; column++)
+            {
+                if (blocked.has(column))
+                {
+                    return false;
+                }
+            }
+            return true;
+        };
+        let cursor = anchor;
+        if (direction === 1)
+        {
+            for (let index = start; index < sequence.length; index++)
+            {
+                const block = sequence[index];
+                let x = index === start ? cursor : Math.max(block.x, cursor);
+                while (x + block.w <= this.layout.columns && !isFree(x, block.w))
+                {
+                    x++;
+                }
+                if (x + block.w > this.layout.columns)
+                {
+                    return null;
+                }
+                placement.set(block.id, x);
+                cursor = x + block.w;
+            }
+        }
+        else
+        {
+            for (let index = start; index >= 0; index--)
+            {
+                const block = sequence[index];
+                let end = index === start ? cursor : Math.min(block.x + block.w, cursor);
+                while (end - block.w >= 0 && !isFree(end - block.w, block.w))
+                {
+                    end--;
+                }
+                if (end - block.w < 0)
+                {
+                    return null;
+                }
+                placement.set(block.id, end - block.w);
+                cursor = end - block.w;
+            }
+        }
+        // The blocks that keep their spot lie on the other side of the anchor, so none collide.
+        return placement;
     }
 
     // The layout with a group member swapped with its neighbour (step -1: left, 1: right).

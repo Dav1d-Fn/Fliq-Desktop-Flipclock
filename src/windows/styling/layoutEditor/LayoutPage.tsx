@@ -321,6 +321,7 @@ export function LayoutPage()
                     onSelectTrack={selectTrack}
                     onPlace={(blockId: number, rect: CellRect) => updateBlock(blockId, rect)}
                     onMerge={merge}
+                    onInsert={setLayout}
                     onMoveMember={moveMember}
                     onDetachMember={detachMember}
                     onOpenMember={openMemberSettings}
