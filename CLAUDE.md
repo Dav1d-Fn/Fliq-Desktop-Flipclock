@@ -26,10 +26,15 @@ gtk-layer-shell, X11 fallback). macOS is not shipped. Meant to grow into a widge
     editing layer: cells, snap ghost, drag and resize handles), `AddBlockBar`, and the
     inspector (`ClockInspector` for the whole clock, `BlockInspector` built from the block
     registry, `ContentEditor` for what a block or group member shows, `SelectionInspector`
-    for several blocks shift/ctrl-clicked on the canvas). Column and row bars (and the gaps after
+    for several blocks shift/ctrl-clicked on the canvas). Inspector settings sit in collapsible
+    `InspectorSection`s (open/closed kept in localStorage `inspectorSections`, summary shown
+    while closed); long explanations go into `InspectorField`'s `help` tooltip. Column and row bars (and the gaps after
     them) open `TrackPopover` at the track: width or height (rows: auto unless
     `rowHeightOverrides` is set), row alignment, gap after it. `pages/` the other pages,
-    `controls/` and `layout/` shared pieces.
+    `controls/` and `layout/` shared pieces. `savedLayouts/`: `LayoutSwitcher` (header of the Layout
+    page: load, save, save as new, discard) and the Clock › Saved layouts page; both through
+    `useLayoutLibrary` over `SAVED_LAYOUTS`/`ACTIVE_LAYOUT_ID` (logic in `src/layout/LayoutLibrary`,
+    tested). A saved layout is the `ClockLayout` only, not the whole-clock settings.
 - `src/layout/` — `ClockLayout` (block and grid shapes, `LayoutGrid`: fits, free spot, snap
   targets, grouping; pure and tested), `LayoutMigration` (one-time move from the old two
   template rows).

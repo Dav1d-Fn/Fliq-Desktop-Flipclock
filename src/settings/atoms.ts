@@ -2,6 +2,7 @@ import { atomWithStorage } from "jotai/utils";
 import type { HourCycle } from "../blocks/BlockDefinition";
 import { DEFAULT_LAYOUT, type ClockLayout } from "../layout/ClockLayout";
 import { LAYOUT_KEYS, LayoutMigration } from "../layout/LayoutMigration";
+import type { SavedLayout } from "../layout/LayoutLibrary";
 import type { SunDays, WeatherReport } from "../weather/WeatherTypes";
 import type { WeatherPlace } from "../weather/WeatherPlace";
 import { systemDateLanguage, systemUiLanguage } from "../i18n/UiLanguage";
@@ -26,6 +27,10 @@ export const ATOMS = {
     ALWAYS_ON_TOP: atomWithStorage("alwaysOnTop", true),
     // The blocks and the grid. Edited in the settings window only.
     CLOCK_LAYOUT: atomWithStorage<ClockLayout>(LAYOUT_KEYS.layout, DEFAULT_LAYOUT),
+    // Clock › Saved layouts: named copies of CLOCK_LAYOUT, and the one last saved or loaded
+    // (null: the current layout is not one of them).
+    SAVED_LAYOUTS: atomWithStorage<SavedLayout[]>("savedLayouts", []),
+    ACTIVE_LAYOUT_ID: atomWithStorage<number | null>("activeLayoutId", null),
     // Whole clock: window look and the defaults every block inherits.
     CLOCK_SCALE: atomWithStorage(LAYOUT_KEYS.scale, 75), // Size in % of the editor's cell size
     BOX_BACKGROUND: atomWithStorage("boxBackgroundColor", "#1a1a1ade"),
