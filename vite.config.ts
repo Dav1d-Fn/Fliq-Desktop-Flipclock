@@ -11,6 +11,11 @@ export default defineConfig({
     server: {
         port: 1420,
         strictPort: true,
+        // The ghost windows cover whole monitors: an error overlay there blocks the desktop.
+        // Errors still show in the terminal and the devtools console.
+        hmr: {
+            overlay: false,
+        },
         watch: {
             ignored: ["**/src-tauri/**"],
         },
