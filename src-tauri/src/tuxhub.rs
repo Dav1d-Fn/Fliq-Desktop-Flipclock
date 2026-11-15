@@ -195,7 +195,12 @@ impl Server {
                 self.send(conn, &json!({"id": id, "result": true}));
                 self.frontend.quit();
             }
-            Some(method @ ("schema" | "get" | "set" | "action")) => {
+            // `settings.*` and `links.open` serve Fliq's own settings page embedded in tuxhub:
+            // every stored setting including the layout, not only the fields of the schema.
+            Some(
+                method @ ("schema" | "get" | "set" | "action" | "settings.get" | "settings.set"
+                | "settings.reset" | "links.open"),
+            ) => {
                 let rid = self.next.fetch_add(1, Ordering::SeqCst);
                 {
                     let mut pending = self.pending.lock().unwrap();
@@ -269,6 +274,14 @@ impl Server {
     pub fn changed(&self, values: Value, exclude: Option<u64>) {
         self.broadcast(
             &json!({"method": "changed", "params": {"values": values}}),
+            exclude,
+        );
+    }
+
+    /// Like `changed`, for the embedded settings page: any stored setting, by storage key.
+    pub fn settings_changed(&self, values: Value, exclude: Option<u64>) {
+        self.broadcast(
+            &json!({"method": "settings-changed", "params": {"values": values}}),
             exclude,
         );
     }
@@ -359,6 +372,17 @@ pub fn tuxhub_changed(state: tauri::State<'_, TuxhubState>, values: Value, exclu
 }
 
 #[tauri::command]
+pub fn tuxhub_settings_changed(
+    state: tauri::State<'_, TuxhubState>,
+    values: Value,
+    exclude: Option<u64>,
+) {
+    if let Some(s) = state.server() {
+        s.settings_changed(values, exclude);
+    }
+}
+
+#[tauri::command]
 pub fn tuxhub_schema_changed(state: tauri::State<'_, TuxhubState>) {
     if let Some(s) = state.server() {
         s.schema_changed();
@@ -369,7 +393,8 @@ pub fn tuxhub_schema_changed(state: tauri::State<'_, TuxhubState>) {
 pub fn changed(app: &tauri::AppHandle, values: Value) {
     use tauri::Manager;
     if let Some(s) = app.try_state::<TuxhubState>().and_then(|st| st.server()) {
-        s.changed(values, None);
+        s.changed(values.clone(), None);
+        s.settings_changed(values, None);
     }
 }
 
@@ -659,6 +684,51 @@ mod tests {
 
         s.schema_changed();
         let msg = json!({"method": "schema-changed", "params": {}});
+        assert_eq!(a.recv(), msg);
+        assert_eq!(b.recv(), msg);
+        s.stop();
+    }
+
+    #[test]
+    fn settings_methods_go_to_the_frontend() {
+        let t = setup("settings");
+        let (s, rx, _q) = server(&t.path);
+        let mut c = Client::connect(&t.path);
+        for (id, method) in ["settings.get", "settings.set", "settings.reset", "links.open"]
+            .into_iter()
+            .enumerate()
+        {
+            c.send(json!({"id": id, "method": method, "params": {"key": "clockLayout"}}));
+            let f = forwarded(&rx);
+            assert_eq!(f.method, method);
+            s.respond(f.rid, Some(json!(true)), None);
+            assert_eq!(c.recv(), json!({"id": id, "result": true}));
+        }
+        // Nothing else below `settings.` is passed on.
+        c.send(json!({"id": 9, "method": "settings.eval", "params": {}}));
+        assert!(c.recv()["error"]["message"].is_string());
+        assert!(rx.try_recv().is_err());
+        s.stop();
+    }
+
+    #[test]
+    fn settings_changed_reaches_every_connection_but_the_excluded_one() {
+        let t = setup("settings-changed");
+        let (s, rx, _q) = server(&t.path);
+        let mut a = Client::connect(&t.path);
+        let mut b = Client::connect(&t.path);
+        a.send(json!({"id": 1, "method": "get", "params": {}}));
+        let conn_a = forwarded(&rx).conn;
+        b.send(json!({"id": 1, "method": "get", "params": {}}));
+        forwarded(&rx);
+
+        let values = json!({"clockLayout": {"columns": 4, "rows": 2, "blocks": []}});
+        let msg = json!({"method": "settings-changed", "params": {"values": values}});
+        s.settings_changed(values.clone(), Some(conn_a));
+        assert_eq!(b.recv(), msg);
+        assert!(a.silent());
+
+        s.settings_changed(values, None);
         assert_eq!(a.recv(), msg);
         assert_eq!(b.recv(), msg);
         s.stop();

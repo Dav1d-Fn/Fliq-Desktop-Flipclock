@@ -2,7 +2,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { schema, check, Refusal } from "../src/tuxhub/tuxhubSchema.ts";
+import { schema, check, checkStored, Refusal } from "../src/tuxhub/tuxhubSchema.ts";
 
 const fields = (s: ReturnType<typeof schema>) => s.sections.flatMap((sec) => sec.fields);
 const field = (key: string, s = schema("en")) => 
@@ -84,7 +84,7 @@ test("context menu entries and actions are part of the schema", () =>
         assert.equal(field(key).type, "toggle");
     }
     const ids = schema("en").actions.map((a) => a.id);
-    assert.deepEqual(ids, ["open-styling", "quit"]);
+    assert.deepEqual(ids, ["open-styling", "reset", "quit"]);
 });
 
 test("valid values are accepted as they are applied", () => 
@@ -148,4 +148,44 @@ test("refusals are worded in the requested language", () =>
     assert.notEqual(en, de);
     assert.match(en, /30/);
     assert.match(de, /300/);
+});
+
+test("the embedded settings page may write schema fields and the layout, nothing else", () =>
+{
+    assert.equal(checkStored("clockScale", 120.4), 120);
+    assert.equal(checkStored("textColor", "#FF0000"), "#ff0000ff");
+
+    const layout = { columns: 4, rows: 1, blocks: [{ id: 1, kind: "text", x: 0, y: 0, w: 2, h: 1, display: "text", text: "Hi", extra: 1 }] };
+    assert.deepEqual(checkStored("clockLayout", layout), {
+        columns: 4,
+        rows: 1,
+        blocks: [{ id: 1, kind: "text", x: 0, y: 0, w: 2, h: 1, display: "text", text: "Hi" }],
+    });
+
+    const refusedKeys: [string, unknown][] = [
+        ["clockLayout", { columns: 99, rows: 1, blocks: [] }],
+        ["clockLayout", "four columns"],
+        ["weatherReport", null],
+        ["sunDays", { days: [] }],
+        ["clockScale", "big"],
+        ["__proto__", {}],
+        ["nope", 1],
+    ];
+    for (const [key, value] of refusedKeys)
+    {
+        assert.throws(() => checkStored(key, value), (error: unknown) => error instanceof Refusal && error.field === key, key);
+    }
+    assert.throws(() => checkStored("clockLayout", null, "de"), /Layout/);
+});
+
+test("reset is offered as a dangerous action that asks first", () =>
+{
+    for (const locale of ["en", "de"])
+    {
+        const reset = schema(locale).actions.find((action) => action.id === "reset");
+        assert.ok(reset, "reset action is missing");
+        assert.equal(reset.danger, true);
+        assert.ok(reset.confirm && reset.confirm.length <= 500);
+    }
+    assert.equal(schema("en").actions.find((action) => action.id === "quit")?.danger, undefined);
 });

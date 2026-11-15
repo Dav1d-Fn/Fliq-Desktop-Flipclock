@@ -1,9 +1,14 @@
 import { getDefaultStore, type WritableAtom } from "jotai";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import { getVersion } from "@tauri-apps/api/app";
+import { open } from "@tauri-apps/plugin-shell";
 import { ATOMS } from "../settings/atoms";
 import { AppActions } from "../settings/AppActions";
-import { schema, check, toLocale, Refusal, ACTION_IDS } from "./tuxhubSchema.ts";
+import { SettingsReset } from "../settings/SettingsReset";
+import { LAYOUT_KEYS } from "../layout/LayoutMigration";
+import { schema, check, checkStored, toLocale, Refusal, ACTION_IDS } from "./tuxhubSchema.ts";
+import { PROJECT_LINKS } from "./projectLinks.ts";
 
 interface Request
 {
@@ -47,9 +52,21 @@ const SETTINGS: Record<string, Setting> = {
     alwaysOnTop: ATOMS.ALWAYS_ON_TOP,
 };
 
+// What Fliq stores besides the schema fields: the block layout, and the weather caches the
+// layout editor needs to draw weather blocks. Only the embedded settings page sees these.
+const STORED_ONLY: Record<string, Setting> = {
+    [LAYOUT_KEYS.layout]: ATOMS.CLOCK_LAYOUT,
+    weatherReport: ATOMS.WEATHER_REPORT,
+    sunDays: ATOMS.SUN_DAYS,
+};
+
 // tuxhub live interface: answers the requests that src-tauri/src/tuxhub.rs forwards to the
 // clock window and reports changes of the settings, including those made in the styling window
 // (they arrive here through the localStorage sync of atomWithStorage).
+//
+// Fliq's own settings page embedded in tuxhub talks through `settings.get`, `settings.set` and
+// `settings.reset` and follows `settings-changed`: every stored setting by its storage key,
+// while `get`, `set` and `changed` stay limited to the schema fields.
 //
 // Without the Rust side (Windows, macOS) `tuxhub_ready` fails and the bridge stays idle.
 export class TuxhubBridge
@@ -97,6 +114,10 @@ export class TuxhubBridge
         {
             this.keep(this.store.sub(atom, () => this.reportChange(key, atom)));
         }
+        for (const [key, atom] of Object.entries({ ...SETTINGS, ...STORED_ONLY }))
+        {
+            this.keep(this.store.sub(atom, () => this.reportStoredChange(key, atom)));
+        }
     }
 
     private stop(): void
@@ -122,6 +143,12 @@ export class TuxhubBridge
     {
         invoke("tuxhub_changed", { values: { [key]: this.store.get(atom) }, exclude: this.origin })
             .catch((error) => console.error("tuxhub_changed failed:", error));
+    }
+
+    private reportStoredChange(key: string, atom: Setting): void
+    {
+        invoke("tuxhub_settings_changed", { values: { [key]: this.store.get(atom) }, exclude: this.origin })
+            .catch((error) => console.error("tuxhub_settings_changed failed:", error));
     }
 
     private async answer(request: Request): Promise<void>
@@ -168,6 +195,20 @@ export class TuxhubBridge
             }
             case "action":
                 return this.runAction(params.id);
+            case "settings.get":
+                return { result: await this.storedSettings() };
+            case "settings.set":
+            {
+                const key = typeof params.key === "string" ? params.key : "";
+                const value = checkStored(key, params.value, this.locale);
+                await this.applyStored(key, value, request.conn);
+                return { result: { value } };
+            }
+            case "settings.reset":
+                await SettingsReset.resetAll();
+                return { result: true };
+            case "links.open":
+                return this.openLink(params.id);
         }
         throw new Error(`unknown method ${request.method}`);
     }
@@ -178,6 +219,9 @@ export class TuxhubBridge
         {
             case "open-styling":
                 await AppActions.openStyling();
+                return { result: true };
+            case "reset":
+                await SettingsReset.resetAll();
                 return { result: true };
             case "quit":
                 // Like "Exit" in the context menu, after the answer is out.
@@ -216,6 +260,52 @@ export class TuxhubBridge
         {
             this.origin = null;
         }
+    }
+
+    private async applyStored(key: string, value: unknown, connection: number): Promise<void>
+    {
+        const storedOnly = STORED_ONLY[key];
+        if (!storedOnly)
+        {
+            await this.apply(key, value, connection);
+            return;
+        }
+        this.origin = connection;
+        try
+        {
+            // `checkStored` validated the value for this key, so it fits the atom.
+            this.store.set(storedOnly, value as never);
+        }
+        finally
+        {
+            this.origin = null;
+        }
+    }
+
+    // Everything the embedded settings page shows: all stored settings, the overlay state and
+    // the version, which that page cannot ask Tauri for.
+    private async storedSettings(): Promise<Record<string, unknown>>
+    {
+        const values = await this.values();
+        for (const [key, atom] of Object.entries(STORED_ONLY))
+        {
+            values[key] = this.store.get(atom);
+        }
+        const overlay = await invoke<{ mode: string; preference: string }>("get_overlay_state");
+        return { values, overlay, version: await getVersion() };
+    }
+
+    // The embedded page cannot open a browser itself. Only Fliq's own fixed links are opened,
+    // never an address from outside.
+    private async openLink(id: unknown): Promise<HandlerResult>
+    {
+        const url = id === "github" || id === "kofi" ? PROJECT_LINKS[id] : null;
+        if (!url)
+        {
+            throw new Error(`unknown link ${JSON.stringify(id)}`);
+        }
+        await open(url);
+        return { result: true };
     }
 
     private async values(): Promise<Record<string, unknown>>
