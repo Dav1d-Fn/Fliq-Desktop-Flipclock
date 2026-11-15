@@ -1,6 +1,7 @@
 import { Select } from "@mantine/core";
 import { useAtom } from "jotai";
 import { LayoutGrid } from "../../../layout/ClockLayout";
+import { useStrings } from "../../../i18n/useStrings";
 import { ATOMS } from "../../../settings/atoms";
 import { FONT_OPTIONS, SLIDER_CONFIGS } from "../../../settings/options";
 import { SliderControl } from "../controls/SliderControl";
@@ -19,71 +20,72 @@ export function ClockInspector()
     const [textColor, setTextColor] = useAtom(ATOMS.TEXT_COLOR);
     const [layout, setLayout] = useAtom(ATOMS.CLOCK_LAYOUT);
     const grid = new LayoutGrid(layout);
+    const text = useStrings().clockInspector;
 
     return (
         <div className="inspector-body">
-            <p className="inspector-intro">The clock window itself, plus defaults every block inherits.</p>
+            <p className="inspector-intro">{text.intro}</p>
 
-            <InspectorField label="Size on the desktop">
-                <SliderControl label="Size on the desktop" value={scale} onChange={setScale} {...SLIDER_CONFIGS.SCALE} />
+            <InspectorField label={text.size}>
+                <SliderControl label={text.size} value={scale} onChange={setScale} {...SLIDER_CONFIGS.SCALE} />
             </InspectorField>
 
-            <InspectorField label="Background">
+            <InspectorField label={text.background}>
                 <ColorSwatches
-                    label="Background"
+                    label={text.background}
                     value={background}
                     onChange={(color) => color && setBackground(color)}
                     swatches={BACKGROUND_SWATCHES}
                 />
             </InspectorField>
 
-            <InspectorField label="Corner rounding">
-                <SliderControl label="Corner rounding" value={cornerRadius} onChange={setCornerRadius} {...SLIDER_CONFIGS.CORNER_RADIUS} />
+            <InspectorField label={text.cornerRounding}>
+                <SliderControl label={text.cornerRounding} value={cornerRadius} onChange={setCornerRadius} {...SLIDER_CONFIGS.CORNER_RADIUS} />
             </InspectorField>
 
-            <InspectorField label="Padding">
-                <SliderControl label="Padding" value={padding} onChange={setPadding} {...SLIDER_CONFIGS.PADDING} />
+            <InspectorField label={text.padding}>
+                <SliderControl label={text.padding} value={padding} onChange={setPadding} {...SLIDER_CONFIGS.PADDING} />
             </InspectorField>
 
-            <InspectorField label="Column width">
+            <InspectorField label={text.columnWidth}>
                 <SliderControl
-                    label="Column width"
+                    label={text.columnWidth}
                     value={grid.defaultTrackSize("column")}
                     onChange={(columnWidth) => setLayout((current) => ({ ...current, columnWidth }))}
                     {...SLIDER_CONFIGS.COLUMN_WIDTH}
                 />
             </InspectorField>
 
-            <InspectorField label="Row height">
+            <InspectorField label={text.rowHeight}>
                 <SliderControl
-                    label="Row height"
+                    label={text.rowHeight}
                     value={grid.defaultTrackSize("row")}
                     onChange={(rowHeight) => setLayout((current) => ({ ...current, rowHeight }))}
                     {...SLIDER_CONFIGS.ROW_HEIGHT}
                 />
-                <p className="inspector-note">Click the bar above a column or beside a row to size it apart.</p>
+                <p className="inspector-note">{text.rowHeightNote}</p>
             </InspectorField>
 
-            <InspectorField label="Space between columns">
+            <InspectorField label={text.columnSpace}>
                 <SliderControl
-                    label="Space between columns"
+                    label={text.columnSpace}
                     value={grid.defaultGap("column")}
                     onChange={(columnGap) => setLayout((current) => ({ ...current, columnGap }))}
                     {...SLIDER_CONFIGS.GAP}
                 />
             </InspectorField>
 
-            <InspectorField label="Space between rows">
+            <InspectorField label={text.rowSpace}>
                 <SliderControl
-                    label="Space between rows"
+                    label={text.rowSpace}
                     value={grid.defaultGap("row")}
                     onChange={(rowGap) => setLayout((current) => ({ ...current, rowGap }))}
                     {...SLIDER_CONFIGS.GAP}
                 />
-                <p className="inspector-note">Click a single gap on the clock to set it apart.</p>
+                <p className="inspector-note">{text.gapNote}</p>
             </InspectorField>
 
-            <InspectorField label="Default font" htmlFor="default-font">
+            <InspectorField label={text.defaultFont} htmlFor="default-font">
                 <Select
                     id="default-font"
                     value={font}
@@ -94,9 +96,9 @@ export function ClockInspector()
                 />
             </InspectorField>
 
-            <InspectorField label="Default text color">
+            <InspectorField label={text.defaultTextColor}>
                 <ColorSwatches
-                    label="Default text color"
+                    label={text.defaultTextColor}
                     value={textColor}
                     onChange={(color) => color && setTextColor(color)}
                     swatches={TEXT_SWATCHES}

@@ -4,6 +4,7 @@ import { blockDefinition } from "../../../blocks/BlockRegistry";
 import { ClockTemplate } from "../../../clock/ClockTemplate";
 import { useSegmentContext } from "../../../clock/useSegmentContext";
 import type { LayoutBlock } from "../../../layout/ClockLayout";
+import { named, useStrings } from "../../../i18n/useStrings";
 import { ATOMS } from "../../../settings/atoms";
 import { WeatherFormatter } from "../../../weather/WeatherFormatter";
 import { BLOCK_EDITORS } from "./BlockEditors";
@@ -30,14 +31,16 @@ export function ContentEditor({ block, onChange }: ContentEditorProps)
     const weatherUnit = useAtomValue(ATOMS.WEATHER_UNIT);
 
     const segmentContext = useSegmentContext();
+    const strings = useStrings();
+    const text = strings.content;
     const weather = new WeatherFormatter(weatherReport, sunDays, weatherUnit, new Date());
     const previewOf = (display: string) =>
         new ClockTemplate(definition.segments({ ...block, display }, segmentContext)).plainText((key) => weather.format(key)) || "—";
 
-    const choices: DisplayChoice[] = definition.displayOptions.map((option) => ({ ...option, preview: previewOf(option.id) }));
+    const choices: DisplayChoice[] = definition.displayOptions.map((option) => ({ ...option, label: named(strings, option.label), preview: previewOf(option.id) }));
     if (definition.supportsCustomFormat)
     {
-        choices.push({ id: "custom", label: "Custom format", code: block.customFormat, preview: previewOf("custom") });
+        choices.push({ id: "custom", label: text.customFormat, code: block.customFormat, preview: previewOf("custom") });
     }
 
     const previewStyle = {
@@ -51,7 +54,7 @@ export function ContentEditor({ block, onChange }: ContentEditorProps)
     return (
         <>
             {choices.length > 0 && (
-                <InspectorField label="Display">
+                <InspectorField label={text.display}>
                     <DisplaySelect
                         choices={choices}
                         value={block.display}
@@ -62,7 +65,7 @@ export function ContentEditor({ block, onChange }: ContentEditorProps)
             )}
 
             {block.display === "custom" && (
-                <InspectorField label="Your format" htmlFor="custom-format">
+                <InspectorField label={text.yourFormat} htmlFor="custom-format">
                     <TextInput
                         id="custom-format"
                         value={block.customFormat ?? ""}
@@ -72,9 +75,9 @@ export function ContentEditor({ block, onChange }: ContentEditorProps)
                         styles={{ input: { fontFamily: "var(--mantine-font-family-monospace)", fontSize: 13 } }}
                     />
                     <div className="format-legend">
-                        <code>HH</code> hour · <code>mm</code> minute · <code>ss</code> second · <code>DD</code> day ·{" "}
-                        <code>MM</code> month · <code>ddd</code> weekday · <code>[text]</code> literal text.{" "}
-                        <a href="https://day.js.org/docs/en/display/format" target="_blank" rel="noreferrer">All tokens</a>
+                        <code>HH</code> {text.hour} · <code>mm</code> {text.minute} · <code>ss</code> {text.second} · <code>DD</code> {text.day} ·{" "}
+                        <code>MM</code> {text.month} · <code>ddd</code> {text.weekday} · <code>[text]</code> {text.literalText}.{" "}
+                        <a href="https://day.js.org/docs/en/display/format" target="_blank" rel="noreferrer">{text.allTokens}</a>
                     </div>
                 </InspectorField>
             )}

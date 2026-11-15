@@ -2,6 +2,7 @@ import { CSSProperties, MouseEvent, PointerEvent, useEffect, useRef, useState } 
 import { useAtomValue } from "jotai";
 import GridClock from "../../../clock/GridClock";
 import { LayoutGrid, type CellRect, type ClockLayout, type GapRef, type LayoutBlock, type PixelRect, type TrackRef } from "../../../layout/ClockLayout";
+import { useStrings } from "../../../i18n/useStrings";
 import { ATOMS } from "../../../settings/atoms";
 import { MemberMenu } from "./MemberMenu";
 
@@ -86,6 +87,7 @@ export function LayoutCanvas(props: LayoutCanvasProps)
 {
     const { layout, editing, selectedIds, selectedGap, selectedTrack, poppingId, removingIds, shaking, toast, onSelect, onSelectGap, onSelectTrack, onPlace, onMerge, onMoveMember, onDetachMember, onOpenMember } = props;
     const padding = useAtomValue(ATOMS.CLOCK_PADDING);
+    const strings = useStrings();
     const stageRef = useRef<HTMLDivElement>(null);
     const [scale, setScale] = useState(1);
     const [drag, setDrag] = useState<Drag | null>(null);
@@ -340,16 +342,16 @@ export function LayoutCanvas(props: LayoutCanvasProps)
         {
             return (
                 <div className="snap-ghost merge" style={{ ...grid.pixelRect(merge.block, scale), borderRadius: 10 * scale }}>
-                    <span>{merge.block.kind === "group" ? "Drop to add to the group" : "Drop to group"}</span>
+                    <span>{merge.block.kind === "group" ? strings.canvas.dropToAddToGroup : strings.canvas.dropToGroup}</span>
                 </div>
             );
         }
         const rect = target(draggedBlock, drag);
         const valid = grid.fits(rect, draggedBlock.id);
-        let label = "Occupied";
+        let label = strings.canvas.occupied;
         if (valid)
         {
-            label = drag.mode === "move" ? "Drop here" : `${rect.w} × ${rect.h}`;
+            label = drag.mode === "move" ? strings.canvas.dropHere : `${rect.w} × ${rect.h}`;
         }
         return (
             <div className={valid ? "snap-ghost" : "snap-ghost occupied"} style={{ ...grid.pixelRect(rect, scale), borderRadius: 10 * scale }}>
@@ -403,12 +405,11 @@ export function LayoutCanvas(props: LayoutCanvasProps)
                     ? { left: across, top: -GAP_OVERHANG, width: hit, height: full.height + 2 * GAP_OVERHANG }
                     : { top: across, left: -GAP_OVERHANG, height: hit, width: full.width + 2 * GAP_OVERHANG };
                 const selected = selectedGap?.axis === axis && selectedGap.index === index;
-                const name = axis === "column" ? `columns ${index + 1} and ${index + 2}` : `rows ${index + 1} and ${index + 2}`;
                 targets.push(
                     <button
                         key={`${axis}-${index}`}
                         type="button"
-                        aria-label={`Space between ${name}`}
+                        aria-label={strings.grid.spaceBetween(axis, index + 1)}
                         aria-pressed={selected}
                         className={`gap-target ${axis}${selected ? " selected" : ""}`}
                         style={{ ...style, "--gap-size": `${Math.max(gap, 2)}px` } as CSSProperties}
@@ -437,7 +438,7 @@ export function LayoutCanvas(props: LayoutCanvasProps)
                     ? { left: start, top: outside, width: length, height: TRACK_BAR_SIZE }
                     : { top: start, left: outside, height: length, width: TRACK_BAR_SIZE };
                 const selected = selectedTrack?.axis === axis && selectedTrack.index === index;
-                const name = axis === "column" ? `Width of column ${index + 1}` : `Height of row ${index + 1}`;
+                const name = strings.grid.trackSize(axis, index + 1);
                 bars.push(
                     <button
                         key={`${axis}-${index}`}
@@ -483,9 +484,9 @@ export function LayoutCanvas(props: LayoutCanvasProps)
                     >
                         {handles && (
                             <>
-                                <button type="button" aria-label="Resize width" className="resize-handle right" onPointerDown={(event) => startDrag(event, block, "right")} onPointerMove={moveDrag} onPointerUp={endDrag} onPointerCancel={endDrag} />
-                                <button type="button" aria-label="Resize height" className="resize-handle bottom" onPointerDown={(event) => startDrag(event, block, "bottom")} onPointerMove={moveDrag} onPointerUp={endDrag} onPointerCancel={endDrag} />
-                                <button type="button" aria-label="Resize width and height" className="resize-handle corner" onPointerDown={(event) => startDrag(event, block, "corner")} onPointerMove={moveDrag} onPointerUp={endDrag} onPointerCancel={endDrag} />
+                                <button type="button" aria-label={strings.canvas.resizeWidth} className="resize-handle right" onPointerDown={(event) => startDrag(event, block, "right")} onPointerMove={moveDrag} onPointerUp={endDrag} onPointerCancel={endDrag} />
+                                <button type="button" aria-label={strings.canvas.resizeHeight} className="resize-handle bottom" onPointerDown={(event) => startDrag(event, block, "bottom")} onPointerMove={moveDrag} onPointerUp={endDrag} onPointerCancel={endDrag} />
+                                <button type="button" aria-label={strings.canvas.resizeBoth} className="resize-handle corner" onPointerDown={(event) => startDrag(event, block, "corner")} onPointerMove={moveDrag} onPointerUp={endDrag} onPointerCancel={endDrag} />
                             </>
                         )}
                     </div>

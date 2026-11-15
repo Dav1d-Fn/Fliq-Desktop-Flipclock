@@ -1,30 +1,31 @@
 import { SegmentedControl } from "@mantine/core";
 import { useAtom } from "jotai";
+import { useStrings } from "../../../i18n/useStrings";
 import { ATOMS } from "../../../settings/atoms";
 import { DraftTextInput } from "../controls/DraftTextInput";
 import { SettingRow } from "../controls/SettingRow";
 import { SettingsCard } from "../controls/SettingsCard";
 import { PageHeader } from "../layout/PageHeader";
 
-const UNIT_SEGMENTS = [
-    { value: "C", label: "Celsius" },
-    { value: "F", label: "Fahrenheit" },
-];
-
 export function WeatherPage()
 {
     const [location, setLocation] = useAtom(ATOMS.WEATHER_LOCATION);
     const [unit, setUnit] = useAtom(ATOMS.WEATHER_UNIT);
+    const text = useStrings().weather;
+    const unitSegments = [
+        { value: "C", label: text.celsius },
+        { value: "F", label: text.fahrenheit },
+    ];
 
     return (
         <>
-            <PageHeader title="Weather" intro="Where and in which unit every weather block reports." />
+            <PageHeader title={text.title} intro={text.intro} />
 
-            <SettingsCard title="Location">
-                <SettingRow label="City" description="Leave empty to detect your location automatically.">
+            <SettingsCard title={text.locationCard}>
+                <SettingRow label={text.cityLabel} description={text.cityDescription}>
                     <DraftTextInput
-                        ariaLabel="City"
-                        placeholder="Automatic"
+                        ariaLabel={text.cityLabel}
+                        placeholder={text.cityPlaceholder}
                         value={location}
                         onCommit={setLocation}
                         width={220}
@@ -32,13 +33,13 @@ export function WeatherPage()
                 </SettingRow>
             </SettingsCard>
 
-            <SettingsCard title="Units">
-                <SettingRow label="Temperature">
+            <SettingsCard title={text.unitsCard}>
+                <SettingRow label={text.temperatureLabel}>
                     <SegmentedControl
-                        aria-label="Temperature unit"
+                        aria-label={text.temperatureAria}
                         value={unit}
                         onChange={setUnit}
-                        data={UNIT_SEGMENTS}
+                        data={unitSegments}
                     />
                 </SettingRow>
             </SettingsCard>

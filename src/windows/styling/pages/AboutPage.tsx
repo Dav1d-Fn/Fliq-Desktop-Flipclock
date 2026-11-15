@@ -1,5 +1,6 @@
 import { Button, Group } from "@mantine/core";
 import { IconBrandGithub } from "@tabler/icons-react";
+import { useStrings } from "../../../i18n/useStrings";
 import { FliqLogo } from "../layout/FliqLogo";
 import { useAppVersion } from "../useAppVersion";
 
@@ -9,12 +10,13 @@ const KOFI_URL = "https://ko-fi.com/davidfn";
 export function AboutPage()
 {
     const version = useAppVersion();
+    const strings = useStrings();
 
     return (
         <div className="about">
             <FliqLogo size={64} />
             <h1 className="page-title" style={{ marginTop: 16 }}>Fliq</h1>
-            <p className="page-intro">{version ? `Version ${version}` : " "}</p>
+            <p className="page-intro">{version ? strings.sidebar.version(version) : " "}</p>
             <Group gap={10} mt={24}>
                 <Button
                     component="a"
@@ -24,7 +26,7 @@ export function AboutPage()
                     size="md"
                     leftSection={<IconBrandGithub size={18} />}
                 >
-                    View on GitHub
+                    {strings.about.github}
                 </Button>
                 <Button
                     component="a"
@@ -34,7 +36,7 @@ export function AboutPage()
                     c="fliqGreen.9"
                     leftSection={<img src="/KofiPour_112.png" alt="" style={{ width: 18, height: 18 }} />}
                 >
-                    Support on Ko-fi
+                    {strings.about.kofi}
                 </Button>
             </Group>
         </div>

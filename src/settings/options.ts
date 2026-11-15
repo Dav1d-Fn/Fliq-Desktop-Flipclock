@@ -1,4 +1,12 @@
-// Choices offered by the styling window and the tuxhub schema.
+// Choices offered by the settings window and the tuxhub schema.
+
+// Languages of the settings window and the right-click menu (dictionaries in src/i18n).
+export type UiLanguage = "en" | "de";
+
+export const UI_LANGUAGE_OPTIONS: { value: UiLanguage; label: string }[] = [
+    { value: "en", label: "English" },
+    { value: "de", label: "Deutsch" },
+];
 
 export const LOCALE_OPTIONS: { code: string; name: string }[] = [
     { code: "en", name: "English" },
@@ -41,7 +49,7 @@ export interface SliderConfig
     unit: string;
 }
 
-// Ranges of the whole-clock sliders, shared by the styling window and tuxhub.
+// Ranges of the whole-clock sliders, shared by the settings window and tuxhub.
 export const SLIDER_CONFIGS: Record<"SCALE" | "CORNER_RADIUS" | "PADDING" | "GAP" | "COLUMN_WIDTH" | "ROW_HEIGHT", SliderConfig> = {
     SCALE: { min: 30, max: 300, marks: [100, 200], unit: "%" },
     CORNER_RADIUS: { min: 0, max: 64, marks: [16, 32], unit: "px" },

@@ -31,6 +31,7 @@ type Setting = WritableAtom<unknown, [never], void>;
 
 // Schema key -> atom. The keys are the localStorage keys of the atoms.
 const SETTINGS: Record<string, Setting> = {
+    uiLanguage: ATOMS.UI_LANGUAGE,
     lang: ATOMS.LANGUAGE,
     hourCycle: ATOMS.HOUR_CYCLE,
     hourLeadingZero: ATOMS.HOUR_LEADING_ZERO,
@@ -48,7 +49,7 @@ const SETTINGS: Record<string, Setting> = {
 };
 
 // tuxhub live interface: answers the requests that src-tauri/src/tuxhub.rs forwards to the
-// clock window and reports changes of the settings, including those made in the styling window
+// clock window and reports changes of the settings, including those made in the settings window
 // (they arrive here through the localStorage sync of atomWithStorage).
 //
 // Without the Rust side (Windows, macOS) `tuxhub_ready` fails and the bridge stays idle.
@@ -177,7 +178,7 @@ export class TuxhubBridge
         switch (id)
         {
             case "open-styling":
-                await AppActions.openStyling();
+                await AppActions.openSettings();
                 return { result: true };
             case "quit":
                 // Like "Exit" in the context menu, after the answer is out.

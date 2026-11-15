@@ -1,6 +1,7 @@
 import { SegmentedControl, Select, Switch } from "@mantine/core";
 import { useAtom } from "jotai";
 import type { HourCycle } from "../../../blocks/BlockDefinition";
+import { useStrings } from "../../../i18n/useStrings";
 import { ATOMS } from "../../../settings/atoms";
 import { LOCALE_OPTIONS } from "../../../settings/options";
 import { SettingRow } from "../controls/SettingRow";
@@ -9,43 +10,44 @@ import { PageHeader } from "../layout/PageHeader";
 
 const LANGUAGE_DATA = LOCALE_OPTIONS.map((locale) => ({ value: locale.code, label: locale.name }));
 
-const HOUR_CYCLE_SEGMENTS = [
-    { value: "24", label: "24-hour" },
-    { value: "12", label: "12-hour" },
-];
-
 export function TimePage()
 {
     const [language, setLanguage] = useAtom(ATOMS.LANGUAGE);
     const [hourCycle, setHourCycle] = useAtom(ATOMS.HOUR_CYCLE);
     const [leadingZero, setLeadingZero] = useAtom(ATOMS.HOUR_LEADING_ZERO);
+    const strings = useStrings();
+    const text = strings.time;
+    const hourCycleSegments = [
+        { value: "24", label: text.hour24 },
+        { value: "12", label: text.hour12 },
+    ];
 
     return (
         <>
-            <PageHeader title="Time" intro="How every time and date block shows the time. A custom format is shown exactly as typed." />
+            <PageHeader title={text.title} intro={text.intro} />
 
-            <SettingsCard title="Clock">
-                <SettingRow label="Clock format" description="Flip time and time blocks. Time blocks add AM/PM in 12-hour mode.">
+            <SettingsCard title={text.clockCard}>
+                <SettingRow label={text.formatLabel} description={text.formatDescription}>
                     <SegmentedControl
-                        aria-label="Clock format"
+                        aria-label={text.formatLabel}
                         value={hourCycle}
                         onChange={(value) => setHourCycle(value as HourCycle)}
-                        data={HOUR_CYCLE_SEGMENTS}
+                        data={hourCycleSegments}
                     />
                 </SettingRow>
-                <SettingRow label="Leading zero for hours" description="09:30 instead of 9:30.">
+                <SettingRow label={text.leadingZeroLabel} description={text.leadingZeroDescription}>
                     <Switch
-                        aria-label="Leading zero for hours"
+                        aria-label={text.leadingZeroLabel}
                         checked={leadingZero}
                         onChange={(event) => setLeadingZero(event.currentTarget.checked)}
                     />
                 </SettingRow>
             </SettingsCard>
 
-            <SettingsCard title="Language">
-                <SettingRow label="Date language" description="Names of weekdays and months in time and date blocks.">
+            <SettingsCard title={text.languageCard}>
+                <SettingRow label={text.dateLanguageLabel} description={text.dateLanguageDescription}>
                     <Select
-                        aria-label="Date language"
+                        aria-label={text.dateLanguageLabel}
                         value={language}
                         onChange={(value) => value && setLanguage(value)}
                         data={LANGUAGE_DATA}
