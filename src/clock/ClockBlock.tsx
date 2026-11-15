@@ -1,7 +1,7 @@
 import { CSSProperties, useEffect, useMemo, useState } from "react";
 import { useSetAtom } from "jotai";
 import { blockDefinition } from "../blocks/BlockRegistry";
-import { BLOCK_DEFAULTS, type LayoutBlock, type PixelRect, type RowAlign } from "../layout/ClockLayout";
+import { BLOCK_DEFAULTS, isProgressBar, type LayoutBlock, type PixelRect, type RowAlign } from "../layout/ClockLayout";
 import { BlockContent } from "./BlockContent";
 import { BLOCK_HEIGHTS } from "./useLayoutGrid";
 import { useSegmentContext } from "./useSegmentContext";
@@ -61,11 +61,11 @@ export function ClockBlock({ block, rect, scale, rowAlign, language, style }: Cl
     const barThickness = block.barThickness ?? BLOCK_DEFAULTS.barThickness;
 
     // What the block needs at its width, in px at scale 1: its row is as high as the highest.
-    // A seconds bar needs its thickness, everything else its content fitted to the width at
+    // A progress bar needs its thickness, everything else its content fitted to the width at
     // its text size, so a smaller text size also makes the row lower.
     const contentWidth = (rect.width - 2 * padding) / scale;
     let contentHeight: number | null = null;
-    if (definition.kind === "secondsBar")
+    if (isProgressBar(block))
     {
         contentHeight = barThickness;
     }
@@ -107,13 +107,17 @@ export function ClockBlock({ block, rect, scale, rowAlign, language, style }: Cl
         "--flipcard-bg-color": block.cardColor ?? BLOCK_DEFAULTS.cardColor,
         "--flipcard-rounded": `${cardRadius / 100 * FLIP_CARD_WIDTH_EM}em`,
         "--letter-spacing": `${block.letterSpacing ?? 0}em`,
+        // Clock face colors; unset leaves each style's own (see faces.css).
+        ...(block.glowColor && { "--glow-color": block.glowColor }),
+        ...(block.dialColor && { "--dial-color": block.dialColor }),
+        ...(block.handColor && { "--hand-color": block.handColor }),
+        ...(block.secondHandColor && { "--second-hand-color": block.secondHandColor }),
         translate: `${(block.offsetX ?? 0) * scale}px ${(block.offsetY ?? 0) * scale}px`,
-        ...(definition.kind === "secondsBar" && {
-            "--bar-color": block.barColor ?? "var(--text-color)",
-            "--bar-track-color": block.barTrackColor ?? BLOCK_DEFAULTS.barTrackColor,
-            "--bar-thickness": `${barThickness * scale}px`,
-            "--bar-radius": `${(block.barRadius ?? BLOCK_DEFAULTS.barRadius) * scale}px`,
-        }),
+        // Progress colors (bar, ring, dots, also in groups) and the bar's size.
+        "--bar-color": block.barColor ?? "var(--text-color)",
+        "--bar-track-color": block.barTrackColor ?? BLOCK_DEFAULTS.barTrackColor,
+        "--bar-thickness": `${barThickness * scale}px`,
+        "--bar-radius": `${(block.barRadius ?? BLOCK_DEFAULTS.barRadius) * scale}px`,
         ...(block.background && {
             backgroundColor: block.backgroundColor ?? BLOCK_DEFAULTS.backgroundColor,
             borderRadius: (block.backgroundRadius ?? BLOCK_DEFAULTS.backgroundRadius) * scale,

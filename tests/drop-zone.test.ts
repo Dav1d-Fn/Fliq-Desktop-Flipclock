@@ -5,7 +5,7 @@ import { LayoutGrid, type ClockLayout, type LayoutBlock } from "../src/layout/Cl
 
 function block(id: number, x: number, w: number, extra: Partial<LayoutBlock> = {}): LayoutBlock
 {
-    return { id, kind: "time", x, y: 0, w, h: 1, display: "HH:mm", ...extra };
+    return { id, kind: "clock", x, y: 0, w, h: 1, display: "HH:mm", ...extra };
 }
 
 function positions(layout: ClockLayout | null): Record<number, [number, number]>
@@ -26,7 +26,7 @@ test("middle of the target groups, the edges slide in before or after", () =>
 
 test("zones that cannot happen give way", () =>
 {
-    const bar = block(1, 0, 2, { kind: "secondsBar" });
+    const bar = block(1, 0, 2, { clockStyle: "progress" });
     const tall = block(3, 0, 1, { h: 2 });
     assert.equal(LayoutGrid.dropZone(bar, block(2, 2, 1), 0.5), "after");
     assert.equal(LayoutGrid.dropZone(block(1, 0, 2), tall, 0.1), "group");
