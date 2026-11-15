@@ -3,7 +3,8 @@ import { useSetAtom } from "jotai";
 import { blockDefinition } from "../blocks/BlockRegistry";
 import { BLOCK_DEFAULTS, isProgressBar, type LayoutBlock, type PixelRect, type RowAlign } from "../layout/ClockLayout";
 import { BlockContent } from "./BlockContent";
-import { BLOCK_HEIGHTS, BLOCK_SIZE_LIMITS } from "./useLayoutGrid";
+import { useClockPreview } from "./ClockPreview";
+import { BLOCK_SIZE_LIMITS } from "./useLayoutGrid";
 import { useSegmentContext } from "./useSegmentContext";
 
 interface ClockBlockProps
@@ -51,7 +52,8 @@ export function ClockBlock({ block, rect, scale, rowAlign, heightFollows, langua
     const [heightPerWidth, setHeightPerWidth] = useState<number | null>(null);
     // Largest size share that still makes the content bigger, measured with heightPerWidth.
     const [maxShare, setMaxShare] = useState<number | null>(null);
-    const setBlockHeights = useSetAtom(BLOCK_HEIGHTS);
+    const preview = useClockPreview();
+    const setBlockHeights = useSetAtom(preview.blockHeights);
     const setSizeLimits = useSetAtom(BLOCK_SIZE_LIMITS);
 
     const padding = (block.paddingX ?? BLOCK_DEFAULTS.paddingX) * scale;
@@ -99,12 +101,13 @@ export function ClockBlock({ block, rect, scale, rowAlign, heightFollows, langua
     const sizeLimit = maxShare === null ? null : Math.floor(maxShare * 100);
     useEffect(() =>
     {
-        if (sizeLimit === null)
+        // A picture of a saved layout shares block ids with the edited one: it must not set its limits.
+        if (sizeLimit === null || preview.frozen)
         {
             return;
         }
         setSizeLimits((limits) => (limits[block.id] === sizeLimit ? limits : { ...limits, [block.id]: sizeLimit }));
-    }, [block.id, sizeLimit, setSizeLimits]);
+    }, [block.id, sizeLimit, setSizeLimits, preview.frozen]);
 
     // Unset color and font fall back to the clock defaults set on the container.
     const blockStyle = {
