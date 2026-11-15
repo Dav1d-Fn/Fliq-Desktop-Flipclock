@@ -2,7 +2,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { LayoutMigration } from "../src/layout/LayoutMigration.ts";
-import { LayoutGrid, type ClockLayout } from "../src/layout/ClockLayout.ts";
+import { CELL_HEIGHT, LayoutGrid, type ClockLayout, type LayoutBlock } from "../src/layout/ClockLayout.ts";
 import { blockDefinition } from "../src/blocks/BlockRegistry.ts";
 import { DEFAULT_SEGMENT_CONTEXT, timeFormat } from "../src/blocks/BlockDefinition.ts";
 
@@ -144,24 +144,44 @@ test("grid: gap defaults per axis, single gaps override them until reset", () =>
     assert.equal(new LayoutGrid({ ...layout, columnGap: 0 }).columnStart(2), 168);
 });
 
-test("grid: column widths and row heights follow their defaults until set apart", () =>
+test("grid: column widths follow their default until set apart, rows their highest block", () =>
 {
-    // Gaps 2 px. Columns 64, 100, 64; rows 40, 40.
-    const layout: ClockLayout = { columns: 3, rows: 2, rowHeight: 40, columnWidths: [null, 100], blocks: [] };
-    const grid = new LayoutGrid(layout);
+    // Gaps 2 px. Columns 64, 100, 64; rows 40, 40 (measured), an old stored row height is ignored.
+    const layout = { columns: 3, rows: 2, rowHeight: 99, columnWidths: [null, 100], blocks: [] } as ClockLayout;
+    const grid = new LayoutGrid(layout, [40, 40]);
     assert.equal(grid.columnStart(2), 64 + 2 + 100 + 2);
     assert.deepEqual(grid.pixelRect({ x: 1, y: 0, w: 2, h: 2 }, 1), { left: 66, top: 0, width: 166, height: 82 });
     assert.deepEqual(grid.size(1), { width: 232, height: 82 });
     // Resize snaps to the far edge of the wide column.
     assert.equal(grid.resizeTarget({ id: 1, kind: "text", x: 0, y: 0, w: 1, h: 1, display: "text" }, "right", 100, 0).w, 2);
 
-    const set = grid.withTrackSize({ axis: "row", index: 1 }, 80);
-    assert.deepEqual(set.rowHeights, [null, 80]);
-    assert.deepEqual(set.columnWidths, [null, 100]);
-    const reset = new LayoutGrid(set).withTrackSize({ axis: "column", index: 1 }, null);
+    const reset = grid.withColumnWidth(1, null);
+    assert.deepEqual(reset.columnWidths, [null, null, null]);
     assert.equal(new LayoutGrid(reset).columnEnd(2), 64 * 3 + 4);
     // A removed column drops its own width.
     assert.deepEqual(grid.resized(1, 2)?.columnWidths, [null]);
+});
+
+test("grid: a row is as high as its highest single-row block, empty rows keep the cell height", () =>
+{
+    const blocks: LayoutBlock[] = [
+        { id: 1, kind: "flip", x: 0, y: 0, w: 3, h: 1, display: "HH:mm" },
+        { id: 2, kind: "flip", x: 3, y: 0, w: 1, h: 1, display: "ss" },
+        { id: 3, kind: "secondsBar", x: 0, y: 1, w: 4, h: 1, display: "bar" },
+        { id: 4, kind: "text", x: 0, y: 2, w: 1, h: 2, display: "text" },
+    ];
+    const layout: ClockLayout = { columns: 4, rows: 4, blocks, rowAligns: [null, "bottom"] };
+    const heights = LayoutGrid.autoRowHeights(layout, { 1: 90, 2: 50, 3: 8, 4: 300 });
+    assert.deepEqual(heights, [90, 8, CELL_HEIGHT, CELL_HEIGHT]);
+
+    const grid = new LayoutGrid(layout, heights);
+    assert.equal(grid.rowAlign(0), "center");
+    assert.equal(grid.rowAlign(1), "bottom");
+    assert.deepEqual(grid.withRowAlign(0, "bottom").rowAligns, ["bottom", "bottom", null, null]);
+    // A seconds bar joins no group.
+    assert.equal(grid.groupable([1, 2]) !== null, true);
+    assert.equal(new LayoutGrid({ ...layout, blocks: [blocks[2], { ...blocks[3], y: 1, x: 4, h: 1 }], columns: 5 }).groupable([3, 4]), null);
+    assert.equal(grid.mergedInto(1, 3, false), null);
 });
 
 test("once: gap values of earlier built-in defaults follow the defaults again", () =>

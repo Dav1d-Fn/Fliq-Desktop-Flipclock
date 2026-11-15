@@ -50,11 +50,10 @@ export interface SliderConfig
 }
 
 // Ranges of the whole-clock sliders, shared by the settings window and tuxhub.
-export const SLIDER_CONFIGS: Record<"SCALE" | "CORNER_RADIUS" | "PADDING" | "GAP" | "COLUMN_WIDTH" | "ROW_HEIGHT", SliderConfig> = {
+export const SLIDER_CONFIGS: Record<"SCALE" | "CORNER_RADIUS" | "PADDING" | "GAP" | "COLUMN_WIDTH", SliderConfig> = {
     SCALE: { min: 30, max: 300, marks: [100, 200], unit: "%" },
     CORNER_RADIUS: { min: 0, max: 64, marks: [16, 32], unit: "px" },
     PADDING: { min: 0, max: 32, marks: [8, 16], unit: "px" },
     GAP: { min: 0, max: 48, marks: [2, 24], unit: "px" },
     COLUMN_WIDTH: { min: 24, max: 192, marks: [64, 128], unit: "px" },
-    ROW_HEIGHT: { min: 24, max: 192, marks: [56, 112], unit: "px" },
 };
