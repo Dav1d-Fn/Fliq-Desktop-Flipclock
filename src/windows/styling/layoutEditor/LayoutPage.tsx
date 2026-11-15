@@ -3,22 +3,19 @@ import { ActionIcon, SegmentedControl } from "@mantine/core";
 import { IconArrowBackUp, IconArrowForwardUp } from "@tabler/icons-react";
 import { useAtom } from "jotai";
 import { blockDefinition } from "../../../blocks/BlockRegistry";
-import { LayoutGrid, type BlockKind, type CellRect, type GapRef, type LayoutBlock, type TrackRef } from "../../../layout/ClockLayout";
+import { LayoutGrid, type BlockKind, type CellRect, type LayoutBlock, type TrackRef } from "../../../layout/ClockLayout";
 import { useStrings } from "../../../i18n/useStrings";
 import { ATOMS } from "../../../settings/atoms";
 import { AddBlockBar } from "./AddBlockBar";
 import { BlockInspector } from "./BlockInspector";
 import { ClockInspector } from "./ClockInspector";
-import { GapInspector } from "./GapInspector";
 import { LayoutCanvas } from "./LayoutCanvas";
 import { PreviewModeNote } from "./PreviewModeNote";
-import { RowInspector } from "./RowInspector";
 import { SelectionInspector } from "./SelectionInspector";
-import { TrackInspector } from "./TrackInspector";
 import { useEditorHistory } from "./useEditorHistory";
 
 type Mode = "edit" | "preview";
-// The second tab shows whatever is selected on the canvas: a block, a gap, a column or a row.
+// The second tab shows the blocks selected on the canvas. Columns and rows open a popover there.
 type InspectorTab = "clock" | "selection";
 
 const POP_DURATION = 480;
@@ -36,7 +33,6 @@ export function LayoutPage()
     const [tab, setTab] = useState<InspectorTab>("selection");
     // One block to edit, or several to group (shift/ctrl-click).
     const [selectedIds, setSelectedIds] = useState<number[]>(layout.blocks[0] ? [layout.blocks[0].id] : []);
-    const [selectedGap, setSelectedGap] = useState<GapRef | null>(null);
     const [selectedTrack, setSelectedTrack] = useState<TrackRef | null>(null);
     const [poppingId, setPoppingId] = useState<number | null>(null);
     const [removingIds, setRemovingIds] = useState<number[]>([]);
@@ -60,12 +56,10 @@ export function LayoutPage()
     const selectedBlocks = layout.blocks.filter((block) => selectedIds.includes(block.id));
     const selectedBlock = selectedBlocks.length === 1 ? selectedBlocks[0] : undefined;
     const multiple = selectedBlocks.length > 1;
-    // A gap can vanish when its column or row is removed.
-    const gapCount = selectedGap ? (selectedGap.axis === "column" ? layout.columns : layout.rows) - 1 : 0;
-    const activeGap = selectedGap && selectedGap.index < gapCount ? selectedGap : null;
+    // A column or row can vanish while its popover is open.
     const trackCount = selectedTrack ? (selectedTrack.axis === "column" ? layout.columns : layout.rows) : 0;
     const activeTrack = selectedTrack && selectedTrack.index < trackCount ? selectedTrack : null;
-    const hasSelection = selectedBlocks.length > 0 || activeGap !== null || activeTrack !== null;
+    const hasSelection = selectedBlocks.length > 0;
     const shownTab: InspectorTab = editing && tab === "selection" && hasSelection ? "selection" : "clock";
     let selectionLabel = text.selection;
     if (multiple)
@@ -75,14 +69,6 @@ export function LayoutPage()
     else if (selectedBlock)
     {
         selectionLabel = text.block;
-    }
-    else if (activeGap)
-    {
-        selectionLabel = activeGap.axis === "column" ? text.columnGap : text.rowGap;
-    }
-    else if (activeTrack)
-    {
-        selectionLabel = activeTrack.axis === "column" ? text.column(activeTrack.index + 1) : text.row(activeTrack.index + 1);
     }
 
     function updateBlock(blockId: number, patch: Partial<LayoutBlock>)
@@ -104,7 +90,6 @@ export function LayoutPage()
         {
             setSelectedIds(blockId === null ? [] : [blockId]);
         }
-        setSelectedGap(null);
         setSelectedTrack(null);
         setOpenMember(null);
         if (blockId !== null)
@@ -113,20 +98,10 @@ export function LayoutPage()
         }
     }
 
-    function selectGap(gap: GapRef)
+    function selectTrack(track: TrackRef | null)
     {
         setSelectedIds([]);
-        setSelectedGap(gap);
-        setSelectedTrack(null);
-        setTab("selection");
-    }
-
-    function selectTrack(track: TrackRef)
-    {
-        setSelectedIds([]);
-        setSelectedGap(null);
         setSelectedTrack(track);
-        setTab("selection");
     }
 
     function complain(message: string)
@@ -310,18 +285,17 @@ export function LayoutPage()
                     layout={layout}
                     editing={editing}
                     selectedIds={selectedBlocks.map((block) => block.id)}
-                    selectedGap={activeGap}
                     poppingId={poppingId}
                     removingIds={removingIds}
                     shaking={shaking}
                     toast={toast}
                     onSelect={select}
-                    onSelectGap={selectGap}
                     selectedTrack={activeTrack}
                     onSelectTrack={selectTrack}
                     onPlace={(blockId: number, rect: CellRect) => updateBlock(blockId, rect)}
                     onMerge={merge}
                     onInsert={setLayout}
+                    onChange={setLayout}
                     onMoveMember={moveMember}
                     onDetachMember={detachMember}
                     onOpenMember={openMemberSettings}
@@ -366,29 +340,6 @@ export function LayoutPage()
                         groupable={new LayoutGrid(layout).groupable(selectedBlocks.map((block) => block.id)) !== null}
                         onGroup={group}
                         onRemove={() => removeBlocks(selectedBlocks.map((block) => block.id))}
-                    />
-                )}
-                {shownTab === "selection" && activeGap && (
-                    <GapInspector
-                        gap={activeGap}
-                        value={new LayoutGrid(layout).gap(activeGap)}
-                        overridden={new LayoutGrid(layout).gapOverride(activeGap) !== null}
-                        onChange={(value) => setLayout((current) => new LayoutGrid(current).withGap(activeGap, value))}
-                    />
-                )}
-                {shownTab === "selection" && activeTrack?.axis === "column" && (
-                    <TrackInspector
-                        column={activeTrack.index}
-                        value={new LayoutGrid(layout).trackSize(activeTrack)}
-                        overridden={new LayoutGrid(layout).columnWidthOverride(activeTrack.index) !== null}
-                        onChange={(value) => setLayout((current) => new LayoutGrid(current).withColumnWidth(activeTrack.index, value))}
-                    />
-                )}
-                {shownTab === "selection" && activeTrack?.axis === "row" && (
-                    <RowInspector
-                        row={activeTrack.index}
-                        value={new LayoutGrid(layout).rowAlign(activeTrack.index)}
-                        onChange={(align) => setLayout((current) => new LayoutGrid(current).withRowAlign(activeTrack.index, align))}
                     />
                 )}
                 {editing && shownTab === "clock" && <ClockInspector />}

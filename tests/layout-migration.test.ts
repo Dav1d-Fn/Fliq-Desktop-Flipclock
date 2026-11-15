@@ -184,6 +184,30 @@ test("grid: a row is as high as its highest single-row block, empty rows keep th
     assert.equal(grid.mergedInto(1, 3, false), null);
 });
 
+test("grid: a row height override wins over its blocks, null goes back to automatic", () =>
+{
+    const blocks: LayoutBlock[] = [
+        { id: 1, kind: "flip", x: 0, y: 0, w: 2, h: 1, display: "HH:mm" },
+        { id: 2, kind: "text", x: 0, y: 1, w: 2, h: 1, display: "text" },
+    ];
+    // Stale values of older versions stay ignored.
+    const layout = { columns: 2, rows: 3, blocks, rowHeight: 99, rowHeights: [99, 99, 99] } as ClockLayout;
+    const measured = { 1: 90, 2: 30 };
+    assert.deepEqual(LayoutGrid.autoRowHeights(layout, measured), [90, 30, CELL_HEIGHT]);
+
+    // Lower than the block (its content scales down) and higher than an empty row.
+    const overridden = new LayoutGrid(layout).withRowHeight(0, 40);
+    const raised = new LayoutGrid(overridden).withRowHeight(2, 120);
+    assert.deepEqual(raised.rowHeightOverrides, [40, null, 120]);
+    assert.deepEqual(LayoutGrid.autoRowHeights(raised, measured), [40, 30, 120]);
+    assert.equal(new LayoutGrid(raised).rowHeightOverride(1), null);
+
+    const reset = new LayoutGrid(raised).withRowHeight(0, null);
+    assert.deepEqual(LayoutGrid.autoRowHeights(reset, measured), [90, 30, 120]);
+    // A removed row drops its own height.
+    assert.deepEqual(new LayoutGrid(raised).resized(2, 2)?.rowHeightOverrides, [40, null]);
+});
+
 test("once: gap values of earlier built-in defaults follow the defaults again", () =>
 {
     const store = storage({

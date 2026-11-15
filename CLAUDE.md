@@ -26,7 +26,9 @@ gtk-layer-shell, X11 fallback). macOS is not shipped. Meant to grow into a widge
     editing layer: cells, snap ghost, drag and resize handles), `AddBlockBar`, and the
     inspector (`ClockInspector` for the whole clock, `BlockInspector` built from the block
     registry, `ContentEditor` for what a block or group member shows, `SelectionInspector`
-    for several blocks shift/ctrl-clicked on the canvas). `pages/` the other pages,
+    for several blocks shift/ctrl-clicked on the canvas). Column and row bars (and the gaps after
+    them) open `TrackPopover` at the track: width or height (rows: auto unless
+    `rowHeightOverrides` is set), row alignment, gap after it. `pages/` the other pages,
     `controls/` and `layout/` shared pieces.
 - `src/layout/` — `ClockLayout` (block and grid shapes, `LayoutGrid`: fits, free spot, snap
   targets, grouping; pure and tested), `LayoutMigration` (one-time move from the old two
