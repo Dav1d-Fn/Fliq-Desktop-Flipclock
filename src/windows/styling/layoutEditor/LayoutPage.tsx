@@ -13,6 +13,7 @@ import { LayoutCanvas } from "./LayoutCanvas";
 import { PreviewModeNote } from "./PreviewModeNote";
 import { SelectionInspector } from "./SelectionInspector";
 import { useEditorHistory } from "./useEditorHistory";
+import { useInspectorWidth } from "./useInspectorWidth";
 
 type Mode = "edit" | "preview";
 // The second tab shows the blocks selected on the canvas. Columns and rows open a popover there.
@@ -42,6 +43,7 @@ export function LayoutPage()
     const [openMember, setOpenMember] = useState<number | null>(null);
     const timers = useRef<number[]>([]);
     const history = useEditorHistory();
+    const inspectorWidth = useInspectorWidth();
     const text = useStrings().layout;
 
     useEffect(() => () => timers.current.forEach((timer) => window.clearTimeout(timer)), []);
@@ -308,7 +310,17 @@ export function LayoutPage()
                 />
             </main>
 
-            <aside className="inspector" aria-label={text.inspectorAria}>
+            <div
+                className="inspector-divider"
+                role="separator"
+                aria-orientation="vertical"
+                aria-label={text.inspectorResize}
+                title={text.inspectorResize}
+                tabIndex={0}
+                {...inspectorWidth.dividerProps}
+            />
+
+            <aside ref={inspectorWidth.inspectorRef} className="inspector" style={inspectorWidth.style} aria-label={text.inspectorAria}>
                 {editing && (
                     <SegmentedControl
                         fullWidth
