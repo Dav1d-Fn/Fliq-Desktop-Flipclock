@@ -219,6 +219,11 @@ export const DE: Strings = {
         center: "Mitte",
         bottom: "Unten",
     },
+    iconStyle: {
+        label: "Icon-Stil",
+        colored: "Farbig",
+        flat: "Flach",
+    },
     secondsBar: {
         fillColor: "Füllfarbe",
         trackColor: "Spurfarbe",
