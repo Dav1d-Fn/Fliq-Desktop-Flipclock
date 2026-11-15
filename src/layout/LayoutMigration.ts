@@ -261,6 +261,7 @@ export class LayoutMigration
                 // Spaces between placeholders were only separators; the grid gap does that now.
                 return segment.value.trim() === "" ? null : { ...base, kind: "text", display: "text", text: segment.value };
             case "SPACE":
+            case "BREAK":
             case "SECONDSBAR":
                 return null;
         }

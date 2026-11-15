@@ -1,7 +1,7 @@
 import { CSSProperties, MouseEvent, PointerEvent, useEffect, useRef, useState } from "react";
 import { useAtomValue } from "jotai";
 import GridClock from "../../../clock/GridClock";
-import { useLayoutGrid } from "../../../clock/useLayoutGrid";
+import { BLOCK_HEIGHTS, useLayoutGrid } from "../../../clock/useLayoutGrid";
 import { LayoutGrid, type CellRect, type ClockLayout, type DropZone, type LayoutBlock, type PixelRect, type TrackRef } from "../../../layout/ClockLayout";
 import { useStrings } from "../../../i18n/useStrings";
 import { ATOMS } from "../../../settings/atoms";
@@ -36,7 +36,7 @@ interface MemberTarget
 }
 
 // A block the dragged one was dropped onto: join it (on which side of its members), or slide
-// in beside it, with the layout that gives (`inserted`).
+// in beside it or into a new row above or below it, with the layout that gives (`inserted`).
 interface DropTarget
 {
     block: LayoutBlock;
@@ -103,6 +103,7 @@ export function LayoutCanvas(props: LayoutCanvasProps)
     const [memberTarget, setMemberTarget] = useState<MemberTarget | null>(null);
     const [memberHighlight, setMemberHighlight] = useState<PixelRect | null>(null);
     const grid = useLayoutGrid(layout);
+    const blockHeights = useAtomValue(BLOCK_HEIGHTS);
     const gridSize = grid.size(1);
 
     // Largest scale up to 1 at which the whole clock fits the canvas.
@@ -204,14 +205,24 @@ export function LayoutCanvas(props: LayoutCanvasProps)
             const rect = grid.pixelRect(block, 1);
             if (block.id !== dragged.id && pointerX >= rect.left && pointerX < rect.left + rect.width && pointerY >= rect.top && pointerY < rect.top + rect.height)
             {
-                const share = (pointerX - rect.left) / rect.width;
-                const zone = LayoutGrid.dropZone(block, dragged, share);
+                const shareX = (pointerX - rect.left) / rect.width;
+                const shareY = (pointerY - rect.top) / rect.height;
+                let zone = LayoutGrid.dropZone(block, dragged, shareX, shareY, true);
+                let inserted = zone === "above" || zone === "below" ? grid.withBlockInNewRow(block.id, dragged.id, zone === "below") : null;
+                if ((zone === "above" || zone === "below") && !inserted)
+                {
+                    // No new row possible here: the other zones take its place.
+                    zone = LayoutGrid.dropZone(block, dragged, shareX, shareY, false);
+                }
                 if (zone === "group")
                 {
-                    return { block, zone, before: share < 0.5, inserted: null };
+                    return { block, zone, before: shareX < 0.5, inserted: null };
                 }
-                const inserted = zone && grid.withBlockInserted(block.id, dragged.id, zone === "before");
-                return inserted ? { block, zone: zone!, before: zone === "before", inserted } : null;
+                if (zone === "before" || zone === "after")
+                {
+                    inserted = grid.withBlockInserted(block.id, dragged.id, zone === "before");
+                }
+                return zone && inserted ? { block, zone, before: zone === "before", inserted } : null;
             }
         }
         return null;
@@ -219,8 +230,10 @@ export function LayoutCanvas(props: LayoutCanvasProps)
 
     const drop = dropTarget(drag);
     const merge = drop?.zone === "group" ? drop : null;
-    // While a block hovers near another's edge, the others already stand where they would go.
+    // While a block hovers near another's edge, the others already stand where they would go
+    // (and as wide, when the line had to shrink), drawn on the grid of that layout.
     const preview = drop?.inserted ? new Map(drop.inserted.blocks.map((block) => [block.id, block])) : null;
+    const previewGrid = drop?.inserted ? new LayoutGrid(drop.inserted, LayoutGrid.autoRowHeights(drop.inserted, blockHeights)) : grid;
 
     function target(block: LayoutBlock, current: Drag): CellRect
     {
@@ -235,7 +248,7 @@ export function LayoutCanvas(props: LayoutCanvasProps)
         const rect = grid.pixelRect(block, scale);
         if (!drag || !drag.moved || drag.blockId !== block.id)
         {
-            return preview ? grid.pixelRect(preview.get(block.id) ?? block, scale) : rect;
+            return preview ? previewGrid.pixelRect(preview.get(block.id) ?? block, scale) : rect;
         }
         if (drag.mode === "move")
         {
@@ -372,8 +385,8 @@ export function LayoutCanvas(props: LayoutCanvasProps)
         if (preview)
         {
             return (
-                <div className="snap-ghost" style={{ ...grid.pixelRect(preview.get(draggedBlock.id)!, scale), borderRadius: 10 * scale }}>
-                    <span>{strings.canvas.dropToSlideIn}</span>
+                <div className="snap-ghost" style={{ ...previewGrid.pixelRect(preview.get(draggedBlock.id)!, scale), borderRadius: 10 * scale }}>
+                    <span>{drop?.zone === "above" || drop?.zone === "below" ? strings.canvas.dropToNewRow : strings.canvas.dropToSlideIn}</span>
                 </div>
             );
         }

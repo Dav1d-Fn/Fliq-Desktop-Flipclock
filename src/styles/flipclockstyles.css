@@ -44,6 +44,15 @@
    margin-right: 0;
 }
 
+/* A stacked group: one line per member, each line a row of its own (see BlockContent). */
+.block-content.stacked {
+   flex-direction: column;
+}
+
+.block-content.stacked > * {
+   margin-right: 0;
+}
+
 /* Room between group members: exactly the group's item gap, the character before it already
    brings its own spacing. */
 .block-content > .segment-space {

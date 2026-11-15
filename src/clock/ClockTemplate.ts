@@ -1,8 +1,9 @@
 import dayjs from "dayjs";
 
-// SPACE: empty room between group members, value = width in em. SECONDSBAR: the seconds bar,
-// alone in its block. Neither is in the old templates.
-export type SegmentType = "TIME" | "FLIPTIME" | "TEXT" | "WEATHER" | "SPACE" | "SECONDSBAR";
+// SPACE: empty room between group members, value = width in em. BREAK: the same in a stacked
+// group, a new line with value = room above it in em. SECONDSBAR: the seconds bar, alone in its
+// block. None of them is in the old templates.
+export type SegmentType = "TIME" | "FLIPTIME" | "TEXT" | "WEATHER" | "SPACE" | "BREAK" | "SECONDSBAR";
 
 export interface Segment
 {
@@ -103,6 +104,7 @@ export class ClockTemplate
                     case "TEXT":
                         return segment.value;
                     case "SPACE":
+                    case "BREAK":
                         return " ";
                     case "SECONDSBAR":
                         return "";
