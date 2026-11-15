@@ -6,6 +6,7 @@ import { blockDefinition } from "../../../../blocks/BlockRegistry";
 import { ClockTemplate } from "../../../../clock/ClockTemplate";
 import { useSegmentContext } from "../../../../clock/useSegmentContext";
 import type { GroupItem, LayoutBlock } from "../../../../layout/ClockLayout";
+import { named, useStrings } from "../../../../i18n/useStrings";
 import { ATOMS } from "../../../../settings/atoms";
 import { WeatherFormatter } from "../../../../weather/WeatherFormatter";
 import { BLOCK_EDITORS, type BlockSettingsProps } from "../BlockEditors";
@@ -24,6 +25,8 @@ export function GroupMembers({ block, onChange, openMember, onOpenMember }: Bloc
     const sunDays = useAtomValue(ATOMS.SUN_DAYS);
     const weatherUnit = useAtomValue(ATOMS.WEATHER_UNIT);
     const segmentContext = useSegmentContext();
+    const strings = useStrings();
+    const text = strings.group;
     const weather = new WeatherFormatter(weatherReport, sunDays, weatherUnit, new Date());
 
     // Opened from the canvas menu: bring it into view.
@@ -67,11 +70,12 @@ export function GroupMembers({ block, onChange, openMember, onOpenMember }: Bloc
     }
 
     return (
-        <InspectorField label="Items">
+        <InspectorField label={text.items}>
             <div className="group-members" ref={listRef}>
                 {items.map((item, index) =>
                 {
                     const definition = blockDefinition(item.kind);
+                    const name = named(strings, definition.name);
                     const Icon = BLOCK_EDITORS[item.kind].icon;
                     const merged = { ...block, ...item };
                     const preview = new ClockTemplate(definition.segments(merged, segmentContext)).plainText((key) => weather.format(key));
@@ -85,16 +89,16 @@ export function GroupMembers({ block, onChange, openMember, onOpenMember }: Bloc
                                     onClick={() => setOpenIndex(open ? null : index)}
                                 >
                                     <Icon size={16} />
-                                    <span>{definition.name}</span>
+                                    <span>{name}</span>
                                     <span className="group-member-preview">{preview}</span>
                                 </UnstyledButton>
-                                <ActionIcon variant="subtle" size={26} aria-label={`Move ${definition.name} left`} disabled={index === 0} onClick={() => move(index, -1)}>
+                                <ActionIcon variant="subtle" size={26} aria-label={text.moveLeft(name)} disabled={index === 0} onClick={() => move(index, -1)}>
                                     <IconArrowUp size={15} />
                                 </ActionIcon>
-                                <ActionIcon variant="subtle" size={26} aria-label={`Move ${definition.name} right`} disabled={index === items.length - 1} onClick={() => move(index, 1)}>
+                                <ActionIcon variant="subtle" size={26} aria-label={text.moveRight(name)} disabled={index === items.length - 1} onClick={() => move(index, 1)}>
                                     <IconArrowDown size={15} />
                                 </ActionIcon>
-                                <ActionIcon variant="subtle" size={26} c="red.8" aria-label={`Remove ${definition.name} from group`} disabled={items.length === 1} onClick={() => remove(index)}>
+                                <ActionIcon variant="subtle" size={26} c="red.8" aria-label={text.remove(name)} disabled={items.length === 1} onClick={() => remove(index)}>
                                     <IconX size={15} />
                                 </ActionIcon>
                             </div>
@@ -107,7 +111,7 @@ export function GroupMembers({ block, onChange, openMember, onOpenMember }: Bloc
                     );
                 })}
             </div>
-            <p className="inspector-note">Click an item to change what it shows. To add one, select the group and a block next to it and group them.</p>
+            <p className="inspector-note">{text.itemsNote}</p>
         </InspectorField>
     );
 }

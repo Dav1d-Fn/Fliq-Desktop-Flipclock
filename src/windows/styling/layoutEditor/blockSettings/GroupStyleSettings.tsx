@@ -1,4 +1,5 @@
 import { BLOCK_DEFAULTS } from "../../../../layout/ClockLayout";
+import { useStrings } from "../../../../i18n/useStrings";
 import { SliderControl } from "../../controls/SliderControl";
 import type { BlockSettingsProps } from "../BlockEditors";
 import { InspectorField } from "../InspectorField";
@@ -8,13 +9,14 @@ import { FlipCardSettings } from "./FlipCardSettings";
 // settings when a member is flip time.
 export function GroupStyleSettings({ block, onChange }: BlockSettingsProps)
 {
+    const text = useStrings().group;
     const hasFlip = (block.items ?? []).some((item) => item.kind === "flip");
     return (
         <>
             {hasFlip && <FlipCardSettings block={block} onChange={onChange} />}
-            <InspectorField label="Space between items">
+            <InspectorField label={text.spaceBetweenItems}>
                 <SliderControl
-                    label="Space between items"
+                    label={text.spaceBetweenItems}
                     value={block.itemGap ?? BLOCK_DEFAULTS.itemGap}
                     onChange={(itemGap) => onChange({ itemGap })}
                     min={0}

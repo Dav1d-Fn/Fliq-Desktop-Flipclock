@@ -4,6 +4,7 @@ import { IconArrowBackUp, IconArrowForwardUp } from "@tabler/icons-react";
 import { useAtom } from "jotai";
 import { blockDefinition } from "../../../blocks/BlockRegistry";
 import { LayoutGrid, type BlockKind, type CellRect, type GapRef, type LayoutBlock, type TrackRef } from "../../../layout/ClockLayout";
+import { useStrings } from "../../../i18n/useStrings";
 import { ATOMS } from "../../../settings/atoms";
 import { AddBlockBar } from "./AddBlockBar";
 import { BlockInspector } from "./BlockInspector";
@@ -44,6 +45,7 @@ export function LayoutPage()
     const [openMember, setOpenMember] = useState<number | null>(null);
     const timers = useRef<number[]>([]);
     const history = useEditorHistory();
+    const text = useStrings().layout;
 
     useEffect(() => () => timers.current.forEach((timer) => window.clearTimeout(timer)), []);
 
@@ -64,22 +66,22 @@ export function LayoutPage()
     const activeTrack = selectedTrack && selectedTrack.index < trackCount ? selectedTrack : null;
     const hasSelection = selectedBlocks.length > 0 || activeGap !== null || activeTrack !== null;
     const shownTab: InspectorTab = editing && tab === "selection" && hasSelection ? "selection" : "clock";
-    let selectionLabel = "Selection";
+    let selectionLabel = text.selection;
     if (multiple)
     {
-        selectionLabel = `${selectedBlocks.length} blocks`;
+        selectionLabel = text.blocks(selectedBlocks.length);
     }
     else if (selectedBlock)
     {
-        selectionLabel = "Block";
+        selectionLabel = text.block;
     }
     else if (activeGap)
     {
-        selectionLabel = activeGap.axis === "column" ? "Column gap" : "Row gap";
+        selectionLabel = activeGap.axis === "column" ? text.columnGap : text.rowGap;
     }
     else if (activeTrack)
     {
-        selectionLabel = activeTrack.axis === "column" ? `Column ${activeTrack.index + 1}` : `Row ${activeTrack.index + 1}`;
+        selectionLabel = activeTrack.axis === "column" ? text.column(activeTrack.index + 1) : text.row(activeTrack.index + 1);
     }
 
     function updateBlock(blockId: number, patch: Partial<LayoutBlock>)
@@ -141,7 +143,7 @@ export function LayoutPage()
         const spot = grid.firstFreeSpot([definition.defaultSize, { w: 2, h: 1 }, { w: 1, h: 1 }]);
         if (!spot)
         {
-            complain("No space left. Add a column or row first.");
+            complain(text.noSpace);
             return;
         }
         const block: LayoutBlock = { id: grid.nextBlockId(), kind, ...definition.defaults, ...spot };
@@ -159,8 +161,8 @@ export function LayoutPage()
         if (!resized)
         {
             complain(columns < layout.columns
-                ? "No room for the blocks in the last column. Move or remove one first."
-                : "No room for the blocks in the last row. Move or remove one first.");
+                ? text.noRoomColumn
+                : text.noRoomRow);
             return;
         }
         setLayout(resized);
@@ -247,7 +249,7 @@ export function LayoutPage()
         const detached = new LayoutGrid(layout).withMemberDetached(groupId, index, [blockDefinition(item.kind).defaultSize, { w: 2, h: 1 }, { w: 1, h: 1 }]);
         if (!detached)
         {
-            complain("No space left. Add a column or row first.");
+            complain(text.noSpace);
             return;
         }
         setLayout(detached.layout);
@@ -268,7 +270,7 @@ export function LayoutPage()
         const ungrouped = grid.ungrouped(groupId);
         if (!ungrouped)
         {
-            complain("The group has more items than cells. Make it wider first.");
+            complain(text.groupTooBig);
             return;
         }
         const firstNewId = grid.nextBlockId();
@@ -281,23 +283,23 @@ export function LayoutPage()
             <main className="layout-main">
                 <div className="layout-header">
                     <div>
-                        <h1 className="page-title">Layout</h1>
-                        <p className="page-intro">Drag blocks to move them. Pull the green handles to resize. Click between two rows or columns to change the space, or the bar above a column or beside a row to size it. Drop a block onto another to group them, or shift-click blocks side by side.</p>
+                        <h1 className="page-title">{text.title}</h1>
+                        <p className="page-intro">{text.intro}</p>
                     </div>
                     <div className="layout-header-actions">
-                        <ActionIcon variant="default" size={34} aria-label="Undo" title="Undo (Ctrl+Z)" disabled={!history.canUndo} onClick={history.undo}>
+                        <ActionIcon variant="default" size={34} aria-label={text.undo} title={text.undoTitle} disabled={!history.canUndo} onClick={history.undo}>
                             <IconArrowBackUp size={18} />
                         </ActionIcon>
-                        <ActionIcon variant="default" size={34} aria-label="Redo" title="Redo (Ctrl+Shift+Z)" disabled={!history.canRedo} onClick={history.redo}>
+                        <ActionIcon variant="default" size={34} aria-label={text.redo} title={text.redoTitle} disabled={!history.canRedo} onClick={history.redo}>
                             <IconArrowForwardUp size={18} />
                         </ActionIcon>
                         <SegmentedControl
-                            aria-label="Mode"
+                            aria-label={text.mode}
                             value={mode}
                             onChange={(value) => setMode(value as Mode)}
                             data={[
-                                { value: "edit", label: "Edit" },
-                                { value: "preview", label: "Preview" },
+                                { value: "edit", label: text.edit },
+                                { value: "preview", label: text.preview },
                             ]}
                         />
                     </div>
@@ -330,7 +332,7 @@ export function LayoutPage()
                 />
             </main>
 
-            <aside className="inspector" aria-label="Block settings">
+            <aside className="inspector" aria-label={text.inspectorAria}>
                 {editing && (
                     <SegmentedControl
                         fullWidth
@@ -338,7 +340,7 @@ export function LayoutPage()
                         value={shownTab}
                         onChange={(value) => setTab(value as InspectorTab)}
                         data={[
-                            { value: "clock", label: "Whole clock" },
+                            { value: "clock", label: text.wholeClock },
                             { value: "selection", label: selectionLabel, disabled: !hasSelection },
                         ]}
                     />

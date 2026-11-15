@@ -28,7 +28,7 @@ export class AppActions
         await getCurrentWindow().setAlwaysOnTop(onTop);
     }
 
-    static async openStyling(): Promise<void>
+    static async openSettings(): Promise<void>
     {
         await invoke("open_stylingmenu_window");
     }

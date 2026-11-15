@@ -1,13 +1,8 @@
 import { useEffect, useState } from "react";
 import { Select } from "@mantine/core";
 import { invoke } from "@tauri-apps/api/core";
+import { useStrings } from "../../../i18n/useStrings";
 import { SettingRow } from "../controls/SettingRow";
-
-const OVERLAY_MODE_OPTIONS = [
-    { value: "auto", label: "Auto (recommended)" },
-    { value: "layer-shell", label: "Layer-Shell" },
-    { value: "x11", label: "X11 compatibility" },
-];
 
 // Linux only: how the clock stays on top. Hidden on Windows/macOS ("native"). The choice lives
 // in linux.json on the Rust side, not in localStorage, and applies after a restart.
@@ -15,6 +10,7 @@ export function OverlayModeRow()
 {
     const [platformMode, setPlatformMode] = useState("native");
     const [preference, setPreference] = useState("auto");
+    const strings = useStrings();
 
     useEffect(() =>
     {
@@ -31,6 +27,12 @@ export function OverlayModeRow()
     {
         return null;
     }
+
+    const overlayModeOptions = [
+        { value: "auto", label: strings.general.overlayAuto },
+        { value: "layer-shell", label: "Layer-Shell" },
+        { value: "x11", label: strings.general.overlayX11 },
+    ];
 
     function changePreference(value: string | null)
     {
@@ -51,14 +53,14 @@ export function OverlayModeRow()
 
     return (
         <SettingRow
-            label={<>Overlay mode <span className="platform-tag">Linux</span></>}
-            description="Layer-Shell stays above fullscreen windows but needs KDE, Sway or Hyprland. X11 works everywhere. Applies after a restart."
+            label={<>{strings.general.overlayLabel} <span className="platform-tag">Linux</span></>}
+            description={strings.general.overlayDescription}
         >
             <Select
-                aria-label="Overlay mode"
+                aria-label={strings.general.overlayLabel}
                 value={preference}
                 onChange={changePreference}
-                data={OVERLAY_MODE_OPTIONS}
+                data={overlayModeOptions}
                 allowDeselect={false}
                 w={200}
             />

@@ -1,4 +1,5 @@
 import { BLOCK_DEFAULTS } from "../../../../layout/ClockLayout";
+import { useStrings } from "../../../../i18n/useStrings";
 import { SliderControl } from "../../controls/SliderControl";
 import type { BlockSettingsProps } from "../BlockEditors";
 import { ColorSwatches } from "../ColorSwatches";
@@ -7,19 +8,21 @@ import { InspectorField } from "../InspectorField";
 
 export function FlipCardSettings({ block, onChange }: BlockSettingsProps)
 {
+    const text = useStrings().blockInspector;
+
     return (
         <>
-            <InspectorField label="Card color">
+            <InspectorField label={text.cardColor}>
                 <ColorSwatches
-                    label="Card color"
+                    label={text.cardColor}
                     value={block.cardColor ?? BLOCK_DEFAULTS.cardColor}
                     onChange={(cardColor) => onChange({ cardColor })}
                     swatches={CARD_SWATCHES}
                 />
             </InspectorField>
-            <InspectorField label="Card rounding">
+            <InspectorField label={text.cardRounding}>
                 <SliderControl
-                    label="Card rounding"
+                    label={text.cardRounding}
                     value={block.cardRadius ?? BLOCK_DEFAULTS.cardRadius}
                     onChange={(cardRadius) => onChange({ cardRadius })}
                     min={0}

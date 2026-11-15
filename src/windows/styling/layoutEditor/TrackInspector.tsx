@@ -2,6 +2,7 @@ import { Button } from "@mantine/core";
 import type { TrackRef } from "../../../layout/ClockLayout";
 import { SLIDER_CONFIGS } from "../../../settings/options";
 import { SliderControl } from "../controls/SliderControl";
+import { useStrings } from "../../../i18n/useStrings";
 import { InspectorField } from "./InspectorField";
 
 interface TrackInspectorProps
@@ -17,17 +18,18 @@ interface TrackInspectorProps
 export function TrackInspector({ track, value, overridden, onChange }: TrackInspectorProps)
 {
     const isColumn = track.axis === "column";
-    const label = isColumn ? `Width of column ${track.index + 1}` : `Height of row ${track.index + 1}`;
+    const text = useStrings().grid;
+    const label = text.trackSize(track.axis, track.index + 1);
 
     return (
         <div className="inspector-body">
-            <p className="inspector-intro">{label}. Blocks in this {track.axis} grow or shrink with it.</p>
+            <p className="inspector-intro">{label}. {text.trackIntro(track.axis)}</p>
 
-            <InspectorField label={isColumn ? "Width" : "Height"}>
+            <InspectorField label={isColumn ? text.width : text.height}>
                 <SliderControl label={label} value={value} onChange={onChange} {...(isColumn ? SLIDER_CONFIGS.COLUMN_WIDTH : SLIDER_CONFIGS.ROW_HEIGHT)} />
                 {overridden
-                    ? <Button variant="subtle" size="compact-xs" onClick={() => onChange(null)}>Reset to default</Button>
-                    : <p className="inspector-note">Follows the default under Whole clock.</p>}
+                    ? <Button variant="subtle" size="compact-xs" onClick={() => onChange(null)}>{text.resetToDefault}</Button>
+                    : <p className="inspector-note">{text.followsDefault}</p>}
             </InspectorField>
         </div>
     );

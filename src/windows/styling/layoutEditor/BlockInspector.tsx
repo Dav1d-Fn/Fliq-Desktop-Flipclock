@@ -3,6 +3,7 @@ import { IconAlignCenter, IconAlignLeft, IconAlignRight, IconStackPop, IconTrash
 import { useAtomValue } from "jotai";
 import { blockDefinition } from "../../../blocks/BlockRegistry";
 import { BLOCK_DEFAULTS, type BlockAlign, type CellRect, type ClockLayout, type LayoutBlock } from "../../../layout/ClockLayout";
+import { named, useStrings } from "../../../i18n/useStrings";
 import { ATOMS } from "../../../settings/atoms";
 import { FONT_OPTIONS } from "../../../settings/options";
 import { SliderControl } from "../controls/SliderControl";
@@ -28,12 +29,6 @@ interface BlockInspectorProps
 
 const CLOCK_DEFAULT_FONT = "clock-default";
 
-const ALIGN_DATA = [
-    { value: "left", label: <IconAlignLeft size={16} aria-label="Align left" /> },
-    { value: "center", label: <IconAlignCenter size={16} aria-label="Align center" /> },
-    { value: "right", label: <IconAlignRight size={16} aria-label="Align right" /> },
-];
-
 function fontLabel(font: string): string
 {
     return FONT_OPTIONS.find((option) => option.value === font)?.label ?? font;
@@ -47,6 +42,13 @@ export function BlockInspector({ layout, block, onChange, onRemove, onUngroup, o
     const editor = BLOCK_EDITORS[block.kind];
     const defaultFont = useAtomValue(ATOMS.TEXT_FONT);
     const defaultColor = useAtomValue(ATOMS.TEXT_COLOR);
+    const strings = useStrings();
+    const text = strings.blockInspector;
+    const alignData = [
+        { value: "left", label: <IconAlignLeft size={16} aria-label={text.alignLeft} /> },
+        { value: "center", label: <IconAlignCenter size={16} aria-label={text.alignCenter} /> },
+        { value: "right", label: <IconAlignRight size={16} aria-label={text.alignRight} /> },
+    ];
 
     const StyleSettings = editor.styleSettings;
     const MemberSettings = editor.memberSettings;
@@ -54,7 +56,7 @@ export function BlockInspector({ layout, block, onChange, onRemove, onUngroup, o
     return (
         <div className="inspector-body">
             <div className="inspector-heading">
-                <h2>{definition.name}</h2>
+                <h2>{named(strings, definition.name)}</h2>
                 <span>{block.w} × {block.h}</span>
             </div>
 
@@ -63,32 +65,32 @@ export function BlockInspector({ layout, block, onChange, onRemove, onUngroup, o
             <ContentEditor block={block} onChange={onChange} />
 
             {definition.alignable && (
-                <InspectorField label="Alignment">
+                <InspectorField label={text.alignment}>
                     <SegmentedControl
                         fullWidth
-                        data={ALIGN_DATA}
+                        data={alignData}
                         value={block.align ?? BLOCK_DEFAULTS.align}
                         onChange={(align) => onChange({ align: align as BlockAlign })}
                     />
                 </InspectorField>
             )}
 
-            <InspectorField label="Font" htmlFor="block-font">
+            <InspectorField label={text.font} htmlFor="block-font">
                 <Select
                     id="block-font"
                     value={block.font ?? CLOCK_DEFAULT_FONT}
                     onChange={(font) => onChange({ font: font === CLOCK_DEFAULT_FONT || !font ? undefined : font })}
                     data={[
-                        { value: CLOCK_DEFAULT_FONT, label: `Clock default (${fontLabel(defaultFont)})` },
+                        { value: CLOCK_DEFAULT_FONT, label: text.clockDefaultFont(fontLabel(defaultFont)) },
                         ...FONT_OPTIONS,
                     ]}
                     allowDeselect={false}
                 />
             </InspectorField>
 
-            <InspectorField label="Color">
+            <InspectorField label={text.color}>
                 <ColorSwatches
-                    label="Block color"
+                    label={text.blockColor}
                     value={block.color}
                     onChange={(color) => onChange({ color })}
                     swatches={TEXT_SWATCHES}
@@ -98,9 +100,9 @@ export function BlockInspector({ layout, block, onChange, onRemove, onUngroup, o
 
             {StyleSettings && <StyleSettings block={block} onChange={onChange} />}
 
-            <InspectorField label="Text size">
+            <InspectorField label={text.textSize}>
                 <SliderControl
-                    label="Text size"
+                    label={text.textSize}
                     value={block.textSize ?? 100}
                     onChange={(textSize) => onChange({ textSize })}
                     min={30}
@@ -108,12 +110,12 @@ export function BlockInspector({ layout, block, onChange, onRemove, onUngroup, o
                     marks={[]}
                     unit="%"
                 />
-                <p className="inspector-note">Letter spacing first uses free room. A block whose text already fills it shrinks the text instead; lower the text size to make room. Above 100 % the text grows past the block if needed.</p>
+                <p className="inspector-note">{text.textSizeNote}</p>
             </InspectorField>
 
-            <InspectorField label="Letter spacing">
+            <InspectorField label={text.letterSpacing}>
                 <SliderControl
-                    label="Letter spacing"
+                    label={text.letterSpacing}
                     value={block.letterSpacing ?? 0}
                     onChange={(letterSpacing) => onChange({ letterSpacing })}
                     min={-1}
@@ -124,9 +126,9 @@ export function BlockInspector({ layout, block, onChange, onRemove, onUngroup, o
                 />
             </InspectorField>
 
-            <InspectorField label="Background">
+            <InspectorField label={text.background}>
                 <Switch
-                    label="Own background"
+                    label={text.ownBackground}
                     checked={block.background ?? false}
                     onChange={(event) => onChange({ background: event.currentTarget.checked })}
                 />
@@ -134,18 +136,18 @@ export function BlockInspector({ layout, block, onChange, onRemove, onUngroup, o
 
             {block.background && (
                 <>
-                    <InspectorField label="Background color">
+                    <InspectorField label={text.backgroundColor}>
                         <ColorSwatches
-                            label="Block background color"
+                            label={text.blockBackgroundColor}
                             value={block.backgroundColor ?? BLOCK_DEFAULTS.backgroundColor}
                             onChange={(color) => color && onChange({ backgroundColor: color })}
                             swatches={BACKGROUND_SWATCHES}
                         />
                     </InspectorField>
 
-                    <InspectorField label="Background rounding">
+                    <InspectorField label={text.backgroundRounding}>
                         <SliderControl
-                            label="Block background rounding"
+                            label={text.blockBackgroundRounding}
                             value={block.backgroundRadius ?? BLOCK_DEFAULTS.backgroundRadius}
                             onChange={(backgroundRadius) => onChange({ backgroundRadius })}
                             min={0}
@@ -157,9 +159,9 @@ export function BlockInspector({ layout, block, onChange, onRemove, onUngroup, o
                 </>
             )}
 
-            <InspectorField label="Padding">
+            <InspectorField label={text.padding}>
                 <SliderControl
-                    label="Block padding"
+                    label={text.blockPadding}
                     value={block.padding ?? BLOCK_DEFAULTS.padding}
                     onChange={(padding) => onChange({ padding })}
                     min={0}
@@ -169,9 +171,9 @@ export function BlockInspector({ layout, block, onChange, onRemove, onUngroup, o
                 />
             </InspectorField>
 
-            <InspectorField label="Offset">
+            <InspectorField label={text.offset}>
                 <SliderControl
-                    label="Horizontal offset"
+                    label={text.horizontalOffset}
                     value={block.offsetX ?? 0}
                     onChange={(offsetX) => onChange({ offsetX })}
                     min={-64}
@@ -180,7 +182,7 @@ export function BlockInspector({ layout, block, onChange, onRemove, onUngroup, o
                     unit="px →"
                 />
                 <SliderControl
-                    label="Vertical offset"
+                    label={text.verticalOffset}
                     value={block.offsetY ?? 0}
                     onChange={(offsetY) => onChange({ offsetY })}
                     min={-64}
@@ -190,14 +192,14 @@ export function BlockInspector({ layout, block, onChange, onRemove, onUngroup, o
                 />
                 {(block.offsetX || block.offsetY) ? (
                     <Button variant="subtle" size="compact-xs" onClick={() => onChange({ offsetX: undefined, offsetY: undefined })}>
-                        Reset offset
+                        {text.resetOffset}
                     </Button>
                 ) : null}
             </InspectorField>
 
-            <InspectorField label="Size">
+            <InspectorField label={text.size}>
                 <SizePresets layout={layout} block={block} onPick={(rect: CellRect) => onChange(rect)} />
-                <p className="inspector-note">Or drag the handles for any size.</p>
+                <p className="inspector-note">{text.sizeNote}</p>
             </InspectorField>
 
             {block.kind === "group" && (
@@ -208,7 +210,7 @@ export function BlockInspector({ layout, block, onChange, onRemove, onUngroup, o
                     onClick={onUngroup}
                     fullWidth
                 >
-                    Ungroup
+                    {text.ungroup}
                 </Button>
             )}
 
@@ -220,7 +222,7 @@ export function BlockInspector({ layout, block, onChange, onRemove, onUngroup, o
                 onClick={onRemove}
                 fullWidth
             >
-                {block.kind === "group" ? "Remove group" : "Remove block"}
+                {block.kind === "group" ? text.removeGroup : text.removeBlock}
             </Button>
         </div>
     );

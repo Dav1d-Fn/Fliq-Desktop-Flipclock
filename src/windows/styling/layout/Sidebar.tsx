@@ -1,3 +1,4 @@
+import { useStrings } from "../../../i18n/useStrings";
 import { PAGE_GROUPS, SETTINGS_PAGES, type PageId } from "../SettingsPages";
 import { useAppVersion } from "../useAppVersion";
 import { FliqLogo } from "./FliqLogo";
@@ -12,20 +13,21 @@ interface SidebarProps
 export function Sidebar({ currentPage, onNavigate }: SidebarProps)
 {
     const version = useAppVersion();
+    const strings = useStrings();
 
     return (
-        <nav className="styling-sidebar" aria-label="Settings sections">
+        <nav className="styling-sidebar" aria-label={strings.sidebar.ariaLabel}>
             <div className="sidebar-brand">
                 <FliqLogo size={30} />
                 <div>
                     <div className="sidebar-brand-name">Fliq</div>
-                    <div className="sidebar-brand-sub">Settings</div>
+                    <div className="sidebar-brand-sub">{strings.sidebar.subtitle}</div>
                 </div>
             </div>
 
             {PAGE_GROUPS.map((group) => (
                 <div key={group}>
-                    <div className="nav-group">{group}</div>
+                    <div className="nav-group">{strings.sidebar.groups[group]}</div>
                     {SETTINGS_PAGES.filter((page) => page.group === group).map((page) => (
                         <button
                             key={page.id}
@@ -35,13 +37,13 @@ export function Sidebar({ currentPage, onNavigate }: SidebarProps)
                             onClick={() => onNavigate(page.id)}
                         >
                             <page.icon size={17} stroke={1.8} />
-                            {page.label}
+                            {strings.sidebar.pages[page.id]}
                         </button>
                     ))}
                 </div>
             ))}
 
-            {version && <div className="sidebar-version">Version {version}</div>}
+            {version && <div className="sidebar-version">{strings.sidebar.version(version)}</div>}
         </nav>
     );
 }
