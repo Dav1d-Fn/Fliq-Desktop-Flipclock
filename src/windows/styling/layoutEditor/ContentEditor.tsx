@@ -3,7 +3,7 @@ import { useAtomValue } from "jotai";
 import { blockDefinition } from "../../../blocks/BlockRegistry";
 import { ClockTemplate } from "../../../clock/ClockTemplate";
 import { useSegmentContext } from "../../../clock/useSegmentContext";
-import type { LayoutBlock } from "../../../layout/ClockLayout";
+import { CONTENT_LIMITS, type LayoutBlock } from "../../../layout/ClockLayout";
 import { ATOMS } from "../../../settings/atoms";
 import { WeatherFormatter } from "../../../weather/WeatherFormatter";
 import { BLOCK_EDITORS } from "./BlockEditors";
@@ -68,6 +68,7 @@ export function ContentEditor({ block, onChange }: ContentEditorProps)
                         value={block.customFormat ?? ""}
                         onChange={(event) => onChange({ customFormat: event.currentTarget.value })}
                         placeholder="HH:mm"
+                        maxLength={CONTENT_LIMITS.textLength}
                         spellCheck={false}
                         styles={{ input: { fontFamily: "var(--mantine-font-family-monospace)", fontSize: 13 } }}
                     />

@@ -119,6 +119,15 @@ export const GRID_LIMITS = {
     maxRows: 4,
 };
 
+// Limits of what a block shows. The editor's fields and grouping keep to them, and
+// LayoutValidator refuses anything beyond them from outside.
+export const CONTENT_LIMITS = {
+    // Characters of a text, a custom format or a display id.
+    textLength: 200,
+    // Members of one group.
+    groupMembers: 16,
+};
+
 export const BLOCK_DEFAULTS = {
     align: "center" as BlockAlign,
     cardColor: "#1f1f1fff",
@@ -274,7 +283,8 @@ export class LayoutGrid
         const first = blocks[0];
         const touching = blocks.every((block, index) =>
             block.y === first.y && block.h === first.h && (index === 0 || blocks[index - 1].x + blocks[index - 1].w === block.x));
-        return touching ? blocks : null;
+        const memberCount = blocks.reduce((count, block) => count + LayoutGrid.itemsOf(block).length, 0);
+        return touching && memberCount <= CONTENT_LIMITS.groupMembers ? blocks : null;
     }
 
     // The layout with these blocks merged into one group block over their cells. The members
@@ -322,6 +332,10 @@ export class LayoutGrid
         }
         const own = LayoutGrid.itemsOf(target);
         const added = LayoutGrid.itemsOf(dropped);
+        if (own.length + added.length > CONTENT_LIMITS.groupMembers)
+        {
+            return null;
+        }
         const group: LayoutBlock = {
             ...LayoutGrid.lookOf(target),
             id: target.id,

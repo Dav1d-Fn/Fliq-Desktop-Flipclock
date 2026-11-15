@@ -100,5 +100,7 @@ gtk-layer-shell, X11 fallback). macOS is not shipped. Meant to grow into a widge
 
 ## Checks
 
-- `npm run lint`, `npx tsc --noEmit`, `npm test`, `cd src-tauri && cargo test`
+- `npm run lint`, `npx tsc --noEmit`, `npm test`, `npm run build`, then `cd src-tauri && cargo test`
+  (the Rust build needs `dist/` and, on Linux, `dist-tuxhub/`: both come from `npm run build`;
+  `npm run tauri dev` builds `dist-tuxhub/` itself)
 - Look at the real clock after visual changes (`npx tauri build --no-bundle`, run the binary).

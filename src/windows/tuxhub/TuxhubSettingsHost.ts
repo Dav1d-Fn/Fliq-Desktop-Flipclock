@@ -9,12 +9,34 @@ export class TuxhubSettingsHost implements SettingsHost
     private readonly bridge: TuxhubPageBridge;
     private readonly appVersion: string;
     private overlay: OverlayState;
+    private readonly overlayListeners = new Set<(state: OverlayState) => void>();
 
     constructor(bridge: TuxhubPageBridge, appVersion: string, overlay: OverlayState)
     {
         this.bridge = bridge;
         this.appVersion = appVersion;
         this.overlay = overlay;
+        // The clock reports a new overlay mode with every change, also after a reset and from
+        // its own settings window.
+        bridge.on("settings-changed", (params) =>
+        {
+            const values = (params as { values?: Record<string, unknown> } | null)?.values;
+            const preference = values?.overlayMode;
+            if (typeof preference === "string" && preference !== this.overlay.preference)
+            {
+                this.overlay = { ...this.overlay, preference };
+                this.overlayListeners.forEach((listener) => listener(this.overlay));
+            }
+        });
+    }
+
+    onOverlayChange(listener: (state: OverlayState) => void): () => void
+    {
+        this.overlayListeners.add(listener);
+        return () =>
+        {
+            this.overlayListeners.delete(listener);
+        };
     }
 
     readonly openLink = (id: keyof typeof PROJECT_LINKS): void =>
@@ -42,6 +64,5 @@ export class TuxhubSettingsHost implements SettingsHost
     async resetAllSettings(): Promise<void>
     {
         await this.bridge.call("settings.reset");
-        this.overlay = { ...this.overlay, preference: "auto" };
     }
 }

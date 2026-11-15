@@ -19,6 +19,9 @@ export class RemoteSettingsBackend
     private readonly values = new Map<string, string>();
     // The last value of each key the clock is known to hold: what a refused write goes back to.
     private readonly confirmed = new Map<string, string | null>();
+    // Number of the write `confirmed` comes from, so a late answer to an older write never
+    // replaces a newer confirmed value.
+    private readonly confirmedAt = new Map<string, number>();
     // Number of the latest write per key that is still unanswered.
     private readonly inFlight = new Map<string, number>();
     private readonly listeners = new Map<string, Set<Listener>>();
@@ -59,9 +62,17 @@ export class RemoteSettingsBackend
         this.transport.set(key, JSON.parse(text)).then(
             (applied) =>
             {
+                const latest = this.finished(key, writeNumber);
+                if (writeNumber <= (this.confirmedAt.get(key) ?? 0))
+                {
+                    return;
+                }
                 const appliedText = JSON.stringify(applied);
                 this.confirmed.set(key, appliedText);
-                if (this.finished(key, writeNumber) && appliedText !== this.values.get(key))
+                this.confirmedAt.set(key, writeNumber);
+                // The latest write, or an older one with nothing newer on its way: the page shows
+                // what the clock now holds.
+                if ((latest || !this.inFlight.has(key)) && appliedText !== this.values.get(key))
                 {
                     this.replace(key, appliedText);
                 }

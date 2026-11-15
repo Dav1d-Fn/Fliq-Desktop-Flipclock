@@ -18,6 +18,9 @@ export interface SettingsHost
     version: () => Promise<string>;
     overlayState: () => Promise<OverlayState>;
     setOverlayMode: (mode: string) => Promise<void>;
+    // Calls `listener` whenever the overlay mode changes outside this page; returns the
+    // unsubscribe. Fliq's own window reloads instead, so it never calls.
+    onOverlayChange: (listener: (state: OverlayState) => void) => () => void;
     resetAllSettings: () => Promise<void>;
     // Opens one of Fliq's own pages in the browser. Null where a plain link does that.
     readonly openLink: ((id: keyof typeof PROJECT_LINKS) => void) | null;

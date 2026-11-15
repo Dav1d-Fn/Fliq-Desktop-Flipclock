@@ -144,3 +144,31 @@ test("removing a key (a reset) only forgets the local copy", () =>
     assert.equal(sent.length, 0);
     assert.deepEqual(seen, [null]);
 });
+
+test("a late answer to an older write does not replace a newer confirmed value", async () =>
+{
+    const { backend, sent } = backendWith({ clockScale: 75 });
+    backend.setItem("clockScale", "80");
+    backend.setItem("clockScale", "90");
+    sent[1].resolve(90);
+    await settled();
+    sent[0].resolve(80);
+    await settled();
+    backend.setItem("clockScale", "9000");
+    sent[2].reject(new Error("out of range"));
+    await settled();
+    assert.equal(backend.getItem("clockScale"), "90");
+});
+
+test("an older write answered after a newer one was refused shows what the clock holds", async () =>
+{
+    const { backend, sent } = backendWith({ clockScale: 75 });
+    backend.setItem("clockScale", "80");
+    backend.setItem("clockScale", "9000");
+    sent[1].reject(new Error("out of range"));
+    await settled();
+    assert.equal(backend.getItem("clockScale"), "75");
+    sent[0].resolve(80);
+    await settled();
+    assert.equal(backend.getItem("clockScale"), "80");
+});

@@ -24,6 +24,11 @@ export class NativeSettingsHost implements SettingsHost
         await invoke("set_overlay_mode", { mode });
     }
 
+    onOverlayChange(): () => void
+    {
+        return () => undefined;
+    }
+
     async resetAllSettings(): Promise<void>
     {
         await SettingsReset.resetAll();
