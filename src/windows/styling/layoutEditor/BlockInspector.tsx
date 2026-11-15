@@ -75,7 +75,7 @@ export function BlockInspector({ layout, block, onChange, onRemove, onUngroup, o
                 </InspectorField>
             )}
 
-            {!definition.textless && (
+            {!definition.textless?.(block) && (
                 <>
                     <InspectorField label={text.font} htmlFor="block-font">
                         <Select
@@ -105,7 +105,7 @@ export function BlockInspector({ layout, block, onChange, onRemove, onUngroup, o
 
             {StyleSettings && <StyleSettings block={block} onChange={onChange} />}
 
-            {!definition.textless && (
+            {!definition.textless?.(block) && (
                 <>
                     <InspectorField label={text.textSize}>
                         <SliderControl

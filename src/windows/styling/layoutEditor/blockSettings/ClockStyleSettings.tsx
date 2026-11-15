@@ -5,6 +5,7 @@ import { ColorSwatches } from "../ColorSwatches";
 import { DIAL_SWATCHES, GLOW_SWATCHES, HAND_SWATCHES } from "../EditorSwatches";
 import { InspectorField } from "../InspectorField";
 import { FlipCardSettings } from "./FlipCardSettings";
+import { SecondsBarSettings } from "./SecondsBarSettings";
 
 // Each style's own colors, shown on the "default" swatch. Same values as faces.css.
 const GLOW_DEFAULTS: Partial<Record<ClockStyle, string>> = { segment: "#ff3b30", dots: "#7fdcff", nixie: "#ffa64d", rings: "#ff5a4e" };
@@ -15,7 +16,7 @@ const ANALOG_DEFAULTS: Partial<Record<ClockStyle, { dial: string; hand: string; 
 };
 
 // Colors of the clock styles a block shows: card settings for flip, glow color for the lit
-// styles, dial and hand colors for analog. For a group, of every clock member's style.
+// styles, dial and hand colors for analog, fill and track (and bar size) for progress. For a group, of every clock member's style.
 export function ClockStyleSettings({ block, onChange }: BlockSettingsProps)
 {
     const text = useStrings().clockStyle;
@@ -29,6 +30,7 @@ export function ClockStyleSettings({ block, onChange }: BlockSettingsProps)
     return (
         <>
             {styles.includes("flip") && <FlipCardSettings block={block} onChange={onChange} />}
+            {styles.includes("progress") && <SecondsBarSettings block={block} onChange={onChange} />}
             {glowStyle && (
                 <InspectorField label={text.glowColor}>
                     <ColorSwatches

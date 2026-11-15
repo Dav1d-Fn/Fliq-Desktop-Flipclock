@@ -6,6 +6,7 @@ import { useAtomValue } from "jotai";
 import { ATOMS } from "../settings/atoms";
 import { ClockTemplate, type Segment } from "./ClockTemplate";
 import { ClockFace } from "./faces/ClockFace";
+import { progressShare } from "./ProgressShare";
 import { TimeCharacters } from "./TimeCharacters";
 import type { IconStyle } from "../layout/ClockLayout";
 import { withFlatIcons } from "../weather/FlatWeatherIcons";
@@ -23,7 +24,7 @@ interface BlockContentProps
     // Called when a time string changed its length; the block is then remounted.
     onLayoutChange: () => void;
     // Content height per px of content width at which it fills the block exactly; the row
-    // height comes from it (see ClockBlock). Not called for the seconds bar.
+    // height comes from it (see ClockBlock). Not called for the progress bar.
     onMeasure: (heightPerWidth: number) => void;
 }
 
@@ -62,7 +63,7 @@ export function BlockContent({ segments, justify, alignItems, sizeShare, iconSty
     // Tick.js and the once-per-second update.
     useEffect(() =>
     {
-        // A seconds bar block has no Tick.js content, only the bar.
+        // A progress bar block has no Tick.js content, only the bar.
         const root = contentRef.current;
         const tick = root ? Tick.DOM.create(root) : null;
         const renderedLayout = template.layoutSignature();
@@ -89,7 +90,7 @@ export function BlockContent({ segments, justify, alignItems, sizeShare, iconSty
                 template.collectValues(values);
                 tick.value = values;
             }
-            updateSecondsBar();
+            updateProgressBar();
 
             const minute = Math.floor(Date.now() / 60000);
             if (minute !== lastMinute)
@@ -98,17 +99,20 @@ export function BlockContent({ segments, justify, alignItems, sizeShare, iconSty
                 setCurrentMinute(new Date());
             }
         };
-        // Full after second 59, then back to one step at :00. Each step slides over the coming
-        // second (CSS transition); the jump back is drawn without one, never sliding backwards.
-        const updateSecondsBar = () =>
+        // Smooth: slides over the coming second (CSS transition) to where it is then; stepped:
+        // jumps without one. Full at the end of the unit, then back to one step: the jump back
+        // is drawn without a transition, never sliding backwards.
+        const progressBar = template.progressBar();
+        const updateProgressBar = () =>
         {
             const fill = barFillRef.current;
-            if (!fill)
+            if (!fill || !progressBar)
             {
                 return;
             }
-            const share = (new Date().getSeconds() + 1) / 60;
-            fill.style.transition = share < lastBarShare ? "none" : "";
+            const motion = progressBar.motion ?? "smooth";
+            const share = progressShare(new Date(), progressBar.unit ?? "minute", motion);
+            fill.style.transition = motion === "stepped" || share < lastBarShare ? "none" : "";
             fill.style.width = `${share * 100}%`;
             lastBarShare = share;
         };
@@ -214,7 +218,16 @@ export function BlockContent({ segments, justify, alignItems, sizeShare, iconSty
                     );
                 }
                 case "FACE":
-                    return <ClockFace key={`face-${segmentIndex}`} style={segment.face ?? "segment"} format={segment.value} member={segment.member} />;
+                    return (
+                        <ClockFace
+                            key={`face-${segmentIndex}`}
+                            style={segment.face ?? "segment"}
+                            format={segment.value}
+                            unit={segment.unit}
+                            motion={segment.motion}
+                            member={segment.member}
+                        />
+                    );
                 case "TEXT":
                     return (
                         <span className="normal-text-settings text-run" key={`text-${segmentIndex}`} data-member={segment.member} style={SEGMENT_STYLE}>
@@ -259,7 +272,7 @@ export function BlockContent({ segments, justify, alignItems, sizeShare, iconSty
         ));
     }
 
-    if (template.hasSecondsBar())
+    if (template.progressBar())
     {
         return (
             <div className="clock-block-fit" ref={areaRef} style={{ alignItems }}>

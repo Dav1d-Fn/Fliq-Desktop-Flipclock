@@ -1,5 +1,5 @@
 import { ClockTemplate, type Segment } from "../clock/ClockTemplate.ts";
-import { BLOCK_DEFAULTS, CELL_HEIGHT, GRID_LIMITS, LayoutGrid, type ClockLayout, type ClockStyle, type LayoutBlock } from "./ClockLayout.ts";
+import { BLOCK_DEFAULTS, CELL_HEIGHT, GRID_LIMITS, LayoutGrid, type ClockLayout, type LayoutBlock } from "./ClockLayout.ts";
 
 export interface KeyValueStorage
 {
@@ -25,11 +25,16 @@ const GAPS_CLEANED_MARKER = "gapOverridesCleaned";
 // Set once the 12-hour display options were turned into the global clock format.
 const HOUR_CYCLE_MARKER = "hourCycleMigrated";
 
-// Set once flip time and time blocks became clock blocks with a style.
+// Set once flip time, time and seconds bar blocks became clock blocks with a style.
 const CLOCK_KIND_MARKER = "clockKindMigrated";
 
-// Block kinds before the clock block, and the clock style each became.
-const OLD_CLOCK_KINDS: Record<string, ClockStyle> = { flip: "flip", time: "text" };
+// Block kinds before the clock block, and the clock fields each became. The seconds bar filled
+// over each minute, sliding over every second: progress, bar, minute, smooth.
+const OLD_CLOCK_KINDS: Record<string, Partial<LayoutBlock>> = {
+    flip: { clockStyle: "flip" },
+    time: { clockStyle: "text" },
+    secondsBar: { clockStyle: "progress", progressShape: "bar", progressUnit: "minute", progressMotion: "smooth" },
+};
 
 // Display ids of time blocks before Data › Time: 12-hour ones, and what they become.
 const TWELVE_HOUR_DISPLAYS = ["hh:mm", "h:mm A"];
@@ -101,8 +106,8 @@ export class LayoutMigration
         this.convertClockKinds();
     }
 
-    // One-time: "flip" and "time" blocks (and group members) became "clock" blocks with the
-    // style "flip" or "text". Everything else about them stays, so they look the same.
+    // One-time: "flip", "time" and "secondsBar" blocks (and group members) became "clock"
+    // blocks with a style. Everything else about them stays, so they look the same.
     private convertClockKinds(): void
     {
         if (this.storage.getItem(CLOCK_KIND_MARKER) !== null)
@@ -118,8 +123,8 @@ export class LayoutMigration
         const layout = JSON.parse(stored) as ClockLayout;
         const convert = <T extends { kind: string }>(content: T): T =>
         {
-            const style = OLD_CLOCK_KINDS[content.kind];
-            return style ? { ...content, kind: "clock", clockStyle: style } : content;
+            const fields = OLD_CLOCK_KINDS[content.kind];
+            return fields ? { ...content, kind: "clock", ...fields } : content;
         };
         const blocks = layout.blocks.map((block) => convert({ ...block, ...(block.items && { items: block.items.map(convert) }) }));
         this.storage.setItem(LAYOUT_KEYS.layout, JSON.stringify({ ...layout, blocks }));
@@ -295,7 +300,7 @@ export class LayoutMigration
                 return segment.value.trim() === "" ? null : { ...base, kind: "text", display: "text", text: segment.value };
             case "SPACE":
             case "BREAK":
-            case "SECONDSBAR":
+            case "PROGRESSBAR":
             case "FACE":
                 return null;
         }

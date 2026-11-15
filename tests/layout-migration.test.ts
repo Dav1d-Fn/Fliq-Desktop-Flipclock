@@ -5,6 +5,7 @@ import { LayoutMigration } from "../src/layout/LayoutMigration.ts";
 import { CELL_HEIGHT, LayoutGrid, type ClockLayout, type LayoutBlock } from "../src/layout/ClockLayout.ts";
 import { blockDefinition } from "../src/blocks/BlockRegistry.ts";
 import { DEFAULT_SEGMENT_CONTEXT, timeFormat } from "../src/blocks/BlockDefinition.ts";
+import { progressShare } from "../src/clock/ProgressShare.ts";
 
 function storage(values: Record<string, unknown>)
 {
@@ -167,7 +168,7 @@ test("grid: a row is as high as its highest single-row block, empty rows keep th
     const blocks: LayoutBlock[] = [
         { id: 1, kind: "clock", x: 0, y: 0, w: 3, h: 1, display: "HH:mm" },
         { id: 2, kind: "clock", x: 3, y: 0, w: 1, h: 1, display: "ss" },
-        { id: 3, kind: "secondsBar", x: 0, y: 1, w: 4, h: 1, display: "bar" },
+        { id: 3, kind: "clock", clockStyle: "progress", x: 0, y: 1, w: 4, h: 1, display: "bar" },
         { id: 4, kind: "text", x: 0, y: 2, w: 1, h: 2, display: "text" },
     ];
     const layout: ClockLayout = { columns: 4, rows: 4, blocks, rowAligns: [null, "bottom"] };
@@ -387,6 +388,32 @@ test("flip and time blocks become clock blocks that look the same, also in group
     store.items.set("clockLayout", JSON.stringify(before));
     new LayoutMigration(store).run();
     assert.equal(layoutOf(store).blocks[0].kind, "flip", "runs only once");
+});
+
+test("seconds bars become smooth minute progress bars that keep their look", () =>
+{
+    const bar = { id: 1, kind: "secondsBar", x: 0, y: 0, w: 4, h: 1, display: "bar", barColor: "#ff0000ff", barThickness: 6 };
+    const store = storage({ layoutMigrated: true, clockLayout: { columns: 4, rows: 1, blocks: [bar] } });
+    new LayoutMigration(store).run();
+    const [block] = layoutOf(store).blocks;
+    assert.deepEqual(
+        [block.kind, block.clockStyle, block.progressShape, block.progressUnit, block.progressMotion, block.barColor, block.barThickness],
+        ["clock", "progress", "bar", "minute", "smooth", "#ff0000ff", 6],
+    );
+    assert.deepEqual(blockDefinition(block.kind).segments(block, DEFAULT_SEGMENT_CONTEXT), [{ type: "PROGRESSBAR", value: "", unit: "minute", motion: "smooth" }]);
+});
+
+test("progress: smooth ends where the old seconds bar did, stepped counts the current step", () =>
+{
+    const at = (hours: number, minutes: number, seconds: number) => new Date(2026, 10, 15, hours, minutes, seconds);
+    // Old bar: (seconds + 1) / 60, full after second 59.
+    assert.equal(progressShare(at(9, 0, 0), "minute", "smooth"), 1 / 60);
+    assert.equal(progressShare(at(9, 0, 59), "minute", "smooth"), 1);
+    assert.equal(progressShare(at(9, 0, 59), "minute", "stepped"), 1);
+    assert.equal(progressShare(at(9, 30, 0), "hour", "smooth"), 1801 / 3600);
+    assert.equal(progressShare(at(9, 30, 59), "hour", "stepped"), 31 / 60);
+    assert.equal(progressShare(at(12, 0, 0), "day", "stepped"), 721 / 1440);
+    assert.equal(progressShare(at(23, 59, 59), "day", "smooth"), 1);
 });
 
 test("old rows become clock blocks with the flip or text style", () =>
