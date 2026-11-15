@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Button, ColorInput, Group, Modal, PasswordInput, Text, TextInput } from "@mantine/core";
+import { IconBrandApple, IconBrandGoogle, IconBrandOffice } from "@tabler/icons-react";
 import { useAtomValue } from "jotai";
 import { CalendarSync } from "../../../../calendar/CalendarSync";
 import type { CalendarSource } from "../../../../calendar/CalendarTypes";
@@ -12,6 +13,16 @@ import { calendarErrorText } from "./calendarTexts";
 
 // Colors offered for a new calendar, in turn.
 export const SOURCE_COLORS = ["#4f8cff", "#34c77b", "#ff9f43", "#ff5c7a", "#b38cff", "#2ec4c4", "#f5d547", "#a0a0a0"];
+
+// Where each service shows its secret calendar link. Opened in the browser; the hint says
+// where to click from there.
+const PROVIDERS = [
+    { id: "google", label: "Google", icon: IconBrandGoogle, url: "https://calendar.google.com/calendar/r/settings" },
+    { id: "outlook", label: "Outlook", icon: IconBrandOffice, url: "https://outlook.live.com/calendar/0/options/calendar/SharedCalendars" },
+    { id: "icloud", label: "iCloud", icon: IconBrandApple, url: "https://www.icloud.com/calendar/" },
+] as const;
+
+type ProviderId = (typeof PROVIDERS)[number]["id"];
 
 interface SourceEditorProps
 {
@@ -39,6 +50,7 @@ export function SourceEditor({ source, isNew, onSave, onClose }: SourceEditorPro
     const [name, setName] = useState(source.name);
     const [color, setColor] = useState(source.color);
     const [check, setCheck] = useState<CheckState>({ status: "idle" });
+    const [provider, setProvider] = useState<ProviderId | null>(null);
     const trimmedUrl = url.trim();
     const urlChanged = trimmedUrl !== source.url;
 
@@ -103,6 +115,25 @@ export function SourceEditor({ source, isNew, onSave, onClose }: SourceEditorPro
 
     return (
         <Modal opened onClose={onClose} title={isNew ? text.addTitle : text.editTitle} size="lg" centered>
+            <Text size="sm" fw={500}>{text.whereToFind}</Text>
+            <Group mt={6} gap={8}>
+                {PROVIDERS.map(({ id, label, icon: Icon, url: providerUrl }) => (
+                    <Button
+                        key={id}
+                        component="a"
+                        href={providerUrl}
+                        target="_blank"
+                        variant={provider === id ? "light" : "default"}
+                        size="xs"
+                        leftSection={<Icon size={15} />}
+                        onClick={() => setProvider(id)}
+                    >
+                        {label}
+                    </Button>
+                ))}
+            </Group>
+            <Text size="xs" c="dimmed" mt={6} mb={14}>{provider ? text.providerHints[provider] : text.providerIntro}</Text>
+
             <PasswordInput
                 label={text.urlLabel}
                 description={text.urlDescription}
