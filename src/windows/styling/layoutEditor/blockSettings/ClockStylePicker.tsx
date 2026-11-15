@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import dayjs from "dayjs";
 import { SegmentedControl, UnstyledButton } from "@mantine/core";
 import { useAtomValue } from "jotai";
@@ -16,10 +17,8 @@ const CLOCK_STYLES: ClockStyle[] = ["flip", "text", "segment", "dots", "nixie", 
 // block would make a huge clock: picking one narrows the block to this many columns.
 const ROUND_MAX_COLUMNS = 2;
 
-// Size of the previews, in px (the faces are sized in em): round faces fill the preview's
-// height, digits stay small enough for their width.
-const ROUND_PREVIEW_SIZE = 58;
-const DIGITS_PREVIEW_SIZE = 24;
+// The tiles stand in about two rows; a narrow inspector wraps them into more (layoutEditor.css).
+const PICKER_COLUMNS = Math.ceil(CLOCK_STYLES.length / 2);
 
 function isRound(style: ClockStyle): boolean
 {
@@ -80,7 +79,7 @@ export function ClockStylePicker({ block, onChange }: BlockSettingsProps)
 
     return (
         <InspectorField label={text.label} help={drawsSeconds ? text.secondsNote : undefined}>
-            <div className="clock-style-picker" role="radiogroup" aria-label={text.label}>
+            <div className="clock-style-picker" role="radiogroup" aria-label={text.label} style={{ "--style-columns": PICKER_COLUMNS } as CSSProperties}>
                 {CLOCK_STYLES.map((style) => (
                     <UnstyledButton
                         key={style}
@@ -90,8 +89,8 @@ export function ClockStylePicker({ block, onChange }: BlockSettingsProps)
                         aria-checked={style === current}
                         onClick={() => pick(style)}
                     >
-                        <span className="clock-style-preview" style={{ background, fontSize: isRound(style) ? ROUND_PREVIEW_SIZE : DIGITS_PREVIEW_SIZE }}>
-                            <StylePreview style={style} />
+                        <span className={isRound(style) ? "clock-style-preview round" : "clock-style-preview"} style={{ background }}>
+                            <span className="clock-style-preview-scale"><StylePreview style={style} /></span>
                         </span>
                         <span className="clock-style-name">{text.names[style]}</span>
                     </UnstyledButton>
