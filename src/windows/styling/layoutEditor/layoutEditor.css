@@ -747,3 +747,66 @@
   margin-bottom: 10px;
   font-weight: 600;
 }
+
+/* Clock style picker: live previews in a grid (ClockStylePicker). */
+.clock-style-picker {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.clock-style {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 4px 6px;
+  border-radius: 12px;
+  border: 1px solid var(--fliq-border-strong);
+}
+
+.clock-style.selected {
+  border-color: var(--mantine-primary-color-filled);
+  box-shadow: 0 0 0 1px var(--mantine-primary-color-filled);
+}
+
+.clock-style-preview {
+  width: 100%;
+  height: 52px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  color: #fafafa;
+}
+
+.clock-style-name {
+  font-size: 11px;
+  line-height: 1.2;
+  text-align: center;
+}
+
+.style-preview-flip {
+  display: flex;
+  gap: 2px;
+  font-size: 1.1em;
+  font-weight: 600;
+}
+
+.style-preview-flip b {
+  width: 0.72em;
+  border-radius: 0.14em;
+  background: #2a2e35;
+  text-align: center;
+  line-height: 1.3;
+}
+
+.style-preview-flip i {
+  width: 0.2em;
+}
+
+.style-preview-text {
+  font-size: 1.3em;
+  font-weight: 300;
+}

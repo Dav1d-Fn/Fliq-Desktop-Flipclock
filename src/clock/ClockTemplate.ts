@@ -1,9 +1,11 @@
 import dayjs from "dayjs";
+import type { ClockStyle } from "../layout/ClockLayout.ts";
 
 // SPACE: empty room between group members, value = width in em. BREAK: the same in a stacked
 // group, a new line with value = room above it in em. SECONDSBAR: the seconds bar, alone in its
-// block. None of them is in the old templates.
-export type SegmentType = "TIME" | "FLIPTIME" | "TEXT" | "WEATHER" | "SPACE" | "BREAK" | "SECONDSBAR";
+// block. FACE: a clock style drawn by ClockFace (`face`), value = Day.js time format. None of
+// them is in the old templates.
+export type SegmentType = "TIME" | "FLIPTIME" | "TEXT" | "WEATHER" | "SPACE" | "BREAK" | "SECONDSBAR" | "FACE";
 
 export interface Segment
 {
@@ -11,6 +13,8 @@ export interface Segment
     value: string;
     // In a group: index of the member it belongs to (data-member in the DOM, for the editor).
     member?: number;
+    // FACE only: which style draws it.
+    face?: ClockStyle;
 }
 
 const SUPPORTED_TYPES: SegmentType[] = ["TIME", "FLIPTIME", "TEXT", "WEATHER"];
@@ -55,9 +59,10 @@ export class ClockTemplate
         return `time${timeSegmentIndex}Character`;
     }
 
-    hasFlipTime(): boolean
+    // Flip cards and clock faces fill the block's height; text keeps room above and below.
+    fillsHeight(): boolean
     {
-        return this.segments.some((segment) => segment.type === "FLIPTIME");
+        return this.segments.some((segment) => segment.type === "FLIPTIME" || segment.type === "FACE");
     }
 
     hasSecondsBar(): boolean
@@ -98,6 +103,7 @@ export class ClockTemplate
                 {
                     case "FLIPTIME":
                     case "TIME":
+                    case "FACE":
                         return dayjs().format(segment.value);
                     case "WEATHER":
                         return formatWeather(segment.value);

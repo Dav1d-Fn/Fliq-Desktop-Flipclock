@@ -1,10 +1,14 @@
 // The clock as a grid of blocks, like widgets on a phone home screen. Stored as one JSON value
 // (ATOMS.CLOCK_LAYOUT); this file holds only the shapes and the grid rules, no rendering.
 
-export type BlockKind = "flip" | "time" | "date" | "weather" | "text" | "secondsBar" | "group";
+export type BlockKind = "clock" | "date" | "weather" | "text" | "secondsBar" | "group";
 
 // Kinds a group can hold: everything but another group.
 export type MemberKind = Exclude<BlockKind, "group">;
+
+// How a clock block draws the time. "flip" and "text" were their own block kinds before
+// (see LayoutMigration); the others are drawn by ClockFace.
+export type ClockStyle = "flip" | "text" | "segment" | "dots" | "nixie" | "analogMinimal" | "analogClassic" | "analogFine" | "rings";
 
 // One member of a group block: only what the member shows. How it looks comes from the group.
 export interface GroupItem
@@ -14,6 +18,7 @@ export interface GroupItem
     customFormat?: string;
     text?: string;
     weatherIcon?: boolean;
+    clockStyle?: ClockStyle;
 }
 
 export type BlockAlign = "left" | "center" | "right";
@@ -42,6 +47,8 @@ export interface LayoutBlock
     text?: string;
     // Weather blocks only: show the weather emoji.
     weatherIcon?: boolean;
+    // Clock blocks only: how the time is drawn ("flip" when unset).
+    clockStyle?: ClockStyle;
     // Group blocks only: the members in order, the space between them in em, and whether they
     // stand side by side ("row", also when unset) or stacked ("column").
     items?: GroupItem[];
@@ -53,7 +60,14 @@ export interface LayoutBlock
     iconStyle?: IconStyle;
     font?: string;
     color?: string;
-    // Flip time blocks only.
+    // Clock styles other than flip and text; unset means the style's own color.
+    // Lit segments, dots, tubes and rings:
+    glowColor?: string;
+    // Analog: dial, hour and minute hands (with marks and numerals), second hand.
+    dialColor?: string;
+    handColor?: string;
+    secondHandColor?: string;
+    // Flip clock style only.
     cardColor?: string;
     cardRadius?: number;
     padding?: number;
@@ -162,7 +176,7 @@ export const BLOCK_DEFAULTS = {
 };
 
 // Fields that say what a block shows. Everything else besides id and position is its look.
-const CONTENT_FIELDS = ["kind", "display", "customFormat", "text", "weatherIcon", "items", "itemGap", "direction"] as const;
+const CONTENT_FIELDS = ["kind", "display", "customFormat", "text", "weatherIcon", "clockStyle", "items", "itemGap", "direction"] as const;
 const PLACEMENT_FIELDS = ["id", "x", "y", "w", "h"] as const;
 
 // What a new installation starts with.
@@ -173,7 +187,7 @@ export const DEFAULT_LAYOUT: ClockLayout = {
     columnGap: 0,
     rowGap: 0,
     blocks: [
-        { id: 1, kind: "flip", x: 0, y: 0, w: 4, h: 1, display: "HH:mm", cardColor: "#212121ff", padding: 0, letterSpacing: -0.03, textSize: 99 },
+        { id: 1, kind: "clock", clockStyle: "flip", x: 0, y: 0, w: 4, h: 1, display: "HH:mm", cardColor: "#212121ff", padding: 0, letterSpacing: -0.03, textSize: 99 },
         {
             id: 2,
             kind: "group",
@@ -754,7 +768,7 @@ export class LayoutGrid
             return block.items ?? [];
         }
         const item: GroupItem = { kind: block.kind, display: block.display };
-        for (const field of ["customFormat", "text", "weatherIcon"] as const)
+        for (const field of ["customFormat", "text", "weatherIcon", "clockStyle"] as const)
         {
             if (block[field] !== undefined)
             {

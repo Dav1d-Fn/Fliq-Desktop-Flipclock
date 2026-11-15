@@ -5,7 +5,7 @@ import { LayoutGrid, type ClockLayout, type LayoutBlock } from "../src/layout/Cl
 
 function block(id: number, x: number, w: number, extra: Partial<LayoutBlock> = {}): LayoutBlock
 {
-    return { id, kind: "time", x, y: 0, w, h: 1, display: "HH:mm", ...extra };
+    return { id, kind: "clock", x, y: 0, w, h: 1, display: "HH:mm", ...extra };
 }
 
 function positions(layout: ClockLayout | null): Record<number, [number, number]>

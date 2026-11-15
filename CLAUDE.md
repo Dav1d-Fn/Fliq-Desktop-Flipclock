@@ -56,6 +56,9 @@ gtk-layer-shell, X11 fallback). macOS is not shipped. Meant to grow into a widge
 - `src/clock/` — `GridClock` (container + blocks; used by clock, ghost and editor), `ClockBlock`
   (one block's box and colors; remounts its content when its segments or the language change),
   `BlockContent` (own Tick.js root and timer per block, font size fitted to the block).
+  Clock blocks have a `clockStyle`: flip and text run on Tick.js, every other style (LCD, dot
+  matrix, nixie, analog, rings) is a `faces/ClockFace` (SVG/CSS sized in em, own once-a-second
+  timer, colors from CSS variables in `faces.css`).
   `TimeCharacters` renders the Tick.js spans once and never again — React must not touch nodes
   Tick.js owns. `ClockTemplate` holds a block's segments; `parse` reads the old
   `$FLIPTIME(...)` strings for the migration only.
