@@ -68,7 +68,7 @@ export const EN = {
     },
     layout: {
         title: "Layout",
-        intro: "Drag blocks to move them. Pull the green handles to resize. Click between two rows or columns to change the space, the bar above a column to size it, or the bar beside a row to align its blocks. Drop a block onto another to group them, or shift-click blocks side by side.",
+        intro: "Drag blocks to move them. Pull the green handles to resize. Click the bar above a column or beside a row (or the space after it) for its size, alignment and spacing. Drop a block onto another to group them, or shift-click blocks side by side.",
         undo: "Undo",
         undoTitle: "Undo (Ctrl+Z)",
         redo: "Redo",
@@ -81,8 +81,6 @@ export const EN = {
         selection: "Selection",
         block: "Block",
         blocks: (count: number) => `${count} blocks`,
-        columnGap: "Column gap",
-        rowGap: "Row gap",
         column: (number: number) => `Column ${number}`,
         row: (number: number) => `Row ${number}`,
         noSpace: "No space left. Add a column or row first.",
@@ -119,13 +117,13 @@ export const EN = {
         trackSize: (axis: "column" | "row", number: number) => axis === "column"
             ? `Width of column ${number}`
             : `Row ${number}`,
-        gapIntro: "Blocks spanning this gap grow or shrink with it.",
-        trackIntro: "Blocks in this column grow or shrink with it.",
-        distance: "Distance",
+        spaceAfter: (axis: "column" | "row"): string => (axis === "column" ? "Space to the next column" : "Space to the next row"),
         width: "Width",
         height: "Height",
         resetToDefault: "Reset to default",
         followsDefault: "Follows the default under Whole clock.",
+        automatic: "Automatic",
+        automaticNote: "Automatic: as high as its highest block.",
     },
     clockInspector: {
         intro: "The clock window itself, plus defaults every block inherits.",
@@ -134,7 +132,7 @@ export const EN = {
         cornerRounding: "Corner rounding",
         padding: "Padding",
         columnWidth: "Column width",
-        rowHeightNote: "Click the bar above a column to size it apart. Rows are as high as their highest block; click the bar beside a row to align its blocks.",
+        rowHeightNote: "Click the bar above a column to size it apart. Rows are as high as their highest block unless you set a height with the bar beside them.",
         columnSpace: "Space between columns",
         rowSpace: "Space between rows",
         gapNote: "Click a single gap on the clock to set it apart.",
@@ -215,7 +213,6 @@ export const EN = {
     // Texts that live in the block definitions and swatch lists (in English there), by their
     // English text. A text missing here stays English, so a new block kind works untranslated.
     row: {
-        intro: (number: number) => `Row ${number} is as high as its highest block.`,
         alignLabel: "Lower blocks sit at",
         alignNote: "Bottom lines small seconds cards up with the bottom edge of the big ones.",
         top: "Top",

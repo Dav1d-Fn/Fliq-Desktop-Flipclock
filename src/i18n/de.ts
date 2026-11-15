@@ -69,7 +69,7 @@ export const DE: Strings = {
     },
     layout: {
         title: "Layout",
-        intro: "Blöcke ziehen, um sie zu verschieben. An den grünen Griffen ziehen, um die Größe zu ändern. Zwischen zwei Zeilen oder Spalten klicken, um den Abstand zu ändern, auf den Balken über einer Spalte, um ihre Breite zu ändern, oder auf den Balken neben einer Zeile, um ihre Blöcke auszurichten. Einen Block auf einen anderen ziehen, um sie zu gruppieren, oder nebeneinanderliegende Blöcke mit Umschalt anklicken.",
+        intro: "Blöcke ziehen, um sie zu verschieben. An den grünen Griffen ziehen, um die Größe zu ändern. Auf den Balken über einer Spalte oder neben einer Zeile (oder den Abstand danach) klicken für Größe, Ausrichtung und Abstand. Einen Block auf einen anderen ziehen, um sie zu gruppieren, oder nebeneinanderliegende Blöcke mit Umschalt anklicken.",
         undo: "Rückgängig",
         undoTitle: "Rückgängig (Strg+Z)",
         redo: "Wiederholen",
@@ -82,8 +82,6 @@ export const DE: Strings = {
         selection: "Auswahl",
         block: "Block",
         blocks: (count: number) => `${count} Blöcke`,
-        columnGap: "Spaltenabstand",
-        rowGap: "Zeilenabstand",
         column: (number: number) => `Spalte ${number}`,
         row: (number: number) => `Zeile ${number}`,
         noSpace: "Kein Platz mehr. Erst eine Spalte oder Zeile hinzufügen.",
@@ -119,13 +117,13 @@ export const DE: Strings = {
         trackSize: (axis: "column" | "row", number: number) => axis === "column"
             ? `Breite von Spalte ${number}`
             : `Zeile ${number}`,
-        gapIntro: "Blöcke über diesem Abstand wachsen oder schrumpfen mit.",
-        trackIntro: "Blöcke in dieser Spalte wachsen oder schrumpfen mit.",
-        distance: "Abstand",
+        spaceAfter: (axis: "column" | "row") => (axis === "column" ? "Abstand zur nächsten Spalte" : "Abstand zur nächsten Zeile"),
         width: "Breite",
         height: "Höhe",
         resetToDefault: "Auf Standard zurücksetzen",
         followsDefault: "Folgt dem Standard unter Ganze Uhr.",
+        automatic: "Automatisch",
+        automaticNote: "Automatisch: so hoch wie ihr höchster Block.",
     },
     clockInspector: {
         intro: "Das Uhrfenster selbst und die Standards, die jeder Block übernimmt.",
@@ -134,7 +132,7 @@ export const DE: Strings = {
         cornerRounding: "Eckenrundung",
         padding: "Innenabstand",
         columnWidth: "Spaltenbreite",
-        rowHeightNote: "Auf den Balken über einer Spalte klicken, um sie einzeln einzustellen. Zeilen sind so hoch wie ihr höchster Block; der Balken neben einer Zeile richtet ihre Blöcke aus.",
+        rowHeightNote: "Auf den Balken über einer Spalte klicken, um sie einzeln einzustellen. Zeilen sind so hoch wie ihr höchster Block, außer ihr Balken daneben legt eine Höhe fest.",
         columnSpace: "Abstand zwischen Spalten",
         rowSpace: "Abstand zwischen Zeilen",
         gapNote: "Einen einzelnen Abstand auf der Uhr anklicken, um ihn einzeln einzustellen.",
@@ -213,7 +211,6 @@ export const DE: Strings = {
         remove: (count: number) => `${count} Blöcke entfernen`,
     },
     row: {
-        intro: (number: number) => `Zeile ${number} ist so hoch wie ihr höchster Block.`,
         alignLabel: "Niedrigere Blöcke sitzen",
         alignNote: "Unten setzt kleine Sekundenkarten bündig an die Unterkante der großen.",
         top: "Oben",

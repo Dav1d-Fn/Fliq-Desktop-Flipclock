@@ -2,10 +2,11 @@ import { CSSProperties, MouseEvent, PointerEvent, useEffect, useRef, useState } 
 import { useAtomValue } from "jotai";
 import GridClock from "../../../clock/GridClock";
 import { useLayoutGrid } from "../../../clock/useLayoutGrid";
-import { LayoutGrid, type CellRect, type ClockLayout, type DropZone, type GapRef, type LayoutBlock, type PixelRect, type TrackRef } from "../../../layout/ClockLayout";
+import { LayoutGrid, type CellRect, type ClockLayout, type DropZone, type LayoutBlock, type PixelRect, type TrackRef } from "../../../layout/ClockLayout";
 import { useStrings } from "../../../i18n/useStrings";
 import { ATOMS } from "../../../settings/atoms";
 import { MemberMenu } from "./MemberMenu";
+import { TrackPopover } from "./TrackPopover";
 
 type DragMode = "move" | "right" | "bottom" | "corner";
 
@@ -50,7 +51,7 @@ interface LayoutCanvasProps
     editing: boolean;
     // Several with shift/ctrl-click, to group them.
     selectedIds: number[];
-    selectedGap: GapRef | null;
+    // The column or row whose popover is open.
     selectedTrack: TrackRef | null;
     poppingId: number | null;
     removingIds: number[];
@@ -58,13 +59,15 @@ interface LayoutCanvasProps
     toast: string | null;
     // `additive`: shift/ctrl-click, adds the block to the selection or takes it out.
     onSelect: (blockId: number | null, additive?: boolean) => void;
-    onSelectGap: (gap: GapRef) => void;
-    onSelectTrack: (track: TrackRef) => void;
+    // A column or row bar (or the gap after it) clicked; null closes its popover.
+    onSelectTrack: (track: TrackRef | null) => void;
     onPlace: (blockId: number, rect: CellRect) => void;
     // A block dropped onto another: they become a group, or it joins the target group.
     onMerge: (targetId: number, droppedId: number, before: boolean) => void;
     // A block dropped near another's edge: it slides in there, the line makes room.
     onInsert: (layout: ClockLayout) => void;
+    // Settings changed in a column or row popover.
+    onChange: (update: (current: ClockLayout) => ClockLayout) => void;
     // Group member menu (right-click on a member).
     onMoveMember: (groupId: number, index: number, step: number) => void;
     onDetachMember: (groupId: number, index: number) => void;
@@ -91,7 +94,7 @@ const TRACK_BAR_INSET = 7;
 // snap ghost, one hit box per block with its resize handles).
 export function LayoutCanvas(props: LayoutCanvasProps)
 {
-    const { layout, editing, selectedIds, selectedGap, selectedTrack, poppingId, removingIds, shaking, toast, onSelect, onSelectGap, onSelectTrack, onPlace, onMerge, onInsert, onMoveMember, onDetachMember, onOpenMember } = props;
+    const { layout, editing, selectedIds, selectedTrack, poppingId, removingIds, shaking, toast, onSelect, onSelectTrack, onPlace, onMerge, onInsert, onChange, onMoveMember, onDetachMember, onOpenMember } = props;
     const padding = useAtomValue(ATOMS.CLOCK_PADDING);
     const strings = useStrings();
     const stageRef = useRef<HTMLDivElement>(null);
@@ -412,7 +415,8 @@ export function LayoutCanvas(props: LayoutCanvasProps)
         return cells;
     }
 
-    // One target per boundary between two columns or rows, centred on the gap.
+    // One target per boundary between two columns or rows, centred on the gap. It opens the
+    // popover of the column or row before it, which holds the gap's setting.
     function renderGapTargets()
     {
         const targets = [];
@@ -432,7 +436,7 @@ export function LayoutCanvas(props: LayoutCanvasProps)
                 const style: CSSProperties = axis === "column"
                     ? { left: across, top: -GAP_OVERHANG, width: hit, height: full.height + 2 * GAP_OVERHANG }
                     : { top: across, left: -GAP_OVERHANG, height: hit, width: full.width + 2 * GAP_OVERHANG };
-                const selected = selectedGap?.axis === axis && selectedGap.index === index;
+                const selected = isOpen(ref);
                 targets.push(
                     <button
                         key={`${axis}-${index}`}
@@ -442,7 +446,7 @@ export function LayoutCanvas(props: LayoutCanvasProps)
                         className={`gap-target ${axis}${selected ? " selected" : ""}`}
                         style={{ ...style, "--gap-size": `${Math.max(gap, 2)}px` } as CSSProperties}
                         onPointerDown={(event) => event.stopPropagation()}
-                        onClick={() => onSelectGap(ref)}
+                        onClick={() => onSelectTrack(selected ? null : ref)}
                     />,
                 );
             }
@@ -450,7 +454,12 @@ export function LayoutCanvas(props: LayoutCanvasProps)
         return targets;
     }
 
-    // One bar per column above the grid and per row left of it: click for its settings.
+    function isOpen(track: TrackRef): boolean
+    {
+        return selectedTrack?.axis === track.axis && selectedTrack.index === track.index;
+    }
+
+    // One bar per column above the grid and per row left of it: click for its settings popover.
     function renderTrackBars()
     {
         const bars = [];
@@ -465,20 +474,30 @@ export function LayoutCanvas(props: LayoutCanvasProps)
                 const style: CSSProperties = axis === "column"
                     ? { left: start, top: outside, width: length, height: TRACK_BAR_SIZE }
                     : { top: start, left: outside, height: length, width: TRACK_BAR_SIZE };
-                const selected = selectedTrack?.axis === axis && selectedTrack.index === index;
+                const track = { axis, index };
+                const selected = isOpen(track);
                 const name = strings.grid.trackSize(axis, index + 1);
                 bars.push(
-                    <button
+                    <TrackPopover
                         key={`${axis}-${index}`}
-                        type="button"
-                        aria-label={name}
-                        title={name}
-                        aria-pressed={selected}
-                        className={`track-bar ${axis}${selected ? " selected" : ""}`}
-                        style={style}
-                        onPointerDown={(event) => event.stopPropagation()}
-                        onClick={() => onSelectTrack({ axis, index })}
-                    />,
+                        track={track}
+                        opened={selected}
+                        layout={layout}
+                        grid={grid}
+                        onClose={() => onSelectTrack(null)}
+                        onChange={onChange}
+                    >
+                        <button
+                            type="button"
+                            aria-label={name}
+                            title={name}
+                            aria-pressed={selected}
+                            className={`track-bar ${axis}${selected ? " selected" : ""}`}
+                            style={style}
+                            onPointerDown={(event) => event.stopPropagation()}
+                            onClick={() => onSelectTrack(selected ? null : track)}
+                        />
+                    </TrackPopover>,
                 );
             }
         }

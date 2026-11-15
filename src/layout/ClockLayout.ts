@@ -86,8 +86,10 @@ export interface ClockLayout
     columnWidth?: number;
     // Width of column i, overriding the default. null or missing: the default.
     columnWidths?: (number | null)[];
-    // Rows have no stored height: each is as high as its highest block (autoRowHeights).
-    // Older versions stored rowHeight / rowHeights; those values are ignored.
+    // Rows are as high as their highest block (autoRowHeights) unless set here: height of row
+    // i in px at scale 1, null or missing for automatic. Older versions stored rowHeight /
+    // rowHeights; those values are stale and ignored, hence the new name.
+    rowHeightOverrides?: (number | null)[];
     // Where lower blocks sit in row i. null or missing: center.
     rowAligns?: (RowAlign | null)[];
 }
@@ -200,19 +202,37 @@ export class LayoutGrid
         this.rowHeights = rowHeights;
     }
 
-    // Height of every row: the natural height of its highest single-row block (px at scale 1,
-    // keyed by block id; measured by the clock). Rows without a measured one get CELL_HEIGHT.
+    // Height of every row: its override if set, else the natural height of its highest
+    // single-row block (px at scale 1, keyed by block id; measured by the clock). Rows without
+    // either get CELL_HEIGHT. Blocks higher than an overridden row scale down into it.
     // ponytail: blocks spanning several rows do not size rows, their content fits into what the
     // single-row blocks leave. Spread their height over the rows if layouts need it.
     static autoRowHeights(layout: ClockLayout, blockHeights: Record<number, number>): number[]
     {
         return Array.from({ length: layout.rows }, (_, row) =>
         {
+            const override = layout.rowHeightOverrides?.[row];
+            if (override !== null && override !== undefined)
+            {
+                return override;
+            }
             const heights = layout.blocks
                 .filter((block) => block.y === row && block.h === 1 && blockHeights[block.id] !== undefined)
                 .map((block) => blockHeights[block.id]);
             return heights.length > 0 ? Math.max(...heights) : CELL_HEIGHT;
         });
+    }
+
+    rowHeightOverride(row: number): number | null
+    {
+        return this.layout.rowHeightOverrides?.[row] ?? null;
+    }
+
+    // The layout with one row set to its own height, or back to automatic with null.
+    withRowHeight(row: number, value: number | null): ClockLayout
+    {
+        const rowHeightOverrides = this.overridesWith(this.layout.rows, row, value, (index) => this.rowHeightOverride(index));
+        return { ...this.layout, rowHeightOverrides };
     }
 
     // Where lower blocks sit in a row.
@@ -292,6 +312,7 @@ export class LayoutGrid
             rowGaps: this.layout.rowGaps?.slice(0, rows - 1),
             columnWidths: this.layout.columnWidths?.slice(0, columns),
             rowAligns: this.layout.rowAligns?.slice(0, rows),
+            rowHeightOverrides: this.layout.rowHeightOverrides?.slice(0, rows),
         };
         for (const block of outside)
         {
@@ -691,7 +712,7 @@ export class LayoutGrid
         return ref.axis === "column" ? { ...this.layout, columnGaps: gaps } : { ...this.layout, rowGaps: gaps };
     }
 
-    // Width of a column (its own value, else the default) or height of a row (automatic).
+    // Width of a column (its own value, else the default) or height of a row (see autoRowHeights).
     trackSize(ref: TrackRef): number
     {
         if (ref.axis === "row")
