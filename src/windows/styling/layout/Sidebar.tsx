@@ -17,25 +17,26 @@ export function Sidebar({ currentPage, onNavigate }: SidebarProps)
         <nav className="styling-sidebar" aria-label="Settings sections">
             <div className="sidebar-brand">
                 <FliqLogo size={30} />
-                <div>
+                <div className="sidebar-brand-text">
                     <div className="sidebar-brand-name">Fliq</div>
                     <div className="sidebar-brand-sub">Settings</div>
                 </div>
             </div>
 
             {PAGE_GROUPS.map((group) => (
-                <div key={group}>
+                <div key={group} className="nav-section">
                     <div className="nav-group">{group}</div>
                     {SETTINGS_PAGES.filter((page) => page.group === group).map((page) => (
                         <button
                             key={page.id}
                             type="button"
                             className="nav-item"
+                            title={page.label}
                             aria-current={page.id === currentPage ? "page" : undefined}
                             onClick={() => onNavigate(page.id)}
                         >
                             <page.icon size={17} stroke={1.8} />
-                            {page.label}
+                            <span className="nav-label">{page.label}</span>
                         </button>
                     ))}
                 </div>

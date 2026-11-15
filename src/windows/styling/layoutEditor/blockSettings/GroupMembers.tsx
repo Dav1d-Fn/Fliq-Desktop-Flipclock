@@ -94,7 +94,7 @@ export function GroupMembers({ block, onChange, openMember, onOpenMember }: Bloc
                                 <ActionIcon variant="subtle" size={26} aria-label={`Move ${definition.name} right`} disabled={index === items.length - 1} onClick={() => move(index, 1)}>
                                     <IconArrowDown size={15} />
                                 </ActionIcon>
-                                <ActionIcon variant="subtle" size={26} c="red.8" aria-label={`Remove ${definition.name} from group`} disabled={items.length === 1} onClick={() => remove(index)}>
+                                <ActionIcon variant="subtle" size={26} c="var(--fliq-danger)" aria-label={`Remove ${definition.name} from group`} disabled={items.length === 1} onClick={() => remove(index)}>
                                     <IconX size={15} />
                                 </ActionIcon>
                             </div>

@@ -3,6 +3,7 @@ import { SettingsStorage } from "../../settings/SettingsStorage";
 import { RemoteSettingsBackend } from "../../tuxhub/RemoteSettingsBackend.ts";
 import type { OverlayState } from "../styling/host/SettingsHost";
 import "./TuxhubPageBridge";
+import "./embedded.css";
 import { TuxhubSettingsHost } from "./TuxhubSettingsHost";
 
 // Answer of the clock to `settings.get`.
@@ -38,6 +39,8 @@ async function start(): Promise<void>
     }
 
     const settings = await bridge.call("settings.get") as ClockSettings;
+    // Lets the styles drop the page's own background: it sits on tuxhub's.
+    document.documentElement.classList.add("fliq-embedded");
 
     const refusalListeners = new Set<(message: string) => void>();
     const backend = new RemoteSettingsBackend(
