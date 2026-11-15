@@ -1,7 +1,8 @@
 import dayjs from "dayjs";
 
-// SPACE: empty room between group members, value = width in em. Never in the old templates.
-export type SegmentType = "TIME" | "FLIPTIME" | "TEXT" | "WEATHER" | "SPACE";
+// SPACE: empty room between group members, value = width in em. SECONDSBAR: the seconds bar,
+// alone in its block. Neither is in the old templates.
+export type SegmentType = "TIME" | "FLIPTIME" | "TEXT" | "WEATHER" | "SPACE" | "SECONDSBAR";
 
 export interface Segment
 {
@@ -58,6 +59,11 @@ export class ClockTemplate
         return this.segments.some((segment) => segment.type === "FLIPTIME");
     }
 
+    hasSecondsBar(): boolean
+    {
+        return this.segments.some((segment) => segment.type === "SECONDSBAR");
+    }
+
     // Writes the current character of every time slot into `values`, keyed like the spans.
     collectValues(values: Record<string, string>): void
     {
@@ -98,6 +104,8 @@ export class ClockTemplate
                         return segment.value;
                     case "SPACE":
                         return " ";
+                    case "SECONDSBAR":
+                        return "";
                 }
             })
             .join("");

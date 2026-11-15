@@ -48,20 +48,11 @@ export function ClockInspector()
             <InspectorField label="Column width">
                 <SliderControl
                     label="Column width"
-                    value={grid.defaultTrackSize("column")}
+                    value={grid.defaultColumnWidth()}
                     onChange={(columnWidth) => setLayout((current) => ({ ...current, columnWidth }))}
                     {...SLIDER_CONFIGS.COLUMN_WIDTH}
                 />
-            </InspectorField>
-
-            <InspectorField label="Row height">
-                <SliderControl
-                    label="Row height"
-                    value={grid.defaultTrackSize("row")}
-                    onChange={(rowHeight) => setLayout((current) => ({ ...current, rowHeight }))}
-                    {...SLIDER_CONFIGS.ROW_HEIGHT}
-                />
-                <p className="inspector-note">Click the bar above a column or beside a row to size it apart.</p>
+                <p className="inspector-note">Click the bar above a column to size it apart. Rows are as high as their highest block; click the bar beside a row to align its blocks.</p>
             </InspectorField>
 
             <InspectorField label="Space between columns">

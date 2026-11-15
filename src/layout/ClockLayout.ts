@@ -1,7 +1,7 @@
 // The clock as a grid of blocks, like widgets on a phone home screen. Stored as one JSON value
 // (ATOMS.CLOCK_LAYOUT); this file holds only the shapes and the grid rules, no rendering.
 
-export type BlockKind = "flip" | "time" | "date" | "weather" | "text" | "group";
+export type BlockKind = "flip" | "time" | "date" | "weather" | "text" | "secondsBar" | "group";
 
 // Kinds a group can hold: everything but another group.
 export type MemberKind = Exclude<BlockKind, "group">;
@@ -17,6 +17,9 @@ export interface GroupItem
 }
 
 export type BlockAlign = "left" | "center" | "right";
+
+// Where blocks lower than their row sit in it.
+export type RowAlign = "top" | "center" | "bottom";
 
 export interface LayoutBlock
 {
@@ -56,6 +59,11 @@ export interface LayoutBlock
     // Free nudge away from the cells, in px at scale 1. Snapping and collisions ignore it.
     offsetX?: number;
     offsetY?: number;
+    // Seconds bar blocks only: fill and track color, thickness and rounding in px at scale 1.
+    barColor?: string;
+    barTrackColor?: string;
+    barThickness?: number;
+    barRadius?: number;
 }
 
 export interface ClockLayout
@@ -69,13 +77,14 @@ export interface ClockLayout
     // Space after column / row i, overriding the default. null or missing: the default.
     columnGaps?: (number | null)[];
     rowGaps?: (number | null)[];
-    // Default width of a column / height of a row, in px at scale 1; CELL_WIDTH / CELL_HEIGHT
-    // when unset.
+    // Default width of a column, in px at scale 1; CELL_WIDTH when unset.
     columnWidth?: number;
-    rowHeight?: number;
-    // Size of column / row i, overriding the default. null or missing: the default.
+    // Width of column i, overriding the default. null or missing: the default.
     columnWidths?: (number | null)[];
-    rowHeights?: (number | null)[];
+    // Rows have no stored height: each is as high as its highest block (autoRowHeights).
+    // Older versions stored rowHeight / rowHeights; those values are ignored.
+    // Where lower blocks sit in row i. null or missing: center.
+    rowAligns?: (RowAlign | null)[];
 }
 
 export type GapAxis = "column" | "row";
@@ -127,6 +136,10 @@ export const BLOCK_DEFAULTS = {
     backgroundColor: "#3f3f46ff",
     backgroundRadius: 12, // px at scale 1
     itemGap: 0.3, // em
+    rowAlign: "center" as RowAlign,
+    barTrackColor: "#ffffff26",
+    barThickness: 4, // px at scale 1
+    barRadius: 2, // px at scale 1
 };
 
 // Fields that say what a block shows. Everything else besides id and position is its look.
@@ -140,7 +153,6 @@ export const DEFAULT_LAYOUT: ClockLayout = {
     rows: 2,
     columnGap: 0,
     rowGap: 0,
-    rowHeights: [65, 35],
     blocks: [
         { id: 1, kind: "flip", x: 0, y: 0, w: 4, h: 1, display: "HH:mm", cardColor: "#212121ff", padding: 0, letterSpacing: -0.03, textSize: 99 },
         {
@@ -168,10 +180,41 @@ export const DEFAULT_LAYOUT: ClockLayout = {
 export class LayoutGrid
 {
     private readonly layout: ClockLayout;
+    // Height of each row in px at scale 1 (see autoRowHeights); CELL_HEIGHT where missing.
+    private readonly rowHeights: number[];
 
-    constructor(layout: ClockLayout)
+    constructor(layout: ClockLayout, rowHeights: number[] = [])
     {
         this.layout = layout;
+        this.rowHeights = rowHeights;
+    }
+
+    // Height of every row: the natural height of its highest single-row block (px at scale 1,
+    // keyed by block id; measured by the clock). Rows without a measured one get CELL_HEIGHT.
+    // ponytail: blocks spanning several rows do not size rows, their content fits into what the
+    // single-row blocks leave. Spread their height over the rows if layouts need it.
+    static autoRowHeights(layout: ClockLayout, blockHeights: Record<number, number>): number[]
+    {
+        return Array.from({ length: layout.rows }, (_, row) =>
+        {
+            const heights = layout.blocks
+                .filter((block) => block.y === row && block.h === 1 && blockHeights[block.id] !== undefined)
+                .map((block) => blockHeights[block.id]);
+            return heights.length > 0 ? Math.max(...heights) : CELL_HEIGHT;
+        });
+    }
+
+    // Where lower blocks sit in a row.
+    rowAlign(row: number): RowAlign
+    {
+        return this.layout.rowAligns?.[row] ?? BLOCK_DEFAULTS.rowAlign;
+    }
+
+    // The layout with one row's alignment set.
+    withRowAlign(row: number, align: RowAlign): ClockLayout
+    {
+        const rowAligns = Array.from({ length: this.layout.rows }, (_, index) => (index === row ? align : this.layout.rowAligns?.[index] ?? null));
+        return { ...this.layout, rowAligns };
     }
 
     // True when the rect lies inside the grid and overlaps no block except `ignoredId`.
@@ -237,7 +280,7 @@ export class LayoutGrid
             columnGaps: this.layout.columnGaps?.slice(0, columns - 1),
             rowGaps: this.layout.rowGaps?.slice(0, rows - 1),
             columnWidths: this.layout.columnWidths?.slice(0, columns),
-            rowHeights: this.layout.rowHeights?.slice(0, rows),
+            rowAligns: this.layout.rowAligns?.slice(0, rows),
         };
         for (const block of outside)
         {
@@ -267,7 +310,8 @@ export class LayoutGrid
         const blocks = this.layout.blocks
             .filter((block) => blockIds.includes(block.id))
             .sort((a, b) => a.x - b.x);
-        if (blocks.length < 2 || blocks.length !== new Set(blockIds).size)
+        // A seconds bar is no text, it cannot share a line with other members.
+        if (blocks.length < 2 || blocks.length !== new Set(blockIds).size || blocks.some((block) => block.kind === "secondsBar"))
         {
             return null;
         }
@@ -316,7 +360,7 @@ export class LayoutGrid
     {
         const target = this.layout.blocks.find((block) => block.id === targetId);
         const dropped = this.layout.blocks.find((block) => block.id === droppedId);
-        if (!target || !dropped || target === dropped)
+        if (!target || !dropped || target === dropped || target.kind === "secondsBar" || dropped.kind === "secondsBar")
         {
             return null;
         }
@@ -505,29 +549,31 @@ export class LayoutGrid
         return ref.axis === "column" ? { ...this.layout, columnGaps: gaps } : { ...this.layout, rowGaps: gaps };
     }
 
-    // Effective width of a column or height of a row: its own value, else the axis default.
+    // Width of a column (its own value, else the default) or height of a row (automatic).
     trackSize(ref: TrackRef): number
     {
-        return this.trackOverride(ref) ?? this.defaultTrackSize(ref.axis);
+        if (ref.axis === "row")
+        {
+            return this.rowHeights[ref.index] ?? CELL_HEIGHT;
+        }
+        return this.columnWidthOverride(ref.index) ?? this.defaultColumnWidth();
     }
 
-    trackOverride(ref: TrackRef): number | null
+    columnWidthOverride(column: number): number | null
     {
-        const sizes = ref.axis === "column" ? this.layout.columnWidths : this.layout.rowHeights;
-        return sizes?.[ref.index] ?? null;
+        return this.layout.columnWidths?.[column] ?? null;
     }
 
-    defaultTrackSize(axis: GapAxis): number
+    defaultColumnWidth(): number
     {
-        return axis === "column" ? this.layout.columnWidth ?? CELL_WIDTH : this.layout.rowHeight ?? CELL_HEIGHT;
+        return this.layout.columnWidth ?? CELL_WIDTH;
     }
 
-    // The layout with one column or row set to its own size, or back to the default with null.
-    withTrackSize(ref: TrackRef, value: number | null): ClockLayout
+    // The layout with one column set to its own width, or back to the default with null.
+    withColumnWidth(column: number, value: number | null): ClockLayout
     {
-        const count = ref.axis === "column" ? this.layout.columns : this.layout.rows;
-        const sizes = this.overridesWith(count, ref.index, value, (index) => this.trackOverride({ axis: ref.axis, index }));
-        return ref.axis === "column" ? { ...this.layout, columnWidths: sizes } : { ...this.layout, rowHeights: sizes };
+        const columnWidths = this.overridesWith(this.layout.columns, column, value, (index) => this.columnWidthOverride(index));
+        return { ...this.layout, columnWidths };
     }
 
     // Left edge of a column, in px at scale 1.
