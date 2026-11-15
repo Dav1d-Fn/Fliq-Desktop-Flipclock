@@ -75,6 +75,15 @@ gtk-layer-shell, X11 fallback). macOS is not shipped. Meant to grow into a widge
   `$FLIPTIME(...)` strings for the migration only.
 - `src/weather/` — `WeatherService` (wttr.in + sunrise-sunset.org), `WeatherFormatter` (pure,
   tested), `useWeatherUpdates` (clock window only, every 15 min). Storage holds raw values.
+- `src/calendar/` — calendars from secret ICS links (Data › Calendar, `CalendarPage` +
+  `pages/calendar/SourceEditor`). `IcsParser` (ical.js: RRULE/EXDATE/overrides expanded for a
+  window, VTIMEZONE), `UpcomingEvents` (filter, range, evening switch, week strip — pure, tested,
+  meant for the later smart block too), `EventFormatter` (when/icon), `CalendarEntries` (what a
+  block draws). `CalendarSync` downloads through the Rust command `fetch_calendar`
+  (`src-tauri/src/calendar.rs`, CORS; plain `fetch` in a browser) and caches the last good
+  events in `CALENDAR_FEEDS`; `useCalendarUpdates` refreshes in the clock window. Links are
+  secrets: never logged, errors are codes. The calendar block (`blocks/CalendarBlock`, drawn by
+  `clock/CalendarSegment`) keeps its settings in `LayoutBlock.calendar`, its layout in `display`.
 - `src/overlay/` — `ClockWindow` (input region, size, placement), `ClockDragController`,
   `PointerMotion` (draws the dragged clock every frame; WebKitGTK delivers pointer moves in bunches).
 - `src/settings/` — `atoms.ts` (every setting; localStorage keys must never change),

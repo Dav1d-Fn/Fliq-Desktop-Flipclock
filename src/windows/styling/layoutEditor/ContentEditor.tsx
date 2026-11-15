@@ -1,6 +1,7 @@
 import { TextInput } from "@mantine/core";
 import { useAtomValue } from "jotai";
 import { blockDefinition } from "../../../blocks/BlockRegistry";
+import { useCalendarText } from "../../../calendar/useCalendarText";
 import { ClockTemplate } from "../../../clock/ClockTemplate";
 import { useSegmentContext } from "../../../clock/useSegmentContext";
 import type { LayoutBlock } from "../../../layout/ClockLayout";
@@ -31,11 +32,12 @@ export function ContentEditor({ block, onChange }: ContentEditorProps)
     const weatherUnit = useAtomValue(ATOMS.WEATHER_UNIT);
 
     const segmentContext = useSegmentContext();
+    const calendarText = useCalendarText();
     const strings = useStrings();
     const text = strings.content;
     const weather = new WeatherFormatter(weatherReport, sunDays, weatherUnit, new Date());
     const previewOf = (display: string) =>
-        new ClockTemplate(definition.segments({ ...block, display }, segmentContext)).plainText((key) => weather.format(key)) || "—";
+        new ClockTemplate(definition.segments({ ...block, display }, segmentContext)).plainText((key) => weather.format(key), calendarText) || "—";
 
     const hidesDisplay = definition.hidesDisplay?.(block) ?? false;
     const choices: DisplayChoice[] = hidesDisplay ? [] : definition.displayOptions.map((option) => ({ ...option, label: named(strings, option.label), preview: previewOf(option.id) }));

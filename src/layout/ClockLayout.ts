@@ -1,7 +1,9 @@
 // The clock as a grid of blocks, like widgets on a phone home screen. Stored as one JSON value
 // (ATOMS.CLOCK_LAYOUT); this file holds only the shapes and the grid rules, no rendering.
 
-export type BlockKind = "clock" | "date" | "weather" | "text" | "group";
+import type { CalendarBlockSettings } from "../calendar/CalendarTypes.ts";
+
+export type BlockKind = "clock" | "date" | "weather" | "text" | "calendar" | "group";
 
 // Kinds a group can hold: everything but another group.
 export type MemberKind = Exclude<BlockKind, "group">;
@@ -44,6 +46,7 @@ export interface GroupItem extends ProgressFields
     text?: string;
     weatherIcon?: boolean;
     clockStyle?: ClockStyle;
+    calendar?: CalendarBlockSettings;
 }
 
 export type BlockAlign = "left" | "center" | "right";
@@ -74,6 +77,8 @@ export interface LayoutBlock extends ProgressFields
     weatherIcon?: boolean;
     // Clock blocks only: how the time is drawn ("flip" when unset).
     clockStyle?: ClockStyle;
+    // Calendar blocks only: which events and how (the layout is `display`).
+    calendar?: CalendarBlockSettings;
     // Group blocks only: the members in order, the space between them in em, and whether they
     // stand side by side ("row", also when unset) or stacked ("column").
     items?: GroupItem[];
@@ -211,7 +216,7 @@ export const BLOCK_DEFAULTS = {
 };
 
 // Fields that say what a block shows. Everything else besides id and position is its look.
-const CONTENT_FIELDS = ["kind", "display", "customFormat", "text", "weatherIcon", "clockStyle", "progressShape", "progressUnit", "progressMotion", "items", "itemGap", "direction"] as const;
+const CONTENT_FIELDS = ["kind", "display", "customFormat", "text", "weatherIcon", "clockStyle", "calendar", "progressShape", "progressUnit", "progressMotion", "items", "itemGap", "direction"] as const;
 const PLACEMENT_FIELDS = ["id", "x", "y", "w", "h"] as const;
 
 // What a new installation starts with.
@@ -804,7 +809,7 @@ export class LayoutGrid
             return block.items ?? [];
         }
         const item: GroupItem = { kind: block.kind, display: block.display };
-        for (const field of ["customFormat", "text", "weatherIcon", "clockStyle", "progressShape", "progressUnit", "progressMotion"] as const)
+        for (const field of ["customFormat", "text", "weatherIcon", "clockStyle", "calendar", "progressShape", "progressUnit", "progressMotion"] as const)
         {
             if (block[field] !== undefined)
             {

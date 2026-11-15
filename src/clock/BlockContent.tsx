@@ -6,10 +6,12 @@ import { useAtomValue } from "jotai";
 import { ATOMS } from "../settings/atoms";
 import { useClockPreview } from "./ClockPreview";
 import { ClockTemplate, type Segment } from "./ClockTemplate";
+import { CalendarSegment } from "./CalendarSegment";
 import { ClockFace } from "./faces/ClockFace";
 import { progressShare } from "./ProgressShare";
 import { maxSizeShare } from "./SizeLimit";
 import { TimeCharacters } from "./TimeCharacters";
+import type { CalendarLayout } from "../calendar/CalendarTypes";
 import type { IconStyle } from "../layout/ClockLayout";
 import { withFlatIcons } from "../weather/FlatWeatherIcons";
 import { WeatherFormatter } from "../weather/WeatherFormatter";
@@ -59,7 +61,7 @@ export function BlockContent({ segments, justify, alignItems, sizeShare, heightF
     const stacked = segments.some((segment) => segment.type === "BREAK");
 
     // Current minute, so weather text that depends on the time (next sun event, day/night
-    // emoji) moves on without new weather data.
+    // emoji) and calendar entries move on without new data.
     const [currentMinute, setCurrentMinute] = useState(() => new Date());
 
     const areaRef = useRef<HTMLDivElement>(null);
@@ -260,6 +262,17 @@ export function BlockContent({ segments, justify, alignItems, sizeShare, heightF
                         </span>
                     );
                 }
+                case "CALENDAR":
+                    return (
+                        <CalendarSegment
+                            key={`calendar-${segmentIndex}`}
+                            layout={segment.value as CalendarLayout}
+                            settings={segment.calendar ?? {}}
+                            now={currentMinute}
+                            iconStyle={iconStyle}
+                            member={segment.member}
+                        />
+                    );
                 case "SPACE":
                     return <span className="segment-space" key={`space-${segmentIndex}`} style={{ display: "inline-block", width: `${segment.value}em` }} />;
             }
