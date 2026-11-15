@@ -142,9 +142,13 @@ editing aids.
 
 ### 🐧 tuxhub Integration
 
-On Linux, Fliq offers its settings live to [tuxhub](https://github.com/SirSnolte/tuxhub): while
-both run, tuxhub shows Fliq's whole-clock settings, time, weather and window options as a page of
-its own and changes apply right away.
+On Linux, Fliq brings its settings into [tuxhub](https://github.com/SirSnolte/tuxhub): while both
+run, tuxhub shows Fliq's own settings page, with the layout editor, time, weather, the window
+options and the reset. Changes apply to the clock right away, in both directions. Inside tuxhub the
+page follows its light or dark appearance and adapts to any window size.
+
+Needs tuxhub 0.9.0 or newer. Older versions of tuxhub show the whole-clock settings, time, weather
+and window options as a plain settings page instead.
 
 ### ⚙️ Window Settings
 
