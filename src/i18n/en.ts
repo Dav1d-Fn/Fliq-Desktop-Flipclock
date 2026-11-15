@@ -221,6 +221,11 @@ export const EN = {
         center: "Center",
         bottom: "Bottom",
     },
+    iconStyle: {
+        label: "Icon style",
+        colored: "Colored",
+        flat: "Flat",
+    },
     secondsBar: {
         fillColor: "Fill color",
         trackColor: "Track color",

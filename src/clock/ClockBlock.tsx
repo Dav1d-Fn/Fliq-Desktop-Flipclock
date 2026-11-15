@@ -132,6 +132,7 @@ export function ClockBlock({ block, rect, scale, rowAlign, language, style }: Cl
                 justify={JUSTIFY[align]}
                 alignItems={ROW_ALIGN_ITEMS[rowAlign]}
                 sizeShare={sizeShare}
+                iconStyle={block.iconStyle ?? "colored"}
                 onLayoutChange={() => setRebuildCount((count) => count + 1)}
                 onMeasure={setHeightPerWidth}
             />
