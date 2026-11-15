@@ -344,7 +344,6 @@ export function LayoutPage({ onNavigate }: PageProps)
                 {shownTab === "selection" && selectedBlock && (
                     <BlockInspector
                         key={selectedBlock.id}
-                        layout={layout}
                         block={selectedBlock}
                         onChange={(patch) => updateBlock(selectedBlock.id, patch)}
                         onRemove={() => removeBlocks([selectedBlock.id])}
