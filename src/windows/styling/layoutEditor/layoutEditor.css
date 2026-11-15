@@ -810,3 +810,30 @@
   font-size: 1.3em;
   font-weight: 300;
 }
+
+.style-preview-bar {
+  width: 70%;
+  height: 4px;
+  border-radius: 2px;
+  background: #ffffff26;
+  overflow: hidden;
+}
+
+.style-preview-bar i {
+  display: block;
+  height: 100%;
+  background: #fafafa;
+}
+
+/* Shape, unit and motion of the progress style (ClockStylePicker). */
+.progress-options {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 10px;
+}
+
+.progress-option-label {
+  font-size: 12px;
+  margin-top: 4px;
+}

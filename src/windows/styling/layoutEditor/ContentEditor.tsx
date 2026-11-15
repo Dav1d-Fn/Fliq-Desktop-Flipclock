@@ -37,8 +37,9 @@ export function ContentEditor({ block, onChange }: ContentEditorProps)
     const previewOf = (display: string) =>
         new ClockTemplate(definition.segments({ ...block, display }, segmentContext)).plainText((key) => weather.format(key)) || "—";
 
-    const choices: DisplayChoice[] = definition.displayOptions.map((option) => ({ ...option, label: named(strings, option.label), preview: previewOf(option.id) }));
-    if (definition.supportsCustomFormat)
+    const hidesDisplay = definition.hidesDisplay?.(block) ?? false;
+    const choices: DisplayChoice[] = hidesDisplay ? [] : definition.displayOptions.map((option) => ({ ...option, label: named(strings, option.label), preview: previewOf(option.id) }));
+    if (definition.supportsCustomFormat && !hidesDisplay)
     {
         choices.push({ id: "custom", label: text.customFormat, code: block.customFormat, preview: previewOf("custom") });
     }
@@ -64,7 +65,7 @@ export function ContentEditor({ block, onChange }: ContentEditorProps)
                 </InspectorField>
             )}
 
-            {block.display === "custom" && (
+            {block.display === "custom" && !hidesDisplay && (
                 <InspectorField label={text.yourFormat} htmlFor="custom-format">
                     <TextInput
                         id="custom-format"

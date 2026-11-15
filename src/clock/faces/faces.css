@@ -108,3 +108,12 @@
    font-family: var(--text-font, system-ui), sans-serif;
    font-variant-numeric: tabular-nums;
 }
+
+/* Progress ring and dots: the block's progress colors (--bar-color, --bar-track-color). */
+.face-progress circle { fill: none; }
+.face-progress .progress-track { stroke: var(--bar-track-color, #ffffff26); }
+.face-progress .progress-dot-track { fill: var(--bar-track-color, #ffffff26); }
+.face-progress .progress-fill { stroke: var(--bar-color, var(--text-color, #ffffff)); stroke-linecap: round; }
+.face-progress .progress-dot { fill: var(--bar-color, var(--text-color, #ffffff)); }
+.face-progress.animated .progress-fill { transition: stroke-dashoffset 1s linear; }
+.face-progress.animated .progress-dot { transition: opacity 1s linear; }
