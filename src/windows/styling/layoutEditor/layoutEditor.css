@@ -372,10 +372,31 @@
 
 /* Inspector */
 
-.inspector {
-  width: 310px;
+/* Drag handle between canvas and inspector; draws the inspector's left border. */
+.inspector-divider {
   flex: none;
+  width: 7px;
+  margin-right: -6px;
   border-left: 1px solid var(--fliq-border);
+  box-sizing: border-box;
+  cursor: col-resize;
+  touch-action: none;
+  position: relative;
+  z-index: 1;
+  outline: none;
+  transition: border-color .15s;
+}
+
+.inspector-divider:hover,
+.inspector-divider:focus-visible,
+.inspector-divider:active {
+  border-left: 3px solid var(--fliq-accent);
+}
+
+/* Grows with the window; the divider sets a fixed width instead (inline style). */
+.inspector {
+  width: clamp(310px, 30%, 520px);
+  flex: none;
   background: #ffffff;
   padding: 26px 22px 22px;
   box-sizing: border-box;
