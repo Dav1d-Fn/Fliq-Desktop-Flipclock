@@ -106,6 +106,7 @@ export const EN = {
         dropToGroup: "Drop to group",
         occupied: "Occupied",
         dropHere: "Drop here",
+        dropToNewRow: "Drop to put in a new row",
         dropToSlideIn: "Drop to slide in here",
         resizeWidth: "Resize width",
         resizeHeight: "Resize height",
@@ -196,6 +197,9 @@ export const EN = {
     group: {
         items: "Items",
         spaceBetweenItems: "Space between items",
+        direction: "Arrangement",
+        sideBySide: "Side by side",
+        stacked: "Stacked",
         moveLeft: (name: string) => `Move ${name} left`,
         moveRight: (name: string) => `Move ${name} right`,
         remove: (name: string) => `Remove ${name} from group`,

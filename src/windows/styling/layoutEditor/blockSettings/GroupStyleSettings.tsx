@@ -1,4 +1,5 @@
-import { BLOCK_DEFAULTS } from "../../../../layout/ClockLayout";
+import { SegmentedControl } from "@mantine/core";
+import { BLOCK_DEFAULTS, type GroupDirection } from "../../../../layout/ClockLayout";
 import { useStrings } from "../../../../i18n/useStrings";
 import { SliderControl } from "../../controls/SliderControl";
 import type { BlockSettingsProps } from "../BlockEditors";
@@ -6,7 +7,8 @@ import { InspectorField } from "../InspectorField";
 import { FlipCardSettings } from "./FlipCardSettings";
 import { IconStyleSettings } from "./IconStyleSettings";
 
-// Look of a group beyond the shared block settings: the space between members, and the card
+// Look of a group beyond the shared block settings: members side by side or stacked, the
+// space between them, and the card
 // settings when a member is flip time, the icon style when one shows a weather icon.
 export function GroupStyleSettings({ block, onChange }: BlockSettingsProps)
 {
@@ -16,6 +18,14 @@ export function GroupStyleSettings({ block, onChange }: BlockSettingsProps)
         <>
             {hasFlip && <FlipCardSettings block={block} onChange={onChange} />}
             <IconStyleSettings block={block} onChange={onChange} />
+            <InspectorField label={text.direction}>
+                <SegmentedControl
+                    fullWidth
+                    data={[{ value: "row", label: text.sideBySide }, { value: "column", label: text.stacked }]}
+                    value={block.direction ?? "row"}
+                    onChange={(direction) => onChange({ direction: direction as GroupDirection })}
+                />
+            </InspectorField>
             <InspectorField label={text.spaceBetweenItems}>
                 <SliderControl
                     label={text.spaceBetweenItems}
