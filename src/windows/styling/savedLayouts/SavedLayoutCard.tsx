@@ -33,7 +33,7 @@ export function SavedLayoutCard({ saved, library }: SavedLayoutCardProps)
     return (
         <article className={active ? "saved-layout-card active" : "saved-layout-card"}>
             <UnstyledButton className="saved-layout-preview" aria-label={text.load(saved.name)} onClick={() => library.load(saved.id)}>
-                <LayoutThumbnail layout={saved.layout} size={150} />
+                <LayoutThumbnail layout={saved.layout} width={198} height={118} />
             </UnstyledButton>
             <div className="saved-layout-footer">
                 <div className="saved-layout-text">

@@ -75,7 +75,7 @@ export function LayoutSwitcher({ onManage }: LayoutSwitcherProps)
                         aria-expanded={opened}
                         onClick={() => (opened ? close() : setOpened(true))}
                     >
-                        <LayoutThumbnail layout={layout} size={30} />
+                        <LayoutThumbnail layout={layout} width={46} height={30} />
                         <span className="layout-switcher-text">
                             <strong>{library.active?.name ?? text.unsaved}</strong>
                             {library.active && library.hasChanges && (
@@ -101,7 +101,7 @@ export function LayoutSwitcher({ onManage }: LayoutSwitcherProps)
                                 close();
                             }}
                         >
-                            <LayoutThumbnail layout={saved.layout} size={34} />
+                            <LayoutThumbnail layout={saved.layout} width={56} height={34} />
                             <span className="layout-menu-item-text">
                                 <strong>{saved.name}</strong>
                                 <span>{text.meta(saved.layout.columns, saved.layout.rows, saved.layout.blocks.length)}</span>

@@ -3,7 +3,7 @@ import { useSetAtom } from "jotai";
 import { blockDefinition } from "../blocks/BlockRegistry";
 import { BLOCK_DEFAULTS, isProgressBar, type LayoutBlock, type PixelRect, type RowAlign } from "../layout/ClockLayout";
 import { BlockContent } from "./BlockContent";
-import { BLOCK_HEIGHTS } from "./useLayoutGrid";
+import { useClockPreview } from "./ClockPreview";
 import { useSegmentContext } from "./useSegmentContext";
 
 interface ClockBlockProps
@@ -51,7 +51,7 @@ export function ClockBlock({ block, rect, scale, rowAlign, language, style }: Cl
     const [rebuildCount, setRebuildCount] = useState(0);
     // Content height per px of content width, measured by BlockContent (null until then).
     const [heightPerWidth, setHeightPerWidth] = useState<number | null>(null);
-    const setBlockHeights = useSetAtom(BLOCK_HEIGHTS);
+    const setBlockHeights = useSetAtom(useClockPreview().blockHeights);
 
     const padding = (block.padding ?? BLOCK_DEFAULTS.padding) * scale;
     const cardRadius = block.cardRadius ?? BLOCK_DEFAULTS.cardRadius;
