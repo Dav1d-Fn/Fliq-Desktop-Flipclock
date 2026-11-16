@@ -87,7 +87,6 @@ test("dropping below adds a row, shifts the rows and their settings, and drops t
         columns: 4,
         rows: 3,
         blocks: [block(1, 0, 4), block(2, 0, 2, { y: 1 }), block(3, 1, 2, { y: 2 })],
-        rowGaps: [5, 6],
         rowAligns: ["top", "center", "bottom"],
         rowHeightOverrides: [40, null, 70],
     };
@@ -98,7 +97,6 @@ test("dropping below adds a row, shifts the rows and their settings, and drops t
     assert.deepEqual(positions(result), { 1: [0, 0], 2: [0, 2], 3: [1, 1] });
     assert.deepEqual(result.rowAligns, ["top", null, "center"]);
     assert.deepEqual(result.rowHeightOverrides, [40, null, null]);
-    assert.deepEqual(result.rowGaps, [5, null]);
 });
 
 test("a new row grows blocks reaching across it and finds free columns", () =>

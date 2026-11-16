@@ -121,7 +121,7 @@ export function BlockInspector({ block, onChange, onRemove, onUngroup, openMembe
     }
     const offset = block.offsetX || block.offsetY ? text.offsetSummary(block.offsetX ?? 0, block.offsetY ?? 0) : undefined;
     const padding = LayoutGrid.paddingOf(block);
-    const spacingSummary = joined([settings.has("padding") && text.paddingSummary(padding.x, padding.y), offset]);
+    const spacingSummary = joined([text.paddingSummary(padding.x, padding.y), offset]);
 
     return (
         <div className="inspector-body">
@@ -267,30 +267,26 @@ export function BlockInspector({ block, onChange, onRemove, onUngroup, openMembe
                     </InspectorField>
                 )}
 
-                {settings.has("padding")
-                    ? (
-                        <InspectorField label={text.padding} help={text.paddingNote}>
-                            <SliderControl
-                                label={text.horizontalPadding}
-                                value={padding.x}
-                                onChange={(paddingX) => onChange({ paddingX })}
-                                min={0}
-                                max={24}
-                                marks={[]}
-                                unit="px ↔"
-                            />
-                            <SliderControl
-                                label={text.verticalPadding}
-                                value={padding.y}
-                                onChange={(paddingY) => onChange({ paddingY })}
-                                min={0}
-                                max={24}
-                                marks={[]}
-                                unit="px ↕"
-                            />
-                        </InspectorField>
-                    )
-                    : <p className="inspector-note">{text.gapsNote}</p>}
+                <InspectorField label={text.padding} help={text.paddingNote}>
+                    <SliderControl
+                        label={text.horizontalPadding}
+                        value={padding.x}
+                        onChange={(paddingX) => onChange({ paddingX })}
+                        min={0}
+                        max={24}
+                        marks={[]}
+                        unit="px ↔"
+                    />
+                    <SliderControl
+                        label={text.verticalPadding}
+                        value={padding.y}
+                        onChange={(paddingY) => onChange({ paddingY })}
+                        min={0}
+                        max={24}
+                        marks={[]}
+                        unit="px ↕"
+                    />
+                </InspectorField>
 
                 {/* Open from the start while an offset is set, so it is never hidden. */}
                 <details className="inspector-advanced" open={Boolean(offset) || undefined}>

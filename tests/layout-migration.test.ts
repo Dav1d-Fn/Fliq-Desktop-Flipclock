@@ -101,48 +101,26 @@ test("grid: shrinking cuts blocks back and moves the ones left outside", () =>
     assert.equal(new LayoutGrid(layout).resized(4, 1), null);
 });
 
-test("grid: variable gaps move cells, size and snapping; missing gaps use 2 px", () =>
+test("grid: one gap per axis moves cells, size and snapping; missing gaps use 2 px", () =>
 {
     const layout: ClockLayout = {
         columns: 3,
         rows: 2,
-        columnGaps: [0, 40],
+        columnGap: 10,
+        rowGap: 6,
         blocks: [{ id: 1, kind: "text", x: 0, y: 0, w: 1, h: 1, display: "text" }],
     };
     const grid = new LayoutGrid(layout);
-    // Columns start at 0, 64 (no gap) and 168 (64 + 64 + 40); rows keep the default 2 px.
-    assert.deepEqual(grid.pixelRect({ x: 1, y: 1, w: 2, h: 1 }, 1), { left: 64, top: 58, width: 168, height: 56 });
-    assert.deepEqual(grid.pixelRect({ x: 2, y: 0, w: 1, h: 1 }, 0.5), { left: 84, top: 0, width: 32, height: 28 });
-    assert.deepEqual(grid.size(1), { width: 232, height: 114 });
-    assert.deepEqual(new LayoutGrid({ ...layout, columnGaps: undefined }).size(1), { width: 196, height: 114 });
-    // 150 px right lands nearer the start of column 2 (168) than of column 1 (64).
-    assert.deepEqual(grid.moveTarget(layout.blocks[0], 150, 0), { x: 2, y: 0, w: 1, h: 1 });
-    assert.deepEqual(grid.moveTarget(layout.blocks[0], 100, 0), { x: 1, y: 0, w: 1, h: 1 });
-    // Right edge pulled from 64 to 200: nearer the end of column 2 (232) than of column 1 (128).
-    assert.deepEqual(grid.resizeTarget(layout.blocks[0], "right", 136, 0), { x: 0, y: 0, w: 3, h: 1 });
-
-    const changed = grid.withGap({ axis: "row", index: 0 }, 20);
-    assert.deepEqual(changed.rowGaps, [20]);
-    assert.deepEqual(changed.columnGaps, [0, 40]);
-    assert.equal(new LayoutGrid(changed).size(1).height, 132);
-    // Removing the last column drops its gap; the remaining one is kept.
-    assert.deepEqual(grid.resized(2, 2)!.columnGaps, [0]);
-});
-
-test("grid: gap defaults per axis, single gaps override them until reset", () =>
-{
-    const layout: ClockLayout = { columns: 3, rows: 2, columnGap: 10, rowGap: 6, columnGaps: [null, 40], blocks: [] };
-    const grid = new LayoutGrid(layout);
     assert.equal(grid.columnStart(1), 74);
-    assert.equal(grid.columnStart(2), 178);
+    assert.equal(grid.columnStart(2), 148);
     assert.equal(grid.rowStart(1), 62);
-    assert.equal(grid.gapOverride({ axis: "column", index: 0 }), null);
-
-    const reset = grid.withGap({ axis: "column", index: 1 }, null);
-    assert.deepEqual(reset.columnGaps, [null, null]);
-    assert.equal(new LayoutGrid(reset).columnStart(2), 148);
-    // A new default moves every gap that has no own value.
-    assert.equal(new LayoutGrid({ ...layout, columnGap: 0 }).columnStart(2), 168);
+    assert.deepEqual(grid.size(1), { width: 212, height: 118 });
+    assert.deepEqual(new LayoutGrid({ ...layout, columnGap: undefined, rowGap: undefined }).size(1), { width: 196, height: 114 });
+    // 120 px right lands nearer the start of column 2 (148) than of column 1 (74).
+    assert.deepEqual(grid.moveTarget(layout.blocks[0], 120, 0), { x: 2, y: 0, w: 1, h: 1 });
+    assert.deepEqual(grid.moveTarget(layout.blocks[0], 100, 0), { x: 1, y: 0, w: 1, h: 1 });
+    // Right edge pulled from 64 to 214: nearer the end of column 2 (212) than of column 1 (138).
+    assert.deepEqual(grid.resizeTarget(layout.blocks[0], "right", 150, 0), { x: 0, y: 0, w: 3, h: 1 });
 });
 
 test("grid: column widths follow their default until set apart, rows their highest block", () =>
@@ -210,22 +188,22 @@ test("grid: a row's own height is a minimum, null goes back to automatic", () =>
     assert.deepEqual(new LayoutGrid(raised).resized(2, 2)?.rowHeightOverrides, [40, null]);
 });
 
-test("once: gap values of earlier built-in defaults follow the defaults again", () =>
+test("once: per-gap values are dropped from the current and the saved layouts", () =>
 {
+    const withOverrides = { columns: 4, rows: 2, blocks: [], columnGaps: [2, 8, 30], rowGaps: [0], columnGap: 11, rowGap: 16 };
     const store = storage({
         layoutMigrated: true,
-        clockLayout: { columns: 4, rows: 2, blocks: [], columnGaps: [2, 8, 30], rowGaps: [0], columnGap: 11, rowGap: 16 },
+        clockLayout: withOverrides,
+        savedLayouts: [{ id: "a", name: "A", layout: withOverrides }],
     });
     new LayoutMigration(store).run();
-    const layout = layoutOf(store);
-    assert.deepEqual(layout.columnGaps, [null, null, 30]);
-    assert.deepEqual(layout.rowGaps, [0]);
-    assert.equal(new LayoutGrid(layout).gap({ axis: "column", index: 0 }), 11);
-
-    // Runs once: a value of 2 set later is kept.
-    store.setItem("clockLayout", JSON.stringify({ ...layout, columnGaps: [2, null, 30] }));
-    new LayoutMigration(store).run();
-    assert.deepEqual(layoutOf(store).columnGaps, [2, null, 30]);
+    for (const layout of [layoutOf(store), (JSON.parse(store.getItem("savedLayouts")!) as { layout: ClockLayout }[])[0].layout])
+    {
+        assert.equal("columnGaps" in layout, false);
+        assert.equal("rowGaps" in layout, false);
+        assert.equal(layout.columnGap, 11);
+        assert.equal(new LayoutGrid(layout).columnStart(3), 3 * 64 + 3 * 11);
+    }
 });
 
 const rowLayout = (): ClockLayout => ({
@@ -545,4 +523,20 @@ test("text, weather, date and calendar blocks carry their text style in their se
     assert.deepEqual(segmentsOf({ ...base, kind: "date", display: "dddd", textStyle: "nixie" }), [{ type: "FACE", value: "dddd", face: "nixie" }]);
     assert.deepEqual(segmentsOf({ ...base, kind: "date", display: "dddd", textStyle: "flip", flipUnit: "word" }), [{ type: "FLIPTIME", value: "dddd", flipUnit: "word" }]);
     assert.equal(segmentsOf({ ...base, kind: "calendar", display: "next", textStyle: "segment" })[0].textStyle, "segment");
+});
+
+test("grid: row alignment only matters while a block is lower than its row", () =>
+{
+    const layout: ClockLayout = {
+        columns: 2,
+        rows: 1,
+        blocks: [
+            { id: 1, kind: "text", x: 0, y: 0, w: 1, h: 1, display: "text" },
+            { id: 2, kind: "text", x: 1, y: 0, w: 1, h: 1, display: "text" },
+        ],
+    };
+    assert.equal(LayoutGrid.rowHasRoomToAlign(layout, { 1: 30, 2: 30 }, 0), false, "auto height fits the blocks");
+    assert.equal(LayoutGrid.rowHasRoomToAlign(layout, { 1: 30, 2: 20 }, 0), true, "a lower neighbour");
+    assert.equal(LayoutGrid.rowHasRoomToAlign({ ...layout, rowHeightOverrides: [50] }, { 1: 30, 2: 30 }, 0), true, "a minimum above the blocks");
+    assert.equal(LayoutGrid.rowHasRoomToAlign({ ...layout, rowHeightOverrides: [20] }, { 1: 30, 2: 30 }, 0), false, "a minimum below the blocks");
 });

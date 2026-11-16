@@ -69,7 +69,7 @@ export function ClockInspector()
             <InspectorSection
                 id="clock-spacing"
                 title={text.sectionSpacing}
-                summary={text.spacingSummary(padding, grid.defaultGap("column"), grid.defaultGap("row"))}
+                summary={text.spacingSummary(padding, grid.gap("column"), grid.gap("row"))}
                 defaultOpen={false}
             >
                 <InspectorField label={text.padding} help={text.paddingNote}>
@@ -79,7 +79,7 @@ export function ClockInspector()
                 <InspectorField label={text.columnSpace} help={text.gapNote}>
                     <SliderControl
                         label={text.columnSpace}
-                        value={grid.defaultGap("column")}
+                        value={grid.gap("column")}
                         onChange={(columnGap) => setLayout((current) => ({ ...current, columnGap }))}
                         {...SLIDER_CONFIGS.GAP}
                     />
@@ -88,7 +88,7 @@ export function ClockInspector()
                 <InspectorField label={text.rowSpace} help={text.gapNote}>
                     <SliderControl
                         label={text.rowSpace}
-                        value={grid.defaultGap("row")}
+                        value={grid.gap("row")}
                         onChange={(rowGap) => setLayout((current) => ({ ...current, rowGap }))}
                         {...SLIDER_CONFIGS.GAP}
                     />

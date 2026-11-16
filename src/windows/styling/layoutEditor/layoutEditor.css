@@ -132,86 +132,6 @@
   outline-color: var(--fliq-accent);
 }
 
-/* Gap between two columns or rows: a knob at both ends (outside the grid, so always
-   clickable) and the gap itself, filled green on hover and while selected. */
-.gap-target {
-  --gap-fill: transparent;
-  --gap-knob: rgba(150, 158, 170, 0.75);
-  position: absolute;
-  z-index: 0;
-  padding: 0;
-  border: none;
-  cursor: pointer;
-  background: linear-gradient(var(--gap-fill), var(--gap-fill)) center / var(--gap-size) calc(100% - 28px) no-repeat;
-  transition: background-size .36s cubic-bezier(.34,1.45,.64,1);
-  animation: fliq-cell-in .3s ease-out;
-}
-
-.gap-target.row {
-  background-size: calc(100% - 28px) var(--gap-size);
-}
-
-.gap-target::before,
-.gap-target::after {
-  content: "";
-  position: absolute;
-  border-radius: 2px;
-  background: var(--gap-knob);
-  transition: background .2s, transform .2s;
-}
-
-.gap-target.column::before,
-.gap-target.column::after {
-  left: 50%;
-  width: 4px;
-  height: 10px;
-  margin-left: -2px;
-}
-
-.gap-target.column::before {
-  top: 2px;
-}
-
-.gap-target.column::after {
-  bottom: 2px;
-}
-
-.gap-target.row::before,
-.gap-target.row::after {
-  top: 50%;
-  width: 10px;
-  height: 4px;
-  margin-top: -2px;
-}
-
-.gap-target.row::before {
-  left: 2px;
-}
-
-.gap-target.row::after {
-  right: 2px;
-}
-
-.gap-target:hover {
-  --gap-fill: rgba(47, 168, 79, 0.3);
-  --gap-knob: var(--fliq-accent);
-}
-
-.gap-target.selected {
-  --gap-fill: rgba(47, 168, 79, 0.4);
-  --gap-knob: var(--fliq-accent);
-}
-
-.gap-target.selected::before,
-.gap-target.selected::after {
-  transform: scale(1.3);
-}
-
-.gap-target:focus-visible {
-  outline: 2px solid var(--fliq-accent);
-  outline-offset: 1px;
-}
-
 /* Column and row bars along the top and left edge of the grid */
 
 .track-bar {
@@ -583,8 +503,13 @@
   box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.18);
 }
 
-.inspector .slider-control {
+.inspector .slider-control,
+.track-popover .slider-control {
   width: 100%;
+}
+
+.track-popover .slider-value {
+  white-space: nowrap;
 }
 
 .inspector-note {

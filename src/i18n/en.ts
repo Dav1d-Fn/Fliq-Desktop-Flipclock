@@ -208,18 +208,13 @@ export const EN = {
         resizeBoth: "Resize width and height",
     },
     grid: {
-        // "column" or "row" gap between track `first` and the one after it (1-based).
-        spaceBetween: (axis: "column" | "row", first: number) => axis === "column"
-            ? `Space between columns ${first} and ${first + 1}`
-            : `Space between rows ${first} and ${first + 1}`,
         trackSize: (axis: "column" | "row", number: number) => axis === "column"
             ? `Width of column ${number}`
             : `Row ${number}`,
-        spaceAfter: (axis: "column" | "row"): string => (axis === "column" ? "Space to the next column" : "Space to the next row"),
         width: "Width",
         height: "Minimum height",
         resetToDefault: "Reset to default",
-        followsDefault: "Follows the default under Whole clock.",
+        followsDefault: "Without its own width, the column follows the column width under Whole clock › Grid.",
         automatic: "No minimum",
         automaticNote: "As high as its highest block. A minimum height makes the row taller, never its blocks smaller.",
     },
@@ -234,7 +229,7 @@ export const EN = {
         rowHeightNote: "Click the bar above a column to size it apart. Rows are as high as their highest block; the bar beside a row sets a minimum height.",
         columnSpace: "Space between columns",
         rowSpace: "Space between rows",
-        gapNote: "Click a single gap on the clock to set it apart.",
+        gapNote: "The same between every two columns or rows. To inset a single block, use its padding.",
         defaultFont: "Default font",
         defaultTextColor: "Default text color",
         sectionWindow: "Window",
@@ -274,8 +269,7 @@ export const EN = {
         drawnSize: "Size",
         drawnSizeNote: "The row grows or shrinks with the size. The slider ends where the clock fills the block; for more, make the block larger.",
         textSizeNote: "Letter spacing first uses free room. A block whose text already fills it shrinks the text instead; lower the text size to make room. The row grows or shrinks with the text size. The slider ends where the text fills the block; for more, make the block larger.",
-        paddingNote: "Room between the block's background and its content.",
-        gapsNote: "Space between blocks comes from the gaps: under Whole clock › Spacing, or per column and row on the bars beside the grid.",
+        paddingNote: "Room between the block's edge (its background, if it has one) and its content. Insets a single block without changing the gaps.",
         advanced: "Advanced",
         offsetNote: "Fine-tuning: shifts where the block is drawn. Its cells, snapping and the gaps stay as they are.",
         letterSpacing: "Letter spacing",

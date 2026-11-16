@@ -28,11 +28,13 @@ gtk-layer-shell, X11 fallback). macOS is not shipped. Meant to grow into a widge
     registry, `ContentEditor` for what a block or group member shows, `SelectionInspector`
     for several blocks shift/ctrl-clicked on the canvas). Inspector settings sit in collapsible
     `InspectorSection`s (open/closed kept in localStorage `inspectorSections`, summary shown
-    while closed); long explanations go into `InspectorField`'s `help` tooltip. Column and row bars (and the gaps after
-    them) open `TrackPopover` at the track: width or minimum height (rows: as high as their
-    highest block, `rowHeightOverrides` is only a minimum), row alignment, gap after it. Space
-    between blocks is only the gaps; block padding is shown (and unset defaults to 8/4) only
-    with an own background, offset sits under "Advanced". `pages/` the other pages,
+    while closed); long explanations go into `InspectorField`'s `help` tooltip. Column and row
+    bars open `TrackPopover` at the track: width or minimum height (rows: as high as their
+    highest block, `rowHeightOverrides` is only a minimum), and row alignment only while a block
+    in the row is lower than it (`LayoutGrid.rowHasRoomToAlign`). Column and row gaps are one
+    value each (Whole clock › Spacing), no per-gap values; a single block is inset with its
+    padding, which every block has (unset: 8/4 with an own background, else 0). Offset sits
+    under "Advanced". `pages/` the other pages,
     `controls/` and `layout/` shared pieces. `savedLayouts/`: `LayoutSwitcher` (header of the Layout
     page: load, save, save as new, discard) and the Clock › Saved layouts page; both through
     `useLayoutLibrary` over `SAVED_LAYOUTS`/`ACTIVE_LAYOUT_ID` (logic in `src/layout/LayoutLibrary`,
