@@ -9,6 +9,7 @@ import { ClockTemplate, type Segment } from "./ClockTemplate";
 import { CalendarSegment } from "./CalendarSegment";
 import { ClockFace } from "./faces/ClockFace";
 import { progressShare } from "./ProgressShare";
+import { StyledText } from "./StyledText";
 import { maxSizeShare } from "./SizeLimit";
 import { TimeCharacters } from "./TimeCharacters";
 import type { CalendarLayout } from "../calendar/CalendarTypes";
@@ -232,6 +233,7 @@ export function BlockContent({ segments, justify, alignItems, sizeShare, heightF
                             format={segment.value}
                             keyPrefix={keyPrefix}
                             flip={segment.type === "FLIPTIME"}
+                            flipUnit={segment.flipUnit}
                             member={segment.member}
                         />
                     );
@@ -248,6 +250,10 @@ export function BlockContent({ segments, justify, alignItems, sizeShare, heightF
                         />
                     );
                 case "TEXT":
+                    if (segment.textStyle)
+                    {
+                        return <StyledText key={`text-${segmentIndex}`} text={segment.value} style={segment.textStyle} flipUnit={segment.flipUnit} iconStyle={iconStyle} member={segment.member} />;
+                    }
                     return (
                         <span className="normal-text-settings text-run" key={`text-${segmentIndex}`} data-member={segment.member} style={SEGMENT_STYLE}>
                             {segment.value}
@@ -256,6 +262,10 @@ export function BlockContent({ segments, justify, alignItems, sizeShare, heightF
                 case "WEATHER":
                 {
                     const weatherText = weatherFormatter.format(segment.value);
+                    if (segment.textStyle)
+                    {
+                        return <StyledText key={`weather-${segmentIndex}`} text={weatherText} style={segment.textStyle} flipUnit={segment.flipUnit} iconStyle={iconStyle} member={segment.member} />;
+                    }
                     return (
                         <span className="normal-text-settings text-run" key={`weather-${segmentIndex}`} data-member={segment.member} style={SEGMENT_STYLE}>
                             {iconStyle === "flat" ? withFlatIcons(weatherText) : weatherText}
@@ -270,6 +280,8 @@ export function BlockContent({ segments, justify, alignItems, sizeShare, heightF
                             settings={segment.calendar ?? {}}
                             now={currentMinute}
                             iconStyle={iconStyle}
+                            textStyle={segment.textStyle}
+                            flipUnit={segment.flipUnit}
                             member={segment.member}
                         />
                     );

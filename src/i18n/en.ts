@@ -341,7 +341,15 @@ export const EN = {
     },
     clockStyle: {
         label: "Style",
+        textStyle: "Text style",
+        textStyleNote: "How letters and digits are drawn. LCD and dot matrix work best with flat icons.",
+        memberNote: "\"Digital\" draws the time in the group's text style (under Text).",
+        mixedNote: "Members keep their own styles until you pick one.",
+        flipUnit: "Cards",
+        perCharacter: "Per character",
+        perWord: "Per word",
         names: {
+            digital: "Digital",
             flip: "Flip",
             text: "Text",
             segment: "LCD",

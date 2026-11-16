@@ -1,7 +1,7 @@
 // Runs with `npm test`: which look settings the inspector shows for each clock style.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { settingsOf, STYLE_COLOR_FIELDS, withClockStyle } from "../src/blocks/StyleSettings.ts";
+import { settingsOf, STYLE_COLOR_FIELDS, withClockStyle, withTextStyle } from "../src/blocks/StyleSettings.ts";
 import type { LayoutBlock } from "../src/layout/ClockLayout.ts";
 
 function clock(extra: Partial<LayoutBlock>): LayoutBlock
@@ -16,16 +16,19 @@ function shown(block: LayoutBlock): string[]
 
 test("text styles show font, color, spacing and text size; flip also its cards", () =>
 {
-    assert.deepEqual(shown(clock({ clockStyle: "text" })), ["align", "color", "font", "letterSpacing", "textSize"]);
-    assert.ok(settingsOf(clock({})).has("cards"));
+    assert.deepEqual(shown(clock({ textStyle: "text" })), ["align", "color", "font", "letterSpacing", "textSize"]);
+    assert.deepEqual(shown(clock({})), ["align", "color", "font", "letterSpacing", "textSize"], "unset is plain text");
+    assert.deepEqual(shown(clock({ kind: "date", textStyle: "flip" })), ["align", "cards", "color", "flipUnit", "font", "letterSpacing", "textSize"]);
 });
 
 test("lit styles take the glow color and a size, no font or text color", () =>
 {
-    for (const clockStyle of ["segment", "dots", "nixie"] as const)
+    for (const textStyle of ["segment", "dots", "nixie"] as const)
     {
-        assert.deepEqual(shown(clock({ clockStyle })), ["align", "glowColor", "size"]);
+        assert.deepEqual(shown(clock({ textStyle })), ["align", "glowColor", "size"]);
+        assert.deepEqual(shown(clock({ kind: "weather", display: "temp", textStyle })), ["align", "glowColor", "size"]);
     }
+    assert.deepEqual(shown(clock({ textStyle: "segment", clockStyle: "analogFine" })), ["align", "dialColor", "handColor", "size"], "a face ignores the text style");
 });
 
 test("the second hand and second ring color only with seconds", () =>
@@ -47,19 +50,38 @@ test("a group shows what any member uses, text size wins over size", () =>
 {
     const group = clock({
         kind: "group",
-        items: [{ kind: "clock", display: "HH:mm", clockStyle: "segment" }, { kind: "date", display: "dddd" }],
+        textStyle: "segment",
+        items: [{ kind: "clock", display: "HH:mm", clockStyle: "analogFine" }, { kind: "date", display: "dddd", textStyle: "text" }],
     });
-    assert.deepEqual(shown(group), ["align", "color", "font", "glowColor", "letterSpacing", "textSize"]);
+    assert.deepEqual(shown(group), ["align", "color", "dialColor", "font", "handColor", "letterSpacing", "textSize"]);
 });
 
 test("switching the clock style drops the old style's colors", () =>
 {
     const block = clock({ clockStyle: "analogClassic", dialColor: "#000000", handColor: "#ff0000", color: "#00ff00", backgroundColor: "#123456" });
-    const switched = JSON.parse(JSON.stringify({ ...block, ...withClockStyle("segment") })) as LayoutBlock;
-    assert.equal(switched.clockStyle, "segment");
+    const switched = JSON.parse(JSON.stringify({ ...block, ...withClockStyle("rings") })) as LayoutBlock;
+    assert.equal(switched.clockStyle, "rings");
     for (const field of STYLE_COLOR_FIELDS)
     {
         assert.equal(field in switched, false, field);
     }
     assert.equal(switched.backgroundColor, "#123456");
+});
+
+test("picking a text style: a clock goes back to digits, a group's members share it", () =>
+{
+    const analog = clock({ clockStyle: "analogFine", dialColor: "#000000" });
+    const digits = JSON.parse(JSON.stringify({ ...analog, ...withTextStyle(analog, "dots") })) as LayoutBlock;
+    assert.deepEqual([digits.clockStyle, digits.textStyle, digits.dialColor], [undefined, "dots", undefined]);
+
+    const group = clock({
+        kind: "group",
+        items: [{ kind: "clock", display: "HH:mm", textStyle: "flip" }, { kind: "weather", display: "temp", weatherIcon: true }],
+    });
+    const patch = withTextStyle(group, "segment");
+    assert.equal(patch.textStyle, "segment");
+    assert.deepEqual(patch.items!.map((item) => item.textStyle), [undefined, undefined]);
+    assert.equal(patch.iconStyle, "flat", "LCD suggests flat icons");
+    assert.equal(withTextStyle({ ...group, iconStyle: "colored" }, "segment").iconStyle, undefined, "a chosen icon style stays");
+    assert.equal(withTextStyle(group, "nixie").iconStyle, undefined);
 });

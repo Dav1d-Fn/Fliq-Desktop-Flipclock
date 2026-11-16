@@ -17,11 +17,13 @@ interface ContentEditorProps
     // A block, or a group member merged over its group (for the group's font and color).
     block: LayoutBlock;
     onChange: (patch: Partial<LayoutBlock>) => void;
+    // A group member: the kind's settings leave out what is the group's look.
+    inGroup?: boolean;
 }
 
 // What a block shows: the display choice, the custom format and the kind's content settings.
 // Shared by BlockInspector and the member list of a group.
-export function ContentEditor({ block, onChange }: ContentEditorProps)
+export function ContentEditor({ block, onChange, inGroup = false }: ContentEditorProps)
 {
     const definition = blockDefinition(block.kind);
     const defaultFont = useAtomValue(ATOMS.TEXT_FONT);
@@ -85,7 +87,7 @@ export function ContentEditor({ block, onChange }: ContentEditorProps)
                 </InspectorField>
             )}
 
-            {ContentSettings && <ContentSettings block={block} onChange={onChange} />}
+            {ContentSettings && <ContentSettings block={block} onChange={onChange} inGroup={inGroup} />}
         </>
     );
 }

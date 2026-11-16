@@ -8,10 +8,18 @@ export type BlockKind = "clock" | "date" | "weather" | "text" | "calendar" | "gr
 // Kinds a group can hold: everything but another group.
 export type MemberKind = Exclude<BlockKind, "group">;
 
-// How a clock block draws the time. "flip" and "text" were their own block kinds before
-// (see LayoutMigration); "progress" shows how far one unit is (the old seconds bar); the others
-// are drawn by ClockFace.
-export type ClockStyle = "flip" | "text" | "segment" | "dots" | "nixie" | "analogMinimal" | "analogClassic" | "analogFine" | "rings" | "progress";
+// How a block draws its characters: flip cards, plain text, LCD segments, a dot matrix or nixie
+// tubes. A look setting like the font, so a group has one for all its members. Unset is "text".
+export type TextStyle = "flip" | "text" | "segment" | "dots" | "nixie";
+
+// What a clock block draws besides digits in its text style ("digital", also when unset): an
+// analog face, rings, or "progress" (how far one unit is, the old seconds bar). Drawn by
+// ClockFace, except the progress bar. Older versions kept the text styles here too
+// (see LayoutMigration.withTextStyles).
+export type ClockStyle = "digital" | "analogMinimal" | "analogClassic" | "analogFine" | "rings" | "progress";
+
+// Flip style: one card per letter or digit, or one per word (runs between spaces and commas).
+export type FlipUnit = "character" | "word";
 
 // Progress style: a bar as wide as the block, a ring, or dots that light up in turn.
 export type ProgressShape = "bar" | "ring" | "dots";
@@ -47,6 +55,9 @@ export interface GroupItem extends ProgressFields
     weatherIcon?: boolean;
     clockStyle?: ClockStyle;
     calendar?: CalendarBlockSettings;
+    // Only from the migration: a member that kept its own text style where the members of an
+    // old group were drawn differently. Picking the group's style clears it.
+    textStyle?: TextStyle;
 }
 
 export type BlockAlign = "left" | "center" | "right";
@@ -75,7 +86,7 @@ export interface LayoutBlock extends ProgressFields
     text?: string;
     // Weather blocks only: show the weather emoji.
     weatherIcon?: boolean;
-    // Clock blocks only: how the time is drawn ("flip" when unset).
+    // Clock blocks only: digits in the text style ("digital" when unset) or a drawn face.
     clockStyle?: ClockStyle;
     // Calendar blocks only: which events and how (the layout is `display`).
     calendar?: CalendarBlockSettings;
@@ -88,9 +99,12 @@ export interface LayoutBlock extends ProgressFields
     align?: BlockAlign;
     // Unset means colored, the look before this setting existed.
     iconStyle?: IconStyle;
+    // How characters are drawn ("text" when unset); flip: cards per character or per word.
+    textStyle?: TextStyle;
+    flipUnit?: FlipUnit;
     font?: string;
     color?: string;
-    // Clock styles other than flip and text; unset means the style's own color.
+    // Text styles other than flip and text, and the clock faces; unset means the style's own color.
     // Lit segments, dots and tubes:
     glowColor?: string;
     // Rings: each ring's color, and the time in the middle in % of its own size.
@@ -102,7 +116,7 @@ export interface LayoutBlock extends ProgressFields
     dialColor?: string;
     handColor?: string;
     secondHandColor?: string;
-    // Flip clock style only.
+    // Flip text style only.
     cardColor?: string;
     cardRadius?: number;
     // Room between the block's edges and its content, left/right and top/bottom, in px at
@@ -227,7 +241,7 @@ export const DEFAULT_LAYOUT: ClockLayout = {
     columnGap: 0,
     rowGap: 0,
     blocks: [
-        { id: 1, kind: "clock", clockStyle: "flip", x: 0, y: 0, w: 4, h: 1, display: "HH:mm", cardColor: "#212121ff", paddingX: 0, paddingY: 4, letterSpacing: -0.03, textSize: 99 },
+        { id: 1, kind: "clock", textStyle: "flip", x: 0, y: 0, w: 4, h: 1, display: "HH:mm", cardColor: "#212121ff", paddingX: 0, paddingY: 4, letterSpacing: -0.03, textSize: 99 },
         {
             id: 2,
             kind: "group",

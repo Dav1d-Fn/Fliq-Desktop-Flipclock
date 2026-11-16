@@ -66,9 +66,16 @@ gtk-layer-shell, X11 fallback). macOS is not shipped. Meant to grow into a widge
   `SizeLimit` gives the text size above which the content stops growing (unspaced width,
   or the room's height when the row does not follow the block); the inspector's size slider
   ends there (`BLOCK_SIZE_LIMITS`), and a larger stored value draws (and sizes the row) like it.
-  Clock blocks have a `clockStyle`: flip and text run on Tick.js, every other style (LCD, dot
-  matrix, nixie, analog, rings, progress ring/dots) is a `faces/ClockFace` (SVG/CSS sized in
-  em, own once-a-second timer, colors from CSS variables in `faces.css`). The progress bar (the
+  Every block (and group, one for all members) has a `textStyle`: flip, text, LCD (`segment`),
+  dot matrix, nixie. Time and date run on Tick.js for flip/text and on `faces/ClockFace` for
+  the drawn ones; text, weather and calendar go through `StyledText` (static flip cards built
+  like Tick.js's, emoji icons left beside the text). Glyphs are data: `faces/SegmentGlyphs`
+  (7-segment for digits only, 14-segment as soon as there are letters), `faces/DotGlyphs`
+  (5 × 7), tested in `tests/glyphs.test.ts`. Flip `flipUnit` "word": one card per word.
+  Clock blocks also have a `clockStyle` ("digital" = digits in the text style, or a face:
+  analog, rings, progress ring/dots), drawn by `faces/ClockFace` (SVG/CSS sized in em, own
+  once-a-second timer, colors from CSS variables in `faces.css`). A `GroupItem.textStyle` only
+  comes from the migration (`LayoutMigration.withTextStyles`) for old mixed groups. The progress bar (the
   old seconds bar; shares from `ProgressShare.ts`) is drawn by BlockContent.
   `TimeCharacters` renders the Tick.js spans once and never again — React must not touch nodes
   Tick.js owns. `ClockTemplate` holds a block's segments; `parse` reads the old

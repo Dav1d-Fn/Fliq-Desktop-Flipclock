@@ -1,5 +1,5 @@
 import type { Segment } from "../clock/ClockTemplate.ts";
-import type { BlockKind, LayoutBlock } from "../layout/ClockLayout.ts";
+import type { BlockKind, LayoutBlock, TextStyle } from "../layout/ClockLayout.ts";
 
 export type HourCycle = "24" | "12";
 
@@ -64,4 +64,38 @@ export function timeFormat(block: LayoutBlock, context: SegmentContext, meridiem
     const seconds = block.display.includes("ss") ? ":ss" : "";
     const suffix = meridiem && twelveHour ? " A" : "";
     return `${hours}:mm${seconds}${suffix}`;
+}
+
+// How a block (or group member: its own style from the migration wins) draws characters.
+export function textStyleOf(block: LayoutBlock): TextStyle
+{
+    return block.textStyle ?? "text";
+}
+
+// The text style fields of a TEXT, WEATHER or CALENDAR segment: none for plain text, so those
+// segments stay as they were before text styles.
+export function styledText(block: LayoutBlock): Pick<Segment, "textStyle" | "flipUnit">
+{
+    const style = textStyleOf(block);
+    if (style === "text")
+    {
+        return {};
+    }
+    return { textStyle: style, ...(style === "flip" && block.flipUnit === "word" && { flipUnit: "word" }) };
+}
+
+// A Day.js format in the block's text style: flip cards and plain text run on Tick.js, the
+// drawn styles on ClockFace.
+export function timeSegment(block: LayoutBlock, format: string): Segment
+{
+    const style = textStyleOf(block);
+    switch (style)
+    {
+        case "flip":
+            return { type: "FLIPTIME", value: format, ...(block.flipUnit === "word" && { flipUnit: "word" }) };
+        case "text":
+            return { type: "TIME", value: format };
+        default:
+            return { type: "FACE", value: format, face: style };
+    }
 }

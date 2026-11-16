@@ -1,5 +1,5 @@
-import { LayoutGrid, type ClockStyle, type LayoutBlock } from "../../../../layout/ClockLayout";
-import { settingsOf } from "../../../../blocks/StyleSettings";
+import { LayoutGrid, type ClockStyle, type LayoutBlock, type TextStyle } from "../../../../layout/ClockLayout";
+import { itemTextStyle, settingsOf } from "../../../../blocks/StyleSettings";
 import { useStrings } from "../../../../i18n/useStrings";
 import { SliderControl } from "../../controls/SliderControl";
 import type { BlockSettingsProps } from "../BlockEditors";
@@ -10,7 +10,7 @@ import { FlipCardSettings } from "./FlipCardSettings";
 import { SecondsBarSettings } from "./SecondsBarSettings";
 
 // Each style's own colors, shown on the "default" swatch. Same values as faces.css.
-const GLOW_DEFAULTS: Partial<Record<ClockStyle, string>> = { segment: "#ff3b30", dots: "#7fdcff", nixie: "#ffa64d" };
+const GLOW_DEFAULTS: Partial<Record<TextStyle, string>> = { segment: "#ff3b30", dots: "#7fdcff", nixie: "#ffa64d" };
 const ANALOG_DEFAULTS: Partial<Record<ClockStyle, { dial: string; hand: string; second: string }>> = {
     analogMinimal: { dial: "#20242b", hand: "#f2f4f7", second: "#ff5a4e" },
     analogClassic: { dial: "#f3efe6", hand: "#222222", second: "#b8322a" },
@@ -43,19 +43,17 @@ function ColorField({ block, onChange, field, label, swatches, defaultColor }: C
     );
 }
 
-// What the clock styles a block shows draw with, only what they use (settingsOf): card
+// What the text style and clock faces a block shows draw with, only what they use (settingsOf): card
 // settings for flip, glow color for the lit styles, dial and hand colors for analog, ring
 // colors and the time's size for rings, progress colors (and bar size). For a group, of every
-// clock member's style.
+// member's style.
 export function ClockStyleSettings({ block, onChange }: BlockSettingsProps)
 {
     const text = useStrings().clockStyle;
     const settings = settingsOf(block);
-    const styles = LayoutGrid.itemsOf(block)
-        .filter((item) => item.kind === "clock")
-        .map((item) => item.clockStyle ?? "flip");
-    const glowStyle = styles.find((style) => GLOW_DEFAULTS[style]);
-    const analogStyle = styles.find((style) => ANALOG_DEFAULTS[style]);
+    const items = LayoutGrid.itemsOf(block);
+    const glowStyle = items.map((item) => itemTextStyle(item, block)).find((style) => GLOW_DEFAULTS[style]);
+    const analogStyle = items.map((item) => item.clockStyle ?? "digital").find((style) => ANALOG_DEFAULTS[style]);
     const analog = analogStyle ? ANALOG_DEFAULTS[analogStyle] : undefined;
     const fieldProps = { block, onChange };
 
