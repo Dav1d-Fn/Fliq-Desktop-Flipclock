@@ -81,3 +81,13 @@ export function withFlatIcons(text: string): ReactNode[]
         return <FlatIcon key={partIndex} size="1em" aria-hidden style={{ verticalAlign: "-0.125em" }} />;
     });
 }
+
+// Weather or calendar text cut into text and emoji, in order. Text styles draw only the text
+// and leave the icons beside it as they are.
+export function splitIcons(text: string): { part: string; icon: boolean }[]
+{
+    return text
+        .split(EMOJI_PATTERN)
+        .filter((part) => part !== "")
+        .map((part) => ({ part, icon: part in FLAT_ICONS }));
+}

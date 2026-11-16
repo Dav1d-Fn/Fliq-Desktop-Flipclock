@@ -3,7 +3,7 @@ import { Button, Select, SegmentedControl, Switch } from "@mantine/core";
 import { IconAlignCenter, IconAlignLeft, IconAlignRight, IconStackPop, IconTrash } from "@tabler/icons-react";
 import { useAtomValue } from "jotai";
 import { blockDefinition } from "../../../blocks/BlockRegistry";
-import { settingsOf, showsIcons, type StyleSetting } from "../../../blocks/StyleSettings";
+import { drawsText, settingsOf, showsIcons, type StyleSetting } from "../../../blocks/StyleSettings";
 import { BLOCK_SIZE_LIMITS } from "../../../clock/useLayoutGrid";
 import { BLOCK_DEFAULTS, LayoutGrid, type BlockAlign, type LayoutBlock } from "../../../layout/ClockLayout";
 import { named, useStrings } from "../../../i18n/useStrings";
@@ -17,6 +17,8 @@ import { BACKGROUND_SWATCHES, TEXT_SWATCHES } from "./EditorSwatches";
 import { ColorDot } from "./ColorDot";
 import { InspectorField } from "./InspectorField";
 import { InspectorSection } from "./InspectorSection";
+import { ClockStyleSettings } from "./blockSettings/ClockStyleSettings";
+import { TextStylePicker } from "./blockSettings/TextStylePicker";
 
 interface BlockInspectorProps
 {
@@ -32,7 +34,7 @@ interface BlockInspectorProps
 
 const CLOCK_DEFAULT_FONT = "clock-default";
 
-// Settings the "Look" section holds (the kind's styleSettings); the rest live in Text.
+// Settings the "Look" section holds (ClockStyleSettings); the rest live in Text.
 const LOOK_SETTINGS: StyleSetting[] = ["cards", "glowColor", "dialColor", "handColor", "secondHandColor", "hourRingColor", "minuteRingColor", "secondRingColor", "labelSize", "progressColors"];
 
 // Text size slider range in %. The end is where the content stops growing in the block's room
@@ -82,14 +84,20 @@ export function BlockInspector({ block, onChange, onRemove, onUngroup, openMembe
     const Icon = editor.icon;
     const items = LayoutGrid.itemsOf(block);
     const withIcons = items.some(showsIcons);
-    const hasLook = Boolean(StyleSettings) && (block.kind === "group" || withIcons || LOOK_SETTINGS.some((setting) => settings.has(setting)));
+    const hasStyleColors = LOOK_SETTINGS.some((setting) => settings.has(setting));
+    const hasLook = Boolean(StyleSettings) && (block.kind === "group" || withIcons);
     const hasText = ["align", "font", "color", "textSize", "size", "letterSpacing"].some((setting) => settings.has(setting as StyleSetting));
 
     // Summaries for closed sections.
     const displayOption = definition.displayOptions.find((option) => option.id === block.display);
     const displayLabel = block.display === "custom" ? strings.content.customFormat : displayOption && named(strings, displayOption.label);
-    const contentSummary = joined([displayLabel, block.kind === "clock" && strings.clockStyle.names[block.clockStyle ?? "flip"]]);
+    const textStyleName = strings.clockStyle.names[block.textStyle ?? "text"];
+    const clockStyleName = block.clockStyle && block.clockStyle !== "digital" ? strings.clockStyle.names[block.clockStyle] : textStyleName;
+    const contentSummary = joined([displayLabel, block.kind === "clock" && clockStyleName]);
+    // Clock blocks pick their text style with their faces (Content).
+    const picksTextStyle = block.kind !== "clock";
     const textSummary = joined([
+        picksTextStyle && items.some(drawsText) && textStyleName,
         settings.has("font") && fontLabel(block.font ?? defaultFont),
         (settings.has("textSize") || settings.has("size")) && `${block.textSize ?? 100} %`,
     ]);
@@ -134,6 +142,8 @@ export function BlockInspector({ block, onChange, onRemove, onUngroup, openMembe
 
             {hasText && (
                 <InspectorSection id="text" title={settings.has("size") ? text.sectionSize : text.sectionText} summary={textSummary} defaultOpen>
+                    {picksTextStyle && <TextStylePicker block={block} onChange={onChange} />}
+
                     {settings.has("align") && (
                         <InspectorField label={text.alignment}>
                             <SegmentedControl
@@ -204,6 +214,7 @@ export function BlockInspector({ block, onChange, onRemove, onUngroup, openMembe
             )}
 
             <InspectorSection id="look" title={text.sectionLook} summary={lookSummary} defaultOpen={block.kind === "group"}>
+                {hasStyleColors && <ClockStyleSettings block={block} onChange={onChange} />}
                 {hasLook && StyleSettings && <StyleSettings block={block} onChange={onChange} />}
 
                 <Switch

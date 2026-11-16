@@ -36,7 +36,7 @@ test("old rows become one grid row each, one block per placeholder", () =>
     assert.equal(layout.rows, 2);
     assert.equal(layout.columns, 6);
     const [flip, date, feels, sun] = layout.blocks;
-    assert.deepEqual([flip.kind, flip.clockStyle, flip.display, flip.x, flip.y, flip.w], ["clock", "flip", "HH:mm", 0, 0, 6]);
+    assert.deepEqual([flip.kind, flip.clockStyle, flip.textStyle, flip.display, flip.x, flip.y, flip.w], ["clock", undefined, "flip", "HH:mm", 0, 0, 6]);
     assert.equal(flip.cardColor, "#ff0000ff");
     assert.deepEqual([date.kind, date.display, date.customFormat], ["date", "custom", "dddd, DD.MM"]);
     assert.deepEqual([feels.kind, feels.display, feels.weatherIcon], ["weather", "feels", true]);
@@ -377,8 +377,9 @@ test("flip and time blocks become clock blocks that look the same, also in group
     const store = storage({ layoutMigrated: true, clockLayout: before });
     new LayoutMigration(store).run();
     const [flip, group] = layoutOf(store).blocks;
-    assert.deepEqual([flip.kind, flip.clockStyle], ["clock", "flip"]);
-    assert.deepEqual(group.items!.map((item) => [item.kind, item.clockStyle]), [["clock", "text"], ["date", undefined]]);
+    assert.deepEqual([flip.kind, flip.clockStyle, flip.textStyle], ["clock", undefined, "flip"]);
+    assert.deepEqual(group.items!.map((item) => [item.kind, item.clockStyle, item.textStyle]), [["clock", undefined, undefined], ["date", undefined, undefined]]);
+    assert.equal(group.textStyle, undefined);
 
     // Same segments as the old flip time and time definitions drew.
     const segmentsOf = (block: LayoutBlock) => blockDefinition(block.kind).segments(block, DEFAULT_SEGMENT_CONTEXT);
@@ -420,8 +421,8 @@ test("old rows become clock blocks with the flip or text style", () =>
 {
     const store = storage({ format: "$FLIPTIME(HH:mm) $TIME(HH:mm:ss) $TIME(dddd)", secondRowEnabled: false });
     new LayoutMigration(store).run();
-    const kinds = layoutOf(store).blocks.map((block) => [block.kind, block.clockStyle]);
-    assert.deepEqual(kinds, [["clock", "flip"], ["clock", "text"], ["date", undefined]]);
+    const kinds = layoutOf(store).blocks.map((block) => [block.kind, block.clockStyle, block.textStyle]);
+    assert.deepEqual(kinds, [["clock", undefined, "flip"], ["clock", undefined, "text"], ["date", undefined, undefined]]);
 });
 
 test("mixed 12- and 24-hour blocks keep the 24-hour default", () =>
@@ -463,4 +464,83 @@ test("saved layouts get their padding split too", () =>
     const migrated = saved[0].layout.blocks[0];
     assert.equal(saved[0].name, "Old");
     assert.deepEqual([migrated.paddingX, migrated.paddingY, migrated.padding], [12, 6, undefined]);
+});
+
+// A layout of the clock-styles version: digit styles were clock styles, unset meant flip.
+const clockStyleLayout = (): ClockLayout => ({
+    columns: 8,
+    rows: 2,
+    blocks: [
+        { id: 1, kind: "clock", x: 0, y: 0, w: 2, h: 1, display: "HH:mm", cardColor: "#ff0000ff" },
+        { id: 2, kind: "clock", clockStyle: "segment" as never, x: 2, y: 0, w: 2, h: 1, display: "HH:mm", glowColor: "#00ff00ff" },
+        { id: 3, kind: "clock", clockStyle: "analogFine", x: 4, y: 0, w: 2, h: 1, display: "HH:mm" },
+        { id: 4, kind: "date", x: 6, y: 0, w: 2, h: 1, display: "dddd" },
+        {
+            id: 5, kind: "group", x: 0, y: 1, w: 4, h: 1, display: "group",
+            items: [{ kind: "clock", display: "HH:mm", clockStyle: "dots" as never }, { kind: "clock", display: "HH:mm", clockStyle: "rings" }],
+        },
+        {
+            id: 6, kind: "group", x: 4, y: 1, w: 4, h: 1, display: "group",
+            items: [{ kind: "clock", display: "HH:mm" }, { kind: "weather", display: "temp" }],
+        },
+    ],
+});
+
+test("clock digit styles become text styles and every block draws as before", () =>
+{
+    const before = clockStyleLayout();
+    const store = storage({ layoutMigrated: true, clockKindMigrated: true, clockLayout: before });
+    new LayoutMigration(store).run();
+    const [flip, lcd, analog, date, dotsGroup, mixedGroup] = layoutOf(store).blocks;
+    const segmentsOf = (block: LayoutBlock) => blockDefinition(block.kind).segments(block, DEFAULT_SEGMENT_CONTEXT);
+
+    assert.deepEqual([flip.clockStyle, flip.textStyle, flip.cardColor], [undefined, "flip", "#ff0000ff"]);
+    assert.deepEqual(segmentsOf(flip), [{ type: "FLIPTIME", value: "HH:mm" }]);
+    assert.deepEqual([lcd.clockStyle, lcd.textStyle, lcd.glowColor], [undefined, "segment", "#00ff00ff"]);
+    assert.deepEqual(segmentsOf(lcd), [{ type: "FACE", value: "HH:mm", face: "segment" }]);
+    assert.deepEqual([analog.clockStyle, analog.textStyle], ["analogFine", undefined]);
+    assert.deepEqual(segmentsOf(date), [{ type: "TIME", value: "dddd" }], "other blocks stay plain text");
+
+    // One drawn style in the group: it becomes the group's, the face member keeps its face.
+    assert.equal(dotsGroup.textStyle, "dots");
+    assert.deepEqual(dotsGroup.items!.map((item) => [item.clockStyle, item.textStyle]), [[undefined, undefined], ["rings", undefined]]);
+    assert.deepEqual(segmentsOf(dotsGroup).map((segment) => segment.face), ["dots", undefined, "rings"]);
+
+    // Flip clock beside plain weather: the group stays plain text, the clock keeps its flip.
+    assert.equal(mixedGroup.textStyle, undefined);
+    assert.deepEqual(mixedGroup.items!.map((item) => item.textStyle), ["flip", undefined]);
+    assert.deepEqual(segmentsOf(mixedGroup).map((segment) => [segment.type, segment.textStyle]), [
+        ["FLIPTIME", undefined],
+        ["SPACE", undefined],
+        ["WEATHER", undefined],
+    ]);
+
+    store.items.set("clockLayout", JSON.stringify(before));
+    new LayoutMigration(store).run();
+    assert.equal(layoutOf(store).blocks[1].clockStyle, "segment", "runs only once");
+});
+
+test("saved layouts get text styles too, also from the old block kinds", () =>
+{
+    const flipKind = { id: 1, kind: "flip", x: 0, y: 0, w: 2, h: 1, display: "HH:mm" };
+    const store = storage({
+        layoutMigrated: true,
+        clockKindMigrated: true,
+        savedLayouts: [{ id: 1, name: "Old", layout: clockStyleLayout() }, { id: 2, name: "Older", layout: { columns: 2, rows: 1, blocks: [flipKind] } }],
+    });
+    new LayoutMigration(store).run();
+    const saved = JSON.parse(store.getItem("savedLayouts")!) as { layout: ClockLayout }[];
+    assert.deepEqual([saved[0].layout.blocks[1].clockStyle, saved[0].layout.blocks[1].textStyle], [undefined, "segment"]);
+    assert.deepEqual([saved[1].layout.blocks[0].kind, saved[1].layout.blocks[0].textStyle], ["clock", "flip"]);
+});
+
+test("text, weather, date and calendar blocks carry their text style in their segments", () =>
+{
+    const base = { id: 1, x: 0, y: 0, w: 2, h: 1 };
+    const segmentsOf = (block: LayoutBlock) => blockDefinition(block.kind).segments(block, DEFAULT_SEGMENT_CONTEXT);
+    assert.deepEqual(segmentsOf({ ...base, kind: "text", display: "text", text: "Hi", textStyle: "dots" }), [{ type: "TEXT", value: "Hi", textStyle: "dots" }]);
+    assert.deepEqual(segmentsOf({ ...base, kind: "weather", display: "temp", textStyle: "flip", flipUnit: "word" }), [{ type: "WEATHER", value: "tempEmoji", textStyle: "flip", flipUnit: "word" }]);
+    assert.deepEqual(segmentsOf({ ...base, kind: "date", display: "dddd", textStyle: "nixie" }), [{ type: "FACE", value: "dddd", face: "nixie" }]);
+    assert.deepEqual(segmentsOf({ ...base, kind: "date", display: "dddd", textStyle: "flip", flipUnit: "word" }), [{ type: "FLIPTIME", value: "dddd", flipUnit: "word" }]);
+    assert.equal(segmentsOf({ ...base, kind: "calendar", display: "next", textStyle: "segment" })[0].textStyle, "segment");
 });
