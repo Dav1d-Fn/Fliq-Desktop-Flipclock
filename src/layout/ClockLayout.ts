@@ -148,12 +148,10 @@ export interface ClockLayout
     columns: number;
     rows: number;
     blocks: LayoutBlock[];
-    // Default space between columns / rows, in px at scale 1; CELL_GAP when unset.
+    // Space between columns / rows, in px at scale 1; CELL_GAP when unset. The same for every
+    // gap: older versions also stored per-gap columnGaps / rowGaps (see LayoutMigration).
     columnGap?: number;
     rowGap?: number;
-    // Space after column / row i, overriding the default. null or missing: the default.
-    columnGaps?: (number | null)[];
-    rowGaps?: (number | null)[];
     // Default width of a column, in px at scale 1; CELL_WIDTH when unset.
     columnWidth?: number;
     // Width of column i, overriding the default. null or missing: the default.
@@ -168,11 +166,8 @@ export interface ClockLayout
 
 export type GapAxis = "column" | "row";
 
-// One column or row: `axis` and its index. Same shape as a gap.
-export type TrackRef = GapRef;
-
-// One boundary between two neighbouring columns or rows: `index` is the one before the gap.
-export interface GapRef
+// One column or row: `axis` and its index.
+export interface TrackRef
 {
     axis: GapAxis;
     index: number;
@@ -207,6 +202,8 @@ export interface PixelRect
 export const CELL_WIDTH = 64;
 export const CELL_HEIGHT = 56;
 export const CELL_GAP = 2;
+// Measured heights differ by fractions of a pixel; below this a block counts as filling its row.
+const ALIGN_TOLERANCE = 0.5;
 
 export const GRID_LIMITS = {
     minColumns: 2,
@@ -300,6 +297,15 @@ export class LayoutGrid
         });
     }
 
+    // Whether row alignment changes anything in `row`: only when one of its single-row blocks
+    // is lower than the row (a minimum height above it, or a higher neighbour).
+    static rowHasRoomToAlign(layout: ClockLayout, blockHeights: Record<number, number>, row: number): boolean
+    {
+        const rowHeight = LayoutGrid.autoRowHeights(layout, blockHeights)[row];
+        return layout.blocks.some((block) =>
+            block.y === row && block.h === 1 && blockHeights[block.id] !== undefined && blockHeights[block.id] < rowHeight - ALIGN_TOLERANCE);
+    }
+
     // Room between a block's edges and its content, in px at scale 1. Only a block with its own
     // background keeps an edge by default; without one, space between blocks is the gaps.
     static paddingOf(block: LayoutBlock): { x: number; y: number }
@@ -387,14 +393,12 @@ export class LayoutGrid
             }
         }
 
-        // Gaps of boundaries that no longer exist are dropped, so a re-added column starts fresh.
+        // Settings of tracks that no longer exist are dropped, so a re-added column starts fresh.
         const result: ClockLayout = {
             ...this.layout,
             columns,
             rows,
             blocks: inside,
-            columnGaps: this.layout.columnGaps?.slice(0, columns - 1),
-            rowGaps: this.layout.rowGaps?.slice(0, rows - 1),
             columnWidths: this.layout.columnWidths?.slice(0, columns),
             rowAligns: this.layout.rowAligns?.slice(0, rows),
             rowHeightOverrides: this.layout.rowHeightOverrides?.slice(0, rows),
@@ -634,7 +638,6 @@ export class LayoutGrid
             ...this.layout,
             rows: rows + 1,
             blocks: this.layout.blocks.filter((block) => block.id !== droppedId).map(shifted),
-            rowGaps: LayoutGrid.spliced(this.layout.rowGaps, rows - 1, row, 0, null),
             rowAligns: LayoutGrid.spliced(this.layout.rowAligns, rows, row, 0, null),
             rowHeightOverrides: LayoutGrid.spliced(this.layout.rowHeightOverrides, rows, row, 0, null),
         };
@@ -677,20 +680,19 @@ export class LayoutGrid
         return result;
     }
 
-    // The layout without one empty row: the rows below move up, its gap and alignment go.
+    // The layout without one empty row: the rows below move up, its settings go.
     private static withoutRow(layout: ClockLayout, row: number): ClockLayout
     {
         return {
             ...layout,
             rows: layout.rows - 1,
             blocks: layout.blocks.map((block) => (block.y > row ? { ...block, y: block.y - 1 } : block)),
-            rowGaps: LayoutGrid.spliced(layout.rowGaps, layout.rows - 1, Math.min(row, layout.rows - 2), 1),
             rowAligns: LayoutGrid.spliced(layout.rowAligns, layout.rows, row, 1),
             rowHeightOverrides: LayoutGrid.spliced(layout.rowHeightOverrides, layout.rows, row, 1),
         };
     }
 
-    // A per-row (or per-gap) override list of `count` entries with entries removed or added at
+    // A per-row override list of `count` entries with entries removed or added at
     // `index`, like Array.splice. Stays undefined when there was none.
     private static spliced<T>(values: (T | null)[] | undefined, count: number, index: number, deleteCount: number, ...added: (T | null)[]): (T | null)[] | undefined
     {
@@ -901,29 +903,10 @@ export class LayoutGrid
         return { width: width * scale, height: height * scale };
     }
 
-    // Effective space after one column or row: its own value, else the axis default.
-    gap(ref: GapRef): number
-    {
-        return this.gapOverride(ref) ?? this.defaultGap(ref.axis);
-    }
-
-    gapOverride(ref: GapRef): number | null
-    {
-        const gaps = ref.axis === "column" ? this.layout.columnGaps : this.layout.rowGaps;
-        return gaps?.[ref.index] ?? null;
-    }
-
-    defaultGap(axis: GapAxis): number
+    // Space between two columns or two rows.
+    gap(axis: GapAxis): number
     {
         return (axis === "column" ? this.layout.columnGap : this.layout.rowGap) ?? CELL_GAP;
-    }
-
-    // The layout with one gap set to its own value, or back to the default with null.
-    withGap(ref: GapRef, value: number | null): ClockLayout
-    {
-        const count = (ref.axis === "column" ? this.layout.columns : this.layout.rows) - 1;
-        const gaps = this.overridesWith(count, ref.index, value, (index) => this.gapOverride({ axis: ref.axis, index }));
-        return ref.axis === "column" ? { ...this.layout, columnGaps: gaps } : { ...this.layout, rowGaps: gaps };
     }
 
     // Width of a column (its own value, else the default) or height of a row (see autoRowHeights).
@@ -959,7 +942,7 @@ export class LayoutGrid
         let start = 0;
         for (let index = 0; index < column; index++)
         {
-            start += this.trackSize({ axis: "column", index }) + this.gap({ axis: "column", index });
+            start += this.trackSize({ axis: "column", index }) + this.gap("column");
         }
         return start;
     }
@@ -976,7 +959,7 @@ export class LayoutGrid
         let start = 0;
         for (let index = 0; index < row; index++)
         {
-            start += this.trackSize({ axis: "row", index }) + this.gap({ axis: "row", index });
+            start += this.trackSize({ axis: "row", index }) + this.gap("row");
         }
         return start;
     }

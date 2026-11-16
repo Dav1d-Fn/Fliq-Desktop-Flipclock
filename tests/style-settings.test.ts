@@ -86,12 +86,10 @@ test("picking a text style: a clock goes back to digits, a group's members share
     assert.equal(withTextStyle(group, "nixie").iconStyle, undefined);
 });
 
-test("padding is only a setting with an own background, where it keeps the defaults", () =>
+test("padding works for every block; unset it is only there with an own background", () =>
 {
-    assert.equal(settingsOf(clock({ paddingX: 6 })).has("padding"), false);
-    assert.equal(settingsOf(clock({ background: true })).has("padding"), true);
+    assert.deepEqual(LayoutGrid.paddingOf(clock({ paddingX: 6, paddingY: 3 })), { x: 6, y: 3 });
     assert.deepEqual(LayoutGrid.paddingOf(clock({})), { x: 0, y: 0 });
     assert.deepEqual(LayoutGrid.paddingOf(clock({ background: true })), { x: 8, y: 4 });
-    // A value stored before the cleanup keeps working without a background.
     assert.deepEqual(LayoutGrid.paddingOf(clock({ paddingY: 4 })), { x: 0, y: 4 });
 });

@@ -209,17 +209,13 @@ export const DE: Strings = {
         resizeBoth: "Breite und Höhe ändern",
     },
     grid: {
-        spaceBetween: (axis: "column" | "row", first: number) => axis === "column"
-            ? `Abstand zwischen Spalte ${first} und ${first + 1}`
-            : `Abstand zwischen Zeile ${first} und ${first + 1}`,
         trackSize: (axis: "column" | "row", number: number) => axis === "column"
             ? `Breite von Spalte ${number}`
             : `Zeile ${number}`,
-        spaceAfter: (axis: "column" | "row") => (axis === "column" ? "Abstand zur nächsten Spalte" : "Abstand zur nächsten Zeile"),
         width: "Breite",
         height: "Mindesthöhe",
         resetToDefault: "Auf Standard zurücksetzen",
-        followsDefault: "Folgt dem Standard unter Ganze Uhr.",
+        followsDefault: "Ohne eigene Breite folgt die Spalte der Spaltenbreite unter Ganze Uhr › Raster.",
         automatic: "Kein Minimum",
         automaticNote: "So hoch wie ihr höchster Block. Eine Mindesthöhe macht die Zeile höher, ihre Blöcke aber nie kleiner.",
     },
@@ -234,7 +230,7 @@ export const DE: Strings = {
         rowHeightNote: "Auf den Balken über einer Spalte klicken, um sie einzeln einzustellen. Zeilen sind so hoch wie ihr höchster Block; der Balken neben einer Zeile legt eine Mindesthöhe fest.",
         columnSpace: "Abstand zwischen Spalten",
         rowSpace: "Abstand zwischen Zeilen",
-        gapNote: "Einen einzelnen Abstand auf der Uhr anklicken, um ihn einzeln einzustellen.",
+        gapNote: "Gleich zwischen allen Spalten bzw. Zeilen. Um einen einzelnen Block einzurücken, seinen Innenabstand nutzen.",
         defaultFont: "Standardschrift",
         defaultTextColor: "Standard-Textfarbe",
         sectionWindow: "Fenster",
@@ -274,8 +270,7 @@ export const DE: Strings = {
         drawnSize: "Größe",
         drawnSizeNote: "Die Zeile wächst oder schrumpft mit der Größe. Der Regler endet dort, wo die Uhr den Block ausfüllt; für mehr den Block größer ziehen.",
         textSizeNote: "Der Zeichenabstand nutzt zuerst freien Platz. Füllt der Text den Block schon aus, wird stattdessen der Text kleiner; die Textgröße senken, um Platz zu schaffen. Die Zeile wächst oder schrumpft mit der Textgröße. Der Regler endet dort, wo der Text den Block ausfüllt; für mehr den Block größer ziehen.",
-        paddingNote: "Platz zwischen dem Hintergrund des Blocks und seinem Inhalt.",
-        gapsNote: "Den Platz zwischen Blöcken legen die Abstände fest: unter Ganze Uhr › Abstände oder je Spalte und Zeile an den Balken neben dem Raster.",
+        paddingNote: "Platz zwischen dem Rand des Blocks (seinem Hintergrund, falls er einen hat) und seinem Inhalt. Rückt einen einzelnen Block ein, ohne die Abstände zu ändern.",
         advanced: "Erweitert",
         offsetNote: "Feinjustierung: verschiebt, wo der Block gezeichnet wird. Seine Zellen, das Einrasten und die Abstände bleiben.",
         letterSpacing: "Zeichenabstand",

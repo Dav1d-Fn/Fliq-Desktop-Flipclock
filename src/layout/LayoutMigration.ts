@@ -21,8 +21,10 @@ export const LAYOUT_KEYS = {
 // Set once the old settings were looked at, so a reset does not bring the old rows back.
 const MIGRATED_MARKER = "layoutMigrated";
 
-// Set once the per-gap values of the first gap editor were cleaned (see cleanGapOverrides).
-const GAPS_CLEANED_MARKER = "gapOverridesCleaned";
+// Set once the per-gap values (columnGaps / rowGaps) were dropped: gaps are one value per axis,
+// a single block is inset with its padding (see dropGapOverrides). Replaces the earlier
+// "gapOverridesCleaned" step, which only reset values equal to an old built-in default.
+const GAP_OVERRIDES_MARKER = "gapOverridesDropped";
 
 // Set once the 12-hour display options were turned into the global clock format.
 const HOUR_CYCLE_MARKER = "hourCycleMigrated";
@@ -58,10 +60,6 @@ const OLD_CLOCK_KINDS: Record<string, Record<string, string>> = {
 // Display ids of time blocks before Data › Time: 12-hour ones, and what they become.
 const TWELVE_HOUR_DISPLAYS = ["hh:mm", "h:mm A"];
 const HOURS_AND_MINUTES = "HH:mm";
-
-// Built-in gap sizes of earlier versions. The first gap editor wrote them for every gap it did
-// not touch; as overrides they would hide the "Whole clock" defaults.
-const OLD_DEFAULT_GAPS = [8, 2];
 
 // Settings of the two-row clock before the grid layout, with their old defaults. They stay in
 // storage untouched, so an older version still finds them.
@@ -119,7 +117,7 @@ export class LayoutMigration
 
     run(): void
     {
-        this.cleanGapOverrides();
+        this.dropGapOverrides();
         this.convertOldRows();
         this.moveHourCycle();
         this.convertClockKinds();
@@ -360,28 +358,34 @@ export class LayoutMigration
         this.storage.setItem(LAYOUT_KEYS.layout, JSON.stringify({ ...layout, blocks }));
     }
 
-    // One-time: per-gap values equal to an old built-in default become "follow the default"
-    // again. Anything else (e.g. a 0 set on purpose) stays an override.
-    private cleanGapOverrides(): void
+    // One-time: per-gap values are no setting anymore; left in storage they would be dead
+    // data a later version could pick up again. Saved layouts too.
+    private dropGapOverrides(): void
     {
-        if (this.storage.getItem(GAPS_CLEANED_MARKER) !== null)
+        if (this.storage.getItem(GAP_OVERRIDES_MARKER) !== null)
         {
             return;
         }
-        this.storage.setItem(GAPS_CLEANED_MARKER, "true");
+        this.storage.setItem(GAP_OVERRIDES_MARKER, "true");
         const stored = this.storage.getItem(LAYOUT_KEYS.layout);
-        if (stored === null)
+        if (stored !== null)
         {
-            return;
+            this.storage.setItem(LAYOUT_KEYS.layout, JSON.stringify(LayoutMigration.withoutGapOverrides(JSON.parse(stored) as ClockLayout)));
         }
-        const layout = JSON.parse(stored) as ClockLayout;
-        const clean = (gaps: (number | null)[] | undefined) =>
-            gaps?.map((gap) => (gap === null || OLD_DEFAULT_GAPS.includes(gap) ? null : gap));
-        this.storage.setItem(LAYOUT_KEYS.layout, JSON.stringify({
-            ...layout,
-            columnGaps: clean(layout.columnGaps),
-            rowGaps: clean(layout.rowGaps),
-        }));
+        const saved = this.storage.getItem(LAYOUT_KEYS.savedLayouts);
+        if (saved !== null)
+        {
+            const layouts = (JSON.parse(saved) as { layout: ClockLayout }[]).map((entry) => ({ ...entry, layout: LayoutMigration.withoutGapOverrides(entry.layout) }));
+            this.storage.setItem(LAYOUT_KEYS.savedLayouts, JSON.stringify(layouts));
+        }
+    }
+
+    private static withoutGapOverrides(layout: ClockLayout): ClockLayout
+    {
+        const cleaned = { ...layout } as ClockLayout & { columnGaps?: unknown; rowGaps?: unknown };
+        delete cleaned.columnGaps;
+        delete cleaned.rowGaps;
+        return cleaned;
     }
 
     private convertRows(): ClockLayout

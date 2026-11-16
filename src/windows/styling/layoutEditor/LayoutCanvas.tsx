@@ -81,13 +81,10 @@ const CANVAS_MARGIN = 48;
 // Smallest size a block shrinks to while its edge is pulled, in px at scale 1.
 const MIN_LIVE_WIDTH = 40;
 const MIN_LIVE_HEIGHT = 36;
-// Gap targets: smallest clickable thickness, and how far they reach past the grid (into the
-// clock padding), so a gap stays clickable where blocks span across it. In screen px.
-const GAP_HIT_SIZE = 12;
-const GAP_OVERHANG = 14;
-// Column and row bars: the strip along the top and left edge, inside the gap overhang, and how
-// far they stay clear of the gap knobs at both ends. In screen px.
+// Column and row bars: the strip along the top and left edge, how far outside the grid it sits
+// (in the clock padding), and how far each bar stays clear of its neighbours. In screen px.
 const TRACK_BAR_SIZE = 8;
+const TRACK_BAR_OUTSIDE = 12;
 const TRACK_BAR_INSET = 7;
 
 // The editor canvas: the real clock, scaled to fit, with the editing layer on top (cells, the
@@ -428,45 +425,6 @@ export function LayoutCanvas(props: LayoutCanvasProps)
         return cells;
     }
 
-    // One target per boundary between two columns or rows, centred on the gap. It opens the
-    // popover of the column or row before it, which holds the gap's setting.
-    function renderGapTargets()
-    {
-        const targets = [];
-        const full = grid.size(scale);
-        for (const axis of ["column", "row"] as const)
-        {
-            const count = (axis === "column" ? layout.columns : layout.rows) - 1;
-            for (let index = 0; index < count; index++)
-            {
-                const ref = { axis, index };
-                const gap = grid.gap(ref) * scale;
-                const start = axis === "column"
-                    ? grid.columnEnd(index) * scale
-                    : grid.rowEnd(index) * scale;
-                const hit = Math.max(gap, GAP_HIT_SIZE);
-                const across = start + gap / 2 - hit / 2;
-                const style: CSSProperties = axis === "column"
-                    ? { left: across, top: -GAP_OVERHANG, width: hit, height: full.height + 2 * GAP_OVERHANG }
-                    : { top: across, left: -GAP_OVERHANG, height: hit, width: full.width + 2 * GAP_OVERHANG };
-                const selected = isOpen(ref);
-                targets.push(
-                    <button
-                        key={`${axis}-${index}`}
-                        type="button"
-                        aria-label={strings.grid.spaceBetween(axis, index + 1)}
-                        aria-pressed={selected}
-                        className={`gap-target ${axis}${selected ? " selected" : ""}`}
-                        style={{ ...style, "--gap-size": `${Math.max(gap, 2)}px` } as CSSProperties}
-                        onPointerDown={(event) => event.stopPropagation()}
-                        onClick={() => onSelectTrack(selected ? null : ref)}
-                    />,
-                );
-            }
-        }
-        return targets;
-    }
-
     function isOpen(track: TrackRef): boolean
     {
         return selectedTrack?.axis === track.axis && selectedTrack.index === track.index;
@@ -483,7 +441,7 @@ export function LayoutCanvas(props: LayoutCanvasProps)
             {
                 const start = (axis === "column" ? grid.columnStart(index) : grid.rowStart(index)) * scale + TRACK_BAR_INSET;
                 const length = Math.max(grid.trackSize({ axis, index }) * scale - 2 * TRACK_BAR_INSET, TRACK_BAR_SIZE);
-                const outside = -GAP_OVERHANG + 2;
+                const outside = -TRACK_BAR_OUTSIDE;
                 const style: CSSProperties = axis === "column"
                     ? { left: start, top: outside, width: length, height: TRACK_BAR_SIZE }
                     : { top: start, left: outside, height: length, width: TRACK_BAR_SIZE };
@@ -497,6 +455,7 @@ export function LayoutCanvas(props: LayoutCanvasProps)
                         opened={selected}
                         layout={layout}
                         grid={grid}
+                        blockHeights={blockHeights}
                         onClose={() => onSelectTrack(null)}
                         onChange={onChange}
                     >
@@ -524,7 +483,6 @@ export function LayoutCanvas(props: LayoutCanvasProps)
             onPointerDown={() => editing && onSelect(null)}
         >
             {renderGhost()}
-            {editing && renderGapTargets()}
             {editing && renderTrackBars()}
             {editing && layout.blocks.map((block) =>
             {
