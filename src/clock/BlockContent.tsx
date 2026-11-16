@@ -4,27 +4,41 @@ import "../styles/flipclockstyles.css";
 import { CSSProperties, ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { useAtomValue } from "jotai";
 import { ATOMS } from "../settings/atoms";
+import { useClockPreview } from "./ClockPreview";
 import { ClockTemplate, type Segment } from "./ClockTemplate";
+import { CalendarSegment } from "./CalendarSegment";
+import { ClockFace } from "./faces/ClockFace";
+import { progressShare } from "./ProgressShare";
+import { StyledText } from "./StyledText";
+import { InkBounds } from "./InkBounds";
+import { maxSizeShare } from "./SizeLimit";
 import { TimeCharacters } from "./TimeCharacters";
+import type { CalendarLayout } from "../calendar/CalendarTypes";
+import type { IconStyle } from "../layout/ClockLayout";
+import { withFlatIcons } from "../weather/FlatWeatherIcons";
 import { WeatherFormatter } from "../weather/WeatherFormatter";
 
 interface BlockContentProps
 {
     segments: Segment[];
     justify: CSSProperties["justifyContent"];
+    // Where the content sits when the block is higher than it needs (the row's alignment).
+    alignItems: CSSProperties["alignItems"];
     // Share of the room the content fills (block text size setting), 1 = all of it.
     sizeShare: number;
+    // The block's row grows with its content (see FitMeasure.heightFollows).
+    heightFollows: boolean;
+    iconStyle: IconStyle;
     // Called when a time string changed its length; the block is then remounted.
     onLayoutChange: () => void;
+    // Content height per px of content width at which it fills the block exactly; the row
+    // height comes from it (see ClockBlock). Also the largest size share that still makes the
+    // content bigger (see maxSizeShare). Not called for the progress bar.
+    onMeasure: (heightPerWidth: number, maxShare: number) => void;
 }
 
 // Letter spacing comes from flipclockstyles.css, the same for text runs and time characters.
 const SEGMENT_STYLE: CSSProperties = { whiteSpace: "pre", display: "inline-block", unicodeBidi: "plaintext" };
-
-// Share of the block height the content may fill. Flip cards fill the block; plain text stays
-// smaller, its line box has room above and below the letters anyway.
-const FLIP_HEIGHT_SHARE = 1;
-const TEXT_HEIGHT_SHARE = 0.62;
 
 const MIN_FONT_SIZE = 4;
 const FIT_TOLERANCE = 0.01;
@@ -33,26 +47,30 @@ const FIT_TOLERANCE = 0.01;
 //
 // Mounted once per segment list (see ClockBlock). Weather data and style changes re-render it in
 // place; the Tick.js spans inside are left alone (see TimeCharacters).
-export function BlockContent({ segments, justify, sizeShare, onLayoutChange }: BlockContentProps)
+export function BlockContent({ segments, justify, alignItems, sizeShare, heightFollows, iconStyle, onLayoutChange, onMeasure }: BlockContentProps)
 {
     const weatherReport = useAtomValue(ATOMS.WEATHER_REPORT);
     const sunDays = useAtomValue(ATOMS.SUN_DAYS);
     const weatherUnit = useAtomValue(ATOMS.WEATHER_UNIT);
 
     const template = useMemo(() => new ClockTemplate(segments), [segments]);
+    const { frozen } = useClockPreview();
+    const stacked = segments.some((segment) => segment.type === "BREAK");
 
     // Current minute, so weather text that depends on the time (next sun event, day/night
-    // emoji) moves on without new weather data.
+    // emoji) and calendar entries move on without new data.
     const [currentMinute, setCurrentMinute] = useState(() => new Date());
 
     const areaRef = useRef<HTMLDivElement>(null);
     const contentRef = useRef<HTMLDivElement>(null);
+    const barFillRef = useRef<HTMLDivElement>(null);
 
     // Tick.js and the once-per-second update.
     useEffect(() =>
     {
+        // A progress bar block has no Tick.js content, only the bar.
         const root = contentRef.current;
-        const tick = Tick.DOM.create(root);
+        const tick = root ? Tick.DOM.create(root) : null;
         const renderedLayout = template.layoutSignature();
 
         // Own timer instead of Tick.helper.interval: that one pauses while document.hidden and
@@ -60,9 +78,14 @@ export function BlockContent({ segments, justify, sizeShare, onLayoutChange }: B
         // so an exception in one tick cannot end the loop; aligned to the full second.
         let timer = 0;
         let lastMinute = Math.floor(Date.now() / 60000);
+        let lastBarShare = Infinity;
         const update = () =>
         {
-            timer = window.setTimeout(update, 1000 - (Date.now() % 1000));
+            // A still picture is drawn once.
+            if (!frozen)
+            {
+                timer = window.setTimeout(update, 1000 - (Date.now() % 1000));
+            }
 
             if (template.layoutSignature() !== renderedLayout)
             {
@@ -70,9 +93,13 @@ export function BlockContent({ segments, justify, sizeShare, onLayoutChange }: B
                 return;
             }
 
-            const values: Record<string, string> = {};
-            template.collectValues(values);
-            tick.value = values;
+            if (tick)
+            {
+                const values: Record<string, string> = {};
+                template.collectValues(values);
+                tick.value = values;
+            }
+            updateProgressBar();
 
             const minute = Math.floor(Date.now() / 60000);
             if (minute !== lastMinute)
@@ -81,12 +108,33 @@ export function BlockContent({ segments, justify, sizeShare, onLayoutChange }: B
                 setCurrentMinute(new Date());
             }
         };
+        // Smooth: slides over the coming second (CSS transition) to where it is then; stepped:
+        // jumps without one. Full at the end of the unit, then back to one step: the jump back
+        // is drawn without a transition, never sliding backwards.
+        const progressBar = template.progressBar();
+        const updateProgressBar = () =>
+        {
+            const fill = barFillRef.current;
+            if (!fill || !progressBar)
+            {
+                return;
+            }
+            const motion = progressBar.motion ?? "smooth";
+            const share = progressShare(new Date(), progressBar.unit ?? "minute", motion);
+            fill.style.transition = motion === "stepped" || share < lastBarShare ? "none" : "";
+            fill.style.width = `${share * 100}%`;
+            lastBarShare = share;
+        };
+
         timer = window.setTimeout(update, 0);
 
         return () =>
         {
             window.clearTimeout(timer);
-            Tick.DOM.destroy(root);
+            if (root)
+            {
+                Tick.DOM.destroy(root);
+            }
         };
         // The block is remounted for new segments, so this runs once per mount on purpose.
     }, []);
@@ -106,13 +154,9 @@ export function BlockContent({ segments, justify, sizeShare, onLayoutChange }: B
         {
             return;
         }
-        const heightShare = template.hasFlipTime() ? FLIP_HEIGHT_SHARE : TEXT_HEIGHT_SHARE;
+        // Flip cards and faces are as high as they are drawn; plain text is trimmed to its glyphs.
+        const trimsText = !template.fillsHeight();
         let fontSize = 20;
-
-        // Ratio that makes a measured content size fill the given share of the room's height
-        // (and all of its width).
-        const fill = (natural: DOMRect, available: DOMRect, share: number) =>
-            Math.min(available.width / natural.width, available.height * share / natural.height);
 
         // The font size comes from the content without letter spacing (times the block's text
         // size); the spacing then uses the free room and shrinks the font only when the spaced
@@ -128,9 +172,33 @@ export function BlockContent({ segments, justify, sizeShare, onLayoutChange }: B
             {
                 return;
             }
-            // 100 % is the usual fit; the text size scales it either way. Above 100 % the content
-            // may grow past the block's edges on purpose (the user's call, like an offset).
-            const ratio = sizeShare * Math.min(fill(unspaced, available, heightShare), fill(spaced, available, 1));
+            // Negative margins pull the room no glyph reaches out of the layout, so the content
+            // is placed (row alignment) and sized by its drawn glyphs. In em: they scale with the
+            // font size and stay right while it changes.
+            const trim = trimsText ? InkBounds.trim(content) : { top: 0, bottom: 0 };
+            content.style.marginTop = `${-trim.top / fontSize}em`;
+            content.style.marginBottom = `${-trim.bottom / fontSize}em`;
+            const height = unspaced.height - trim.top - trim.bottom;
+            if (height <= 0)
+            {
+                return;
+            }
+            // Height at which neither the height nor the width limits the fit (letter spacing
+            // only widens), per px of width. Font size cancels out, so this stays put.
+            const maxShare = maxSizeShare({
+                spacedWidth: spaced.width,
+                unspacedWidth: unspaced.width,
+                height,
+                areaWidth: available.width,
+                areaHeight: available.height,
+                heightFollows,
+            });
+            onMeasure(height / spaced.width, maxShare);
+            // The text size scales the width fit only: the row height already follows it (see
+            // ClockBlock), scaling the height fit too would shrink the content twice.
+            // Where the height limits (row set by hand, block over several rows), the text size
+            // only shrinks below maxShare; the inspector's slider ends there.
+            const ratio = Math.min(sizeShare * available.width / spaced.width, available.width / unspaced.width, available.height / height);
             if (Math.abs(ratio - 1) < FIT_TOLERANCE)
             {
                 return;
@@ -144,7 +212,7 @@ export function BlockContent({ segments, justify, sizeShare, onLayoutChange }: B
         observer.observe(area);
         observer.observe(content);
         return () => observer.disconnect();
-    }, [template, sizeShare]);
+    }, [template, sizeShare, heightFollows]);
 
     const weatherFormatter = new WeatherFormatter(weatherReport, sunDays, weatherUnit, currentMinute);
 
@@ -167,21 +235,57 @@ export function BlockContent({ segments, justify, sizeShare, onLayoutChange }: B
                             format={segment.value}
                             keyPrefix={keyPrefix}
                             flip={segment.type === "FLIPTIME"}
+                            flipUnit={segment.flipUnit}
                             member={segment.member}
                         />
                     );
                 }
+                case "FACE":
+                    return (
+                        <ClockFace
+                            key={`face-${segmentIndex}`}
+                            style={segment.face ?? "segment"}
+                            format={segment.value}
+                            unit={segment.unit}
+                            motion={segment.motion}
+                            member={segment.member}
+                        />
+                    );
                 case "TEXT":
+                    if (segment.textStyle)
+                    {
+                        return <StyledText key={`text-${segmentIndex}`} text={segment.value} style={segment.textStyle} flipUnit={segment.flipUnit} iconStyle={iconStyle} member={segment.member} />;
+                    }
                     return (
                         <span className="normal-text-settings text-run" key={`text-${segmentIndex}`} data-member={segment.member} style={SEGMENT_STYLE}>
                             {segment.value}
                         </span>
                     );
                 case "WEATHER":
+                {
+                    const weatherText = weatherFormatter.format(segment.value);
+                    if (segment.textStyle)
+                    {
+                        return <StyledText key={`weather-${segmentIndex}`} text={weatherText} style={segment.textStyle} flipUnit={segment.flipUnit} iconStyle={iconStyle} member={segment.member} />;
+                    }
                     return (
                         <span className="normal-text-settings text-run" key={`weather-${segmentIndex}`} data-member={segment.member} style={SEGMENT_STYLE}>
-                            {weatherFormatter.format(segment.value)}
+                            {iconStyle === "flat" ? withFlatIcons(weatherText) : weatherText}
                         </span>
+                    );
+                }
+                case "CALENDAR":
+                    return (
+                        <CalendarSegment
+                            key={`calendar-${segmentIndex}`}
+                            layout={segment.value as CalendarLayout}
+                            settings={segment.calendar ?? {}}
+                            now={currentMinute}
+                            iconStyle={iconStyle}
+                            textStyle={segment.textStyle}
+                            flipUnit={segment.flipUnit}
+                            member={segment.member}
+                        />
                     );
                 case "SPACE":
                     return <span className="segment-space" key={`space-${segmentIndex}`} style={{ display: "inline-block", width: `${segment.value}em` }} />;
@@ -189,11 +293,53 @@ export function BlockContent({ segments, justify, sizeShare, onLayoutChange }: B
         });
     }
 
-    return (
-        <div className="clock-block-fit" ref={areaRef} style={{ justifyContent: justify }}>
-            <div className="tick block-content" ref={contentRef} data-credits="false">
-                {renderSegments()}
+    // A stacked group: one line per member, each BREAK starts the next one after its room.
+    function renderLines(): ReactNode[]
+    {
+        const nodes = renderSegments();
+        const lines: { room: string; nodes: ReactNode[] }[] = [{ room: "0", nodes: [] }];
+        template.segments.forEach((segment, segmentIndex) =>
+        {
+            if (segment.type === "BREAK")
+            {
+                lines.push({ room: segment.value, nodes: [] });
+            }
+            else
+            {
+                lines[lines.length - 1].nodes.push(nodes[segmentIndex]);
+            }
+        });
+        return lines.map((line, lineIndex) => (
+            <div className="block-content" key={`line-${lineIndex}`} style={{ marginTop: `${line.room}em` }}>
+                {line.nodes}
             </div>
+        ));
+    }
+
+    if (template.progressBar())
+    {
+        return (
+            <div className="clock-block-fit" ref={areaRef} style={{ alignItems }}>
+                <div className="seconds-bar">
+                    <div className="seconds-bar-fill" ref={barFillRef} />
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <div className="clock-block-fit" ref={areaRef} style={{ justifyContent: justify, alignItems }}>
+            {stacked
+                ? (
+                    <div className="tick block-content stacked" ref={contentRef} data-credits="false" style={{ alignItems: justify }}>
+                        {renderLines()}
+                    </div>
+                )
+                : (
+                    <div className="tick block-content" ref={contentRef} data-credits="false">
+                        {renderSegments()}
+                    </div>
+                )}
         </div>
     );
 }

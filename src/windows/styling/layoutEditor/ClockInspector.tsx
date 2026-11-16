@@ -1,12 +1,16 @@
-import { Select } from "@mantine/core";
+import { SegmentedControl, Select } from "@mantine/core";
+import { IconLayoutAlignBottom, IconLayoutAlignMiddle, IconLayoutAlignTop } from "@tabler/icons-react";
 import { useAtom } from "jotai";
-import { LayoutGrid } from "../../../layout/ClockLayout";
+import { LayoutGrid, type RowAlign } from "../../../layout/ClockLayout";
+import { useStrings } from "../../../i18n/useStrings";
 import { ATOMS } from "../../../settings/atoms";
 import { FONT_OPTIONS, SLIDER_CONFIGS } from "../../../settings/options";
 import { SliderControl } from "../controls/SliderControl";
 import { ColorSwatches } from "./ColorSwatches";
 import { BACKGROUND_SWATCHES, TEXT_SWATCHES } from "./EditorSwatches";
+import { ColorDot } from "./ColorDot";
 import { InspectorField } from "./InspectorField";
+import { InspectorSection } from "./InspectorSection";
 
 // "Whole clock": the window itself and the defaults every block inherits.
 export function ClockInspector()
@@ -19,89 +23,116 @@ export function ClockInspector()
     const [textColor, setTextColor] = useAtom(ATOMS.TEXT_COLOR);
     const [layout, setLayout] = useAtom(ATOMS.CLOCK_LAYOUT);
     const grid = new LayoutGrid(layout);
+    const strings = useStrings();
+    const text = strings.clockInspector;
+    const alignData = [
+        { value: "top", label: <IconLayoutAlignTop size={16} aria-label={strings.row.top} /> },
+        { value: "center", label: <IconLayoutAlignMiddle size={16} aria-label={strings.row.center} /> },
+        { value: "bottom", label: <IconLayoutAlignBottom size={16} aria-label={strings.row.bottom} /> },
+    ];
+
+    const fontLabel = FONT_OPTIONS.find((option) => option.value === font)?.label ?? font;
 
     return (
         <div className="inspector-body">
-            <p className="inspector-intro">The clock window itself, plus defaults every block inherits.</p>
+            <p className="inspector-intro">{text.intro}</p>
 
-            <InspectorField label="Size on the desktop">
-                <SliderControl label="Size on the desktop" value={scale} onChange={setScale} {...SLIDER_CONFIGS.SCALE} />
-            </InspectorField>
+            <InspectorSection id="clock-window" title={text.sectionWindow} summary={<><ColorDot color={background} />{scale} %</>} defaultOpen>
+                <InspectorField label={text.size}>
+                    <SliderControl label={text.size} value={scale} onChange={setScale} {...SLIDER_CONFIGS.SCALE} />
+                </InspectorField>
 
-            <InspectorField label="Background">
-                <ColorSwatches
-                    label="Background"
-                    value={background}
-                    onChange={(color) => color && setBackground(color)}
-                    swatches={BACKGROUND_SWATCHES}
-                />
-            </InspectorField>
+                <InspectorField label={text.background}>
+                    <ColorSwatches
+                        label={text.background}
+                        value={background}
+                        onChange={(color) => color && setBackground(color)}
+                        swatches={BACKGROUND_SWATCHES}
+                    />
+                </InspectorField>
 
-            <InspectorField label="Corner rounding">
-                <SliderControl label="Corner rounding" value={cornerRadius} onChange={setCornerRadius} {...SLIDER_CONFIGS.CORNER_RADIUS} />
-            </InspectorField>
+                <InspectorField label={text.cornerRounding}>
+                    <SliderControl label={text.cornerRounding} value={cornerRadius} onChange={setCornerRadius} {...SLIDER_CONFIGS.CORNER_RADIUS} />
+                </InspectorField>
+            </InspectorSection>
 
-            <InspectorField label="Padding">
-                <SliderControl label="Padding" value={padding} onChange={setPadding} {...SLIDER_CONFIGS.PADDING} />
-            </InspectorField>
+            <InspectorSection
+                id="clock-grid"
+                title={text.sectionGrid}
+                summary={text.gridSummary(grid.defaultColumnWidth())}
+                defaultOpen={false}
+            >
+                <InspectorField label={text.columnWidth} help={text.columnWidthNote}>
+                    <SliderControl
+                        label={text.columnWidth}
+                        value={grid.defaultColumnWidth()}
+                        onChange={(columnWidth) => setLayout((current) => ({ ...current, columnWidth }))}
+                        {...SLIDER_CONFIGS.COLUMN_WIDTH}
+                    />
+                </InspectorField>
+            </InspectorSection>
 
-            <InspectorField label="Column width">
-                <SliderControl
-                    label="Column width"
-                    value={grid.defaultTrackSize("column")}
-                    onChange={(columnWidth) => setLayout((current) => ({ ...current, columnWidth }))}
-                    {...SLIDER_CONFIGS.COLUMN_WIDTH}
-                />
-            </InspectorField>
+            {/* Every space between and around blocks, and where blocks lower than their row sit. */}
+            <InspectorSection
+                id="clock-spacing"
+                title={text.sectionSpacing}
+                summary={text.spacingSummary(padding, grid.gap("column"), grid.gap("row"))}
+                defaultOpen={false}
+            >
+                <InspectorField label={text.padding} help={text.paddingNote}>
+                    <SliderControl label={text.padding} value={padding} onChange={setPadding} {...SLIDER_CONFIGS.PADDING} />
+                </InspectorField>
 
-            <InspectorField label="Row height">
-                <SliderControl
-                    label="Row height"
-                    value={grid.defaultTrackSize("row")}
-                    onChange={(rowHeight) => setLayout((current) => ({ ...current, rowHeight }))}
-                    {...SLIDER_CONFIGS.ROW_HEIGHT}
-                />
-                <p className="inspector-note">Click the bar above a column or beside a row to size it apart.</p>
-            </InspectorField>
+                <InspectorField label={text.columnSpace} help={text.gapNote}>
+                    <SliderControl
+                        label={text.columnSpace}
+                        value={grid.gap("column")}
+                        onChange={(columnGap) => setLayout((current) => ({ ...current, columnGap }))}
+                        {...SLIDER_CONFIGS.GAP}
+                    />
+                </InspectorField>
 
-            <InspectorField label="Space between columns">
-                <SliderControl
-                    label="Space between columns"
-                    value={grid.defaultGap("column")}
-                    onChange={(columnGap) => setLayout((current) => ({ ...current, columnGap }))}
-                    {...SLIDER_CONFIGS.GAP}
-                />
-            </InspectorField>
+                <InspectorField label={text.rowSpace} help={text.gapNote}>
+                    <SliderControl
+                        label={text.rowSpace}
+                        value={grid.gap("row")}
+                        onChange={(rowGap) => setLayout((current) => ({ ...current, rowGap }))}
+                        {...SLIDER_CONFIGS.GAP}
+                    />
+                </InspectorField>
 
-            <InspectorField label="Space between rows">
-                <SliderControl
-                    label="Space between rows"
-                    value={grid.defaultGap("row")}
-                    onChange={(rowGap) => setLayout((current) => ({ ...current, rowGap }))}
-                    {...SLIDER_CONFIGS.GAP}
-                />
-                <p className="inspector-note">Click a single gap on the clock to set it apart.</p>
-            </InspectorField>
+                <InspectorField label={strings.row.alignLabel} help={strings.row.alignNote}>
+                    <SegmentedControl
+                        fullWidth
+                        size="xs"
+                        data={alignData}
+                        value={grid.rowAlign()}
+                        onChange={(rowAlign) => setLayout((current) => ({ ...current, rowAlign: rowAlign as RowAlign }))}
+                    />
+                </InspectorField>
+            </InspectorSection>
 
-            <InspectorField label="Default font" htmlFor="default-font">
-                <Select
-                    id="default-font"
-                    value={font}
-                    onChange={(value) => value && setFont(value)}
-                    data={FONT_OPTIONS}
-                    allowDeselect={false}
-                    renderOption={({ option }) => <span style={{ fontFamily: option.value }}>{option.label}</span>}
-                />
-            </InspectorField>
+            <InspectorSection id="clock-text" title={text.sectionText} summary={<><ColorDot color={textColor} />{fontLabel}</>} defaultOpen>
+                <InspectorField label={text.defaultFont} htmlFor="default-font">
+                    <Select
+                        id="default-font"
+                        value={font}
+                        onChange={(value) => value && setFont(value)}
+                        data={FONT_OPTIONS}
+                        allowDeselect={false}
+                        renderOption={({ option }) => <span style={{ fontFamily: option.value }}>{option.label}</span>}
+                    />
+                </InspectorField>
 
-            <InspectorField label="Default text color">
-                <ColorSwatches
-                    label="Default text color"
-                    value={textColor}
-                    onChange={(color) => color && setTextColor(color)}
-                    swatches={TEXT_SWATCHES}
-                />
-            </InspectorField>
+                <InspectorField label={text.defaultTextColor}>
+                    <ColorSwatches
+                        label={text.defaultTextColor}
+                        value={textColor}
+                        onChange={(color) => color && setTextColor(color)}
+                        swatches={TEXT_SWATCHES}
+                    />
+                </InspectorField>
+            </InspectorSection>
         </div>
     );
 }

@@ -13,9 +13,11 @@ import GridClock from "../../clock/GridClock";
 import { ClockDragController } from "../../overlay/ClockDragController";
 import { ClockWindow } from "../../overlay/ClockWindow";
 import { useWeatherUpdates } from "../../weather/useWeatherUpdates";
+import { useCalendarUpdates } from "../../calendar/useCalendarUpdates";
 import { AppActions } from "../../settings/AppActions";
 import { ATOMS } from "../../settings/atoms";
 import { TuxhubBridge } from "../../tuxhub/TuxhubBridge";
+import { useStrings } from "../../i18n/useStrings";
 import ClockMenu, { type ClockMenuItem } from "./ClockMenu";
 
 // True while the native right-click menu is shown, see showNativeMenu.
@@ -28,11 +30,13 @@ function ClockApp()
     const [alwaysOnTop, setAlwaysOnTop] = useAtom(ATOMS.ALWAYS_ON_TOP);
     const layout = useAtomValue(ATOMS.CLOCK_LAYOUT);
     const scalePercent = useAtomValue(ATOMS.CLOCK_SCALE);
+    const strings = useStrings();
     // Where the HTML menu is open (layer-shell only), null while closed.
     const [menuAt, setMenuAt] = useState<{ x: number; y: number } | null>(null);
     const closeMenu = useCallback(() => setMenuAt(null), []);
 
     useWeatherUpdates();
+    useCalendarUpdates();
 
     // Window flags and position, once per page load, with the values from storage.
     useEffect(() =>
@@ -116,11 +120,11 @@ function ClockApp()
     }, [menuAt]);
 
     const menuItems: ClockMenuItem[] = [
-        { label: "Styling", action: () => void AppActions.openStyling() },
-        { label: "Autostart", checked: autostart, action: () => void toggleAutostart() },
-        { label: "Hide in Taskbar", checked: hideInTaskbar, action: () => void toggleHideInTaskbar() },
-        { label: "Always on Top", checked: alwaysOnTop, action: () => void toggleAlwaysOnTop() },
-        { label: "Exit", action: () => void AppActions.quit() },
+        { label: strings.menu.settings, action: () => void AppActions.openSettings() },
+        { label: strings.menu.autostart, checked: autostart, action: () => void toggleAutostart() },
+        { label: strings.menu.hideInTaskbar, checked: hideInTaskbar, action: () => void toggleHideInTaskbar() },
+        { label: strings.menu.alwaysOnTop, checked: alwaysOnTop, action: () => void toggleAlwaysOnTop() },
+        { label: strings.menu.exit, action: () => void AppActions.quit() },
     ];
 
     // Layer-shell: own HTML menu (see ClockMenu for why). X11 and Windows keep the native menu:

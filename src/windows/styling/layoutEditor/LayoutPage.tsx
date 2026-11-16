@@ -1,22 +1,24 @@
 import { useEffect, useRef, useState } from "react";
-import { ActionIcon, SegmentedControl } from "@mantine/core";
-import { IconArrowBackUp, IconArrowForwardUp } from "@tabler/icons-react";
+import { ActionIcon, SegmentedControl, Tooltip } from "@mantine/core";
+import { IconArrowBackUp, IconArrowForwardUp, IconHelpCircle } from "@tabler/icons-react";
 import { useAtom } from "jotai";
 import { blockDefinition } from "../../../blocks/BlockRegistry";
-import { LayoutGrid, type BlockKind, type CellRect, type GapRef, type LayoutBlock, type TrackRef } from "../../../layout/ClockLayout";
+import { LayoutGrid, type BlockKind, type CellRect, type LayoutBlock } from "../../../layout/ClockLayout";
+import { useStrings } from "../../../i18n/useStrings";
 import { ATOMS } from "../../../settings/atoms";
+import { LayoutSwitcher } from "../savedLayouts/LayoutSwitcher";
+import type { PageProps } from "../SettingsPages";
 import { AddBlockBar } from "./AddBlockBar";
 import { BlockInspector } from "./BlockInspector";
 import { ClockInspector } from "./ClockInspector";
-import { GapInspector } from "./GapInspector";
 import { LayoutCanvas } from "./LayoutCanvas";
 import { PreviewModeNote } from "./PreviewModeNote";
 import { SelectionInspector } from "./SelectionInspector";
-import { TrackInspector } from "./TrackInspector";
 import { useEditorHistory } from "./useEditorHistory";
+import { useInspectorWidth } from "./useInspectorWidth";
 
 type Mode = "edit" | "preview";
-// The second tab shows whatever is selected on the canvas: a block, a gap, a column or a row.
+// The second tab shows the blocks selected on the canvas. Columns and rows open a popover there.
 type InspectorTab = "clock" | "selection";
 
 const POP_DURATION = 480;
@@ -27,15 +29,13 @@ const TOAST_DURATION = 2400;
 // Clock › Layout: the block editor. Canvas with the real clock in the middle, palette below,
 // inspector on the right. Every change is written to the layout setting right away, so the
 // clock on the desktop follows live; only a drag in progress stays local to the canvas.
-export function LayoutPage()
+export function LayoutPage({ onNavigate }: PageProps)
 {
     const [layout, setLayout] = useAtom(ATOMS.CLOCK_LAYOUT);
     const [mode, setMode] = useState<Mode>("edit");
     const [tab, setTab] = useState<InspectorTab>("selection");
     // One block to edit, or several to group (shift/ctrl-click).
     const [selectedIds, setSelectedIds] = useState<number[]>(layout.blocks[0] ? [layout.blocks[0].id] : []);
-    const [selectedGap, setSelectedGap] = useState<GapRef | null>(null);
-    const [selectedTrack, setSelectedTrack] = useState<TrackRef | null>(null);
     const [poppingId, setPoppingId] = useState<number | null>(null);
     const [removingIds, setRemovingIds] = useState<number[]>([]);
     const [shaking, setShaking] = useState(false);
@@ -44,6 +44,8 @@ export function LayoutPage()
     const [openMember, setOpenMember] = useState<number | null>(null);
     const timers = useRef<number[]>([]);
     const history = useEditorHistory();
+    const inspectorWidth = useInspectorWidth();
+    const text = useStrings().layout;
 
     useEffect(() => () => timers.current.forEach((timer) => window.clearTimeout(timer)), []);
 
@@ -57,29 +59,16 @@ export function LayoutPage()
     const selectedBlocks = layout.blocks.filter((block) => selectedIds.includes(block.id));
     const selectedBlock = selectedBlocks.length === 1 ? selectedBlocks[0] : undefined;
     const multiple = selectedBlocks.length > 1;
-    // A gap can vanish when its column or row is removed.
-    const gapCount = selectedGap ? (selectedGap.axis === "column" ? layout.columns : layout.rows) - 1 : 0;
-    const activeGap = selectedGap && selectedGap.index < gapCount ? selectedGap : null;
-    const trackCount = selectedTrack ? (selectedTrack.axis === "column" ? layout.columns : layout.rows) : 0;
-    const activeTrack = selectedTrack && selectedTrack.index < trackCount ? selectedTrack : null;
-    const hasSelection = selectedBlocks.length > 0 || activeGap !== null || activeTrack !== null;
+    const hasSelection = selectedBlocks.length > 0;
     const shownTab: InspectorTab = editing && tab === "selection" && hasSelection ? "selection" : "clock";
-    let selectionLabel = "Selection";
+    let selectionLabel = text.selection;
     if (multiple)
     {
-        selectionLabel = `${selectedBlocks.length} blocks`;
+        selectionLabel = text.blocks(selectedBlocks.length);
     }
     else if (selectedBlock)
     {
-        selectionLabel = "Block";
-    }
-    else if (activeGap)
-    {
-        selectionLabel = activeGap.axis === "column" ? "Column gap" : "Row gap";
-    }
-    else if (activeTrack)
-    {
-        selectionLabel = activeTrack.axis === "column" ? `Column ${activeTrack.index + 1}` : `Row ${activeTrack.index + 1}`;
+        selectionLabel = text.block;
     }
 
     function updateBlock(blockId: number, patch: Partial<LayoutBlock>)
@@ -101,29 +90,11 @@ export function LayoutPage()
         {
             setSelectedIds(blockId === null ? [] : [blockId]);
         }
-        setSelectedGap(null);
-        setSelectedTrack(null);
         setOpenMember(null);
         if (blockId !== null)
         {
             setTab("selection");
         }
-    }
-
-    function selectGap(gap: GapRef)
-    {
-        setSelectedIds([]);
-        setSelectedGap(gap);
-        setSelectedTrack(null);
-        setTab("selection");
-    }
-
-    function selectTrack(track: TrackRef)
-    {
-        setSelectedIds([]);
-        setSelectedGap(null);
-        setSelectedTrack(track);
-        setTab("selection");
     }
 
     function complain(message: string)
@@ -141,7 +112,7 @@ export function LayoutPage()
         const spot = grid.firstFreeSpot([definition.defaultSize, { w: 2, h: 1 }, { w: 1, h: 1 }]);
         if (!spot)
         {
-            complain("No space left. Add a column or row first.");
+            complain(text.noSpace);
             return;
         }
         const block: LayoutBlock = { id: grid.nextBlockId(), kind, ...definition.defaults, ...spot };
@@ -159,8 +130,8 @@ export function LayoutPage()
         if (!resized)
         {
             complain(columns < layout.columns
-                ? "No room for the blocks in the last column. Move or remove one first."
-                : "No room for the blocks in the last row. Move or remove one first.");
+                ? text.noRoomColumn
+                : text.noRoomRow);
             return;
         }
         setLayout(resized);
@@ -247,7 +218,7 @@ export function LayoutPage()
         const detached = new LayoutGrid(layout).withMemberDetached(groupId, index, [blockDefinition(item.kind).defaultSize, { w: 2, h: 1 }, { w: 1, h: 1 }]);
         if (!detached)
         {
-            complain("No space left. Add a column or row first.");
+            complain(text.noSpace);
             return;
         }
         setLayout(detached.layout);
@@ -268,7 +239,7 @@ export function LayoutPage()
         const ungrouped = grid.ungrouped(groupId);
         if (!ungrouped)
         {
-            complain("The group has more items than cells. Make it wider first.");
+            complain(text.groupTooBig);
             return;
         }
         const firstNewId = grid.nextBlockId();
@@ -280,24 +251,29 @@ export function LayoutPage()
         <div className="layout-page">
             <main className="layout-main">
                 <div className="layout-header">
-                    <div>
-                        <h1 className="page-title">Layout</h1>
-                        <p className="page-intro">Drag blocks to move them. Pull the green handles to resize. Click between two rows or columns to change the space, or the bar above a column or beside a row to size it. Drop a block onto another to group them, or shift-click blocks side by side.</p>
+                    <div className="layout-header-title">
+                        <h1 className="page-title">{text.title}</h1>
+                        <LayoutSwitcher onManage={() => onNavigate("savedLayouts")} />
                     </div>
                     <div className="layout-header-actions">
-                        <ActionIcon variant="default" size={34} aria-label="Undo" title="Undo (Ctrl+Z)" disabled={!history.canUndo} onClick={history.undo}>
+                        <Tooltip label={text.intro} multiline w={300} withArrow position="bottom-end" events={{ hover: true, focus: true, touch: true }}>
+                            <ActionIcon variant="default" size={34} aria-label={text.help}>
+                                <IconHelpCircle size={18} />
+                            </ActionIcon>
+                        </Tooltip>
+                        <ActionIcon variant="default" size={34} aria-label={text.undo} title={text.undoTitle} disabled={!history.canUndo} onClick={history.undo}>
                             <IconArrowBackUp size={18} />
                         </ActionIcon>
-                        <ActionIcon variant="default" size={34} aria-label="Redo" title="Redo (Ctrl+Shift+Z)" disabled={!history.canRedo} onClick={history.redo}>
+                        <ActionIcon variant="default" size={34} aria-label={text.redo} title={text.redoTitle} disabled={!history.canRedo} onClick={history.redo}>
                             <IconArrowForwardUp size={18} />
                         </ActionIcon>
                         <SegmentedControl
-                            aria-label="Mode"
+                            aria-label={text.mode}
                             value={mode}
                             onChange={(value) => setMode(value as Mode)}
                             data={[
-                                { value: "edit", label: "Edit" },
-                                { value: "preview", label: "Preview" },
+                                { value: "edit", label: text.edit },
+                                { value: "preview", label: text.preview },
                             ]}
                         />
                     </div>
@@ -307,17 +283,15 @@ export function LayoutPage()
                     layout={layout}
                     editing={editing}
                     selectedIds={selectedBlocks.map((block) => block.id)}
-                    selectedGap={activeGap}
                     poppingId={poppingId}
                     removingIds={removingIds}
                     shaking={shaking}
                     toast={toast}
                     onSelect={select}
-                    onSelectGap={selectGap}
-                    selectedTrack={activeTrack}
-                    onSelectTrack={selectTrack}
                     onPlace={(blockId: number, rect: CellRect) => updateBlock(blockId, rect)}
                     onMerge={merge}
+                    onInsert={setLayout}
+                    onChange={setLayout}
                     onMoveMember={moveMember}
                     onDetachMember={detachMember}
                     onOpenMember={openMemberSettings}
@@ -330,7 +304,17 @@ export function LayoutPage()
                 />
             </main>
 
-            <aside className="inspector" aria-label="Block settings">
+            <div
+                className="inspector-divider"
+                role="separator"
+                aria-orientation="vertical"
+                aria-label={text.inspectorResize}
+                title={text.inspectorResize}
+                tabIndex={0}
+                {...inspectorWidth.dividerProps}
+            />
+
+            <aside ref={inspectorWidth.inspectorRef} className="inspector" style={inspectorWidth.style} aria-label={text.inspectorAria}>
                 {editing && (
                     <SegmentedControl
                         fullWidth
@@ -338,7 +322,7 @@ export function LayoutPage()
                         value={shownTab}
                         onChange={(value) => setTab(value as InspectorTab)}
                         data={[
-                            { value: "clock", label: "Whole clock" },
+                            { value: "clock", label: text.wholeClock },
                             { value: "selection", label: selectionLabel, disabled: !hasSelection },
                         ]}
                     />
@@ -347,7 +331,6 @@ export function LayoutPage()
                 {shownTab === "selection" && selectedBlock && (
                     <BlockInspector
                         key={selectedBlock.id}
-                        layout={layout}
                         block={selectedBlock}
                         onChange={(patch) => updateBlock(selectedBlock.id, patch)}
                         onRemove={() => removeBlocks([selectedBlock.id])}
@@ -362,22 +345,6 @@ export function LayoutPage()
                         groupable={new LayoutGrid(layout).groupable(selectedBlocks.map((block) => block.id)) !== null}
                         onGroup={group}
                         onRemove={() => removeBlocks(selectedBlocks.map((block) => block.id))}
-                    />
-                )}
-                {shownTab === "selection" && activeGap && (
-                    <GapInspector
-                        gap={activeGap}
-                        value={new LayoutGrid(layout).gap(activeGap)}
-                        overridden={new LayoutGrid(layout).gapOverride(activeGap) !== null}
-                        onChange={(value) => setLayout((current) => new LayoutGrid(current).withGap(activeGap, value))}
-                    />
-                )}
-                {shownTab === "selection" && activeTrack && (
-                    <TrackInspector
-                        track={activeTrack}
-                        value={new LayoutGrid(layout).trackSize(activeTrack)}
-                        overridden={new LayoutGrid(layout).trackOverride(activeTrack) !== null}
-                        onChange={(value) => setLayout((current) => new LayoutGrid(current).withTrackSize(activeTrack, value))}
                     />
                 )}
                 {editing && shownTab === "clock" && <ClockInspector />}

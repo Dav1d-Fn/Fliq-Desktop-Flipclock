@@ -1,4 +1,4 @@
-import { chosenFormat, type BlockDefinition } from "./BlockDefinition.ts";
+import { chosenFormat, timeSegment, type BlockDefinition } from "./BlockDefinition.ts";
 
 export const DATE_BLOCK: BlockDefinition = {
     kind: "date",
@@ -13,5 +13,5 @@ export const DATE_BLOCK: BlockDefinition = {
     ],
     supportsCustomFormat: true,
     alignable: true,
-    segments: (block) => [{ type: "TIME", value: chosenFormat(block) }],
+    segments: (block) => [timeSegment(block, chosenFormat(block))],
 };

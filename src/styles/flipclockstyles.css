@@ -44,6 +44,15 @@
    margin-right: 0;
 }
 
+/* A stacked group: one line per member, each line a row of its own (see BlockContent). */
+.block-content.stacked {
+   flex-direction: column;
+}
+
+.block-content.stacked > * {
+   margin-right: 0;
+}
+
 /* Room between group members: exactly the group's item gap, the character before it already
    brings its own spacing. */
 .block-content > .segment-space {
@@ -88,4 +97,42 @@
 .tick-flip {
    font-family: 'Roboto', sans-serif !important;
    border-radius: var(--flipcard-rounded) !important;
+}
+
+/* A card per word: Tick.js spaces letters for one character per card; a word keeps its
+   letters closer and gets the room at the sides instead. */
+.tick-flip[data-unit="word"] {
+   letter-spacing: 0.06em;
+   text-indent: 0.06em;
+   padding: 0 0.14em;
+}
+
+/* The hidden spacer sizes the card: it has to measure the panels' font, or a card with more
+   than one character (flip per word) cuts off what the block font draws wider. */
+.tick-flip-spacer {
+   font-family: var(--text-font) !important;
+}
+
+/* Seconds bar: the track as wide as the block, the fill grows over each minute. */
+.seconds-bar {
+   flex: 1;
+   height: var(--bar-thickness);
+   background: var(--bar-track-color);
+   border-radius: var(--bar-radius);
+   overflow: hidden;
+}
+
+.seconds-bar-fill {
+   width: 0;
+   height: 100%;
+   background: var(--bar-color);
+   border-radius: var(--bar-radius);
+   transition: width 1s linear;
+}
+
+/* Text styles of text, weather and calendar (StyledText): cards and separators keep the same
+   small gap as the time's flip cards. */
+.styled-flip .tick-flip:not(:last-child),
+.styled-flip .tick-text-inline:not(:last-child) {
+   margin-right: calc(0.08em + var(--letter-spacing, 0em));
 }

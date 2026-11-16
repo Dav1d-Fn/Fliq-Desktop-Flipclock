@@ -1,13 +1,17 @@
-import { Button } from "@mantine/core";
+import { Button, Select } from "@mantine/core";
+import { useAtom, useSetAtom } from "jotai";
+import { useStrings } from "../../../i18n/useStrings";
+import { ATOMS } from "../../../settings/atoms";
+import { UI_LANGUAGE_OPTIONS, type UiLanguage } from "../../../settings/options";
 import { SettingsReset } from "../../../settings/SettingsReset";
 import { SettingRow } from "../controls/SettingRow";
 import { SettingsCard } from "../controls/SettingsCard";
 import { PageHeader } from "../layout/PageHeader";
 import { OverlayModeRow } from "./OverlayModeRow";
 
-async function resetAllSettings()
+async function resetAllSettings(confirmText: string)
 {
-    if (!window.confirm("Reset all settings to their defaults? This can't be undone."))
+    if (!window.confirm(confirmText))
     {
         return;
     }
@@ -18,24 +22,53 @@ async function resetAllSettings()
 
 export function GeneralPage()
 {
+    const strings = useStrings();
+    const [uiLanguage, setUiLanguage] = useAtom(ATOMS.UI_LANGUAGE);
+    const setDateLanguage = useSetAtom(ATOMS.LANGUAGE);
+
+    // The clock's dates follow the new language; another date language can still be picked
+    // under Data › Time afterwards.
+    function changeLanguage(value: string | null)
+    {
+        if (!value)
+        {
+            return;
+        }
+        setUiLanguage(value as UiLanguage);
+        setDateLanguage(value);
+    }
+
     return (
         <>
-            <PageHeader title="General" intro="How the window behaves." />
+            <PageHeader title={strings.general.title} intro={strings.general.intro} />
 
-            <SettingsCard title="Window">
+            <SettingsCard title={strings.general.languageCard}>
+                <SettingRow label={strings.general.languageLabel} description={strings.general.languageDescription}>
+                    <Select
+                        aria-label={strings.general.languageLabel}
+                        value={uiLanguage}
+                        onChange={changeLanguage}
+                        data={UI_LANGUAGE_OPTIONS}
+                        allowDeselect={false}
+                        w={200}
+                    />
+                </SettingRow>
+            </SettingsCard>
+
+            <SettingsCard title={strings.general.windowCard}>
                 <SettingRow
-                    label="Autostart, taskbar, always on top"
-                    description="Right-click the clock to switch these."
+                    label={strings.general.windowLabel}
+                    description={strings.general.windowDescription}
                 >
                     <span />
                 </SettingRow>
                 <OverlayModeRow />
             </SettingsCard>
 
-            <SettingsCard title="Reset">
-                <SettingRow label="Reset all settings" description="Restores every option to its default. Can't be undone.">
-                    <Button variant="default" color="red" c="red.8" onClick={resetAllSettings}>
-                        Reset…
+            <SettingsCard title={strings.general.resetCard}>
+                <SettingRow label={strings.general.resetLabel} description={strings.general.resetDescription}>
+                    <Button variant="default" color="red" c="red.8" onClick={() => void resetAllSettings(strings.general.resetConfirm)}>
+                        {strings.general.resetButton}
                     </Button>
                 </SettingRow>
             </SettingsCard>

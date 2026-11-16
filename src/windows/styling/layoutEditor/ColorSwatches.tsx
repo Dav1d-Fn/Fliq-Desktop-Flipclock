@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { ColorInput } from "@mantine/core";
+import { named, useStrings } from "../../../i18n/useStrings";
 import type { Swatch } from "./EditorSwatches";
 
 interface ColorSwatchesProps
@@ -21,6 +22,7 @@ function sameColor(a: string | undefined, b: string | undefined): boolean
 // Color as a row of swatches, plus a hex field (with transparency) for any other color.
 export function ColorSwatches({ label, value, onChange, swatches, defaultColor }: ColorSwatchesProps)
 {
+    const strings = useStrings();
     const shownColor = value ?? defaultColor ?? "";
     // Typing edits a draft; the color is written when a pick or the typing ends.
     const [draft, setDraft] = useState(shownColor);
@@ -37,8 +39,8 @@ export function ColorSwatches({ label, value, onChange, swatches, defaultColor }
                         type="button"
                         className="swatch default"
                         style={{ background: defaultColor }}
-                        aria-label="Use clock default"
-                        title="Use clock default"
+                        aria-label={strings.colors.useClockDefault}
+                        title={strings.colors.useClockDefault}
                         aria-pressed={value === undefined}
                         onClick={() => onChange(undefined)}
                     />
@@ -49,8 +51,8 @@ export function ColorSwatches({ label, value, onChange, swatches, defaultColor }
                         type="button"
                         className="swatch"
                         style={{ background: swatch.color }}
-                        aria-label={swatch.label}
-                        title={swatch.label}
+                        aria-label={named(strings, swatch.label)}
+                        title={named(strings, swatch.label)}
                         aria-pressed={sameColor(value, swatch.color)}
                         onClick={() => onChange(swatch.color)}
                     />
@@ -63,7 +65,7 @@ export function ColorSwatches({ label, value, onChange, swatches, defaultColor }
                 onChange={setDraft}
                 onChangeEnd={(color) => onChange(color)}
                 format="hexa"
-                aria-label={`${label}, hex value with optional transparency`}
+                aria-label={strings.colors.hexValue(label)}
                 styles={{ input: { fontFamily: "var(--mantine-font-family-monospace)", fontSize: 13 } }}
             />
         </>

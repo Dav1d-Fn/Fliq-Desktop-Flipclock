@@ -1,3 +1,4 @@
+pub mod calendar;
 pub mod commands;
 pub mod overlay;
 #[cfg(target_os = "linux")]
@@ -97,6 +98,7 @@ pub fn run(mode: overlay::OverlayMode, config: overlay::LinuxConfig) {
         .invoke_handler(tauri::generate_handler![
             commands::open_stylingmenu_window,
             commands::quit_app,
+            calendar::fetch_calendar,
             commands::get_overlay_state,
             commands::set_overlay_margin,
             commands::set_overlay_mode,
