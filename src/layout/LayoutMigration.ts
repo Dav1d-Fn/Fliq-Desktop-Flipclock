@@ -1,6 +1,6 @@
 import { ClockTemplate, type Segment } from "../clock/ClockTemplate.ts";
 import { HiddenSpaceMigration } from "./HiddenSpaceMigration.ts";
-import { CELL_HEIGHT, GRID_LIMITS, LayoutGrid, type ClockLayout, type GroupItem, type LayoutBlock, type TextStyle } from "./ClockLayout.ts";
+import { BLOCK_DEFAULTS, CELL_HEIGHT, GRID_LIMITS, LayoutGrid, type ClockLayout, type GroupItem, type LayoutBlock, type RowAlign, type TextStyle } from "./ClockLayout.ts";
 
 export interface KeyValueStorage
 {
@@ -43,6 +43,9 @@ const PADDING_SPLIT_MARKER = "paddingSplit";
 
 // Set once the space plain text and background-less padding kept hidden became settings.
 const HIDDEN_SPACE_MARKER = "hiddenSpaceRemoved";
+
+// Set once rows became automatic: per-row minimum heights dropped, one alignment for all rows.
+const AUTO_ROWS_MARKER = "autoRows";
 
 // Before the split: horizontally the padding, vertically half of it but at least this (px).
 const OLD_MIN_VERTICAL_PADDING = 4;
@@ -124,6 +127,61 @@ export class LayoutMigration
         this.convertTextStyles();
         this.splitPadding();
         this.removeHiddenSpace();
+        this.makeRowsAutomatic();
+    }
+
+    // One-time, after removeHiddenSpace (which still wrote row minimums): rows are as high as
+    // their highest block, room comes from block padding. Rows may get a bit lower. The
+    // per-row alignments become one. Saved layouts too.
+    private makeRowsAutomatic(): void
+    {
+        if (this.storage.getItem(AUTO_ROWS_MARKER) !== null)
+        {
+            return;
+        }
+        this.storage.setItem(AUTO_ROWS_MARKER, "true");
+        const stored = this.storage.getItem(LAYOUT_KEYS.layout);
+        if (stored !== null)
+        {
+            this.storage.setItem(LAYOUT_KEYS.layout, JSON.stringify(LayoutMigration.withAutomaticRows(JSON.parse(stored) as ClockLayout)));
+        }
+        const saved = this.storage.getItem(LAYOUT_KEYS.savedLayouts);
+        if (saved !== null)
+        {
+            const layouts = (JSON.parse(saved) as { layout: ClockLayout }[]).map((entry) => ({ ...entry, layout: LayoutMigration.withAutomaticRows(entry.layout) }));
+            this.storage.setItem(LAYOUT_KEYS.savedLayouts, JSON.stringify(layouts));
+        }
+    }
+
+    // Without row heights; the alignment most rows had set (ties: the upper row's), none when
+    // no row had one or it is the default.
+    static withAutomaticRows(layout: ClockLayout): ClockLayout
+    {
+        const migrated = { ...layout } as ClockLayout & { rowHeightOverrides?: unknown; rowAligns?: (RowAlign | null)[] };
+        const rowAligns = migrated.rowAligns;
+        delete migrated.rowHeightOverrides;
+        delete migrated.rowAligns;
+        const counts = new Map<RowAlign, number>();
+        for (const align of rowAligns ?? [])
+        {
+            if (align)
+            {
+                counts.set(align, (counts.get(align) ?? 0) + 1);
+            }
+        }
+        let common: RowAlign | null = null;
+        for (const [align, count] of counts)
+        {
+            if (common === null || count > counts.get(common)!)
+            {
+                common = align;
+            }
+        }
+        if (common !== null && common !== BLOCK_DEFAULTS.rowAlign && migrated.rowAlign === undefined)
+        {
+            migrated.rowAlign = common;
+        }
+        return migrated;
     }
 
     // One-time, after every other step (they write layouts the old way): see HiddenSpaceMigration.

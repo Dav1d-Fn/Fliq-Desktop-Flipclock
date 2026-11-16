@@ -163,7 +163,7 @@ export const EN = {
     },
     layout: {
         title: "Layout",
-        intro: "Drag blocks to move them. Pull the green handles to resize. Click the bar above a column or beside a row (or the space after it) for its size, alignment and spacing. Drop a block onto another to group them, or shift-click blocks side by side.",
+        intro: "Drag blocks to move them. Pull the green handles to resize. Drag the edge above a column to make it wider or narrower. Drop a block onto another to group them, or shift-click blocks side by side.",
         undo: "Undo",
         undoTitle: "Undo (Ctrl+Z)",
         redo: "Redo",
@@ -177,8 +177,6 @@ export const EN = {
         selection: "Selection",
         block: "Block",
         blocks: (count: number) => `${count} blocks`,
-        column: (number: number) => `Column ${number}`,
-        row: (number: number) => `Row ${number}`,
         noSpace: "No space left. Add a column or row first.",
         noRoomColumn: "No room for the blocks in the last column. Move or remove one first.",
         noRoomRow: "No room for the blocks in the last row. Move or remove one first.",
@@ -208,15 +206,7 @@ export const EN = {
         resizeBoth: "Resize width and height",
     },
     grid: {
-        trackSize: (axis: "column" | "row", number: number) => axis === "column"
-            ? `Width of column ${number}`
-            : `Row ${number}`,
-        width: "Width",
-        height: "Minimum height",
-        resetToDefault: "Reset to default",
-        followsDefault: "Without its own width, the column follows the column width under Whole clock › Grid.",
-        automatic: "No minimum",
-        automaticNote: "As high as its highest block. A minimum height makes the row taller, never its blocks smaller.",
+        columnEdge: (number: number) => `Width of column ${number}: drag, double-click to reset`,
     },
     clockInspector: {
         intro: "The clock window itself, plus defaults every block inherits.",
@@ -226,7 +216,7 @@ export const EN = {
         padding: "Space to the edge",
         paddingNote: "Room between the clock's background and its outer blocks.",
         columnWidth: "Column width",
-        rowHeightNote: "Click the bar above a column to size it apart. Rows are as high as their highest block; the bar beside a row sets a minimum height.",
+        columnWidthNote: "For columns without their own width. To size one column apart, drag its edge above the canvas; double-click the edge to reset it. Rows are always as high as their highest block; for more room, use a block's padding.",
         columnSpace: "Space between columns",
         rowSpace: "Space between rows",
         gapNote: "The same between every two columns or rows. To inset a single block, use its padding.",
@@ -330,7 +320,7 @@ export const EN = {
     // English text. A text missing here stays English, so a new block kind works untranslated.
     row: {
         alignLabel: "Lower blocks sit at",
-        alignNote: "Bottom lines small seconds cards up with the bottom edge of the big ones.",
+        alignNote: "Only matters where a block is lower than its row. Bottom lines small seconds cards up with the bottom edge of the big ones.",
         top: "Top",
         center: "Center",
         bottom: "Bottom",

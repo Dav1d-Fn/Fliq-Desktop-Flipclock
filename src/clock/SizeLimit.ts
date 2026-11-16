@@ -10,8 +10,8 @@ export interface FitMeasure
     // The room inside the block's padding.
     areaWidth: number;
     areaHeight: number;
-    // The block's row grows with its content (one row high; a row's height setting is only its
-    // minimum): then the room's height is no limit, it follows the text size.
+    // The block's row grows with its content (one row high): then the room's height is no
+    // limit, it follows the text size.
     heightFollows: boolean;
 }
 

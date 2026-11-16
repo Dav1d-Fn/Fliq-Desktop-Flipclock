@@ -2,11 +2,11 @@ import { CSSProperties, MouseEvent, PointerEvent, useEffect, useRef, useState } 
 import { useAtomValue } from "jotai";
 import GridClock from "../../../clock/GridClock";
 import { BLOCK_HEIGHTS, useLayoutGrid } from "../../../clock/useLayoutGrid";
-import { LayoutGrid, type CellRect, type ClockLayout, type DropZone, type LayoutBlock, type PixelRect, type TrackRef } from "../../../layout/ClockLayout";
+import { LayoutGrid, type CellRect, type ClockLayout, type DropZone, type LayoutBlock, type PixelRect } from "../../../layout/ClockLayout";
 import { useStrings } from "../../../i18n/useStrings";
 import { ATOMS } from "../../../settings/atoms";
 import { MemberMenu } from "./MemberMenu";
-import { TrackPopover } from "./TrackPopover";
+import { SLIDER_CONFIGS } from "../../../settings/options";
 
 type DragMode = "move" | "right" | "bottom" | "corner";
 
@@ -51,22 +51,18 @@ interface LayoutCanvasProps
     editing: boolean;
     // Several with shift/ctrl-click, to group them.
     selectedIds: number[];
-    // The column or row whose popover is open.
-    selectedTrack: TrackRef | null;
     poppingId: number | null;
     removingIds: number[];
     shaking: boolean;
     toast: string | null;
     // `additive`: shift/ctrl-click, adds the block to the selection or takes it out.
     onSelect: (blockId: number | null, additive?: boolean) => void;
-    // A column or row bar (or the gap after it) clicked; null closes its popover.
-    onSelectTrack: (track: TrackRef | null) => void;
     onPlace: (blockId: number, rect: CellRect) => void;
     // A block dropped onto another: they become a group, or it joins the target group.
     onMerge: (targetId: number, droppedId: number, before: boolean) => void;
     // A block dropped near another's edge: it slides in there, the line makes room.
     onInsert: (layout: ClockLayout) => void;
-    // Settings changed in a column or row popover.
+    // A column's width dragged on its edge, or reset with a double-click.
     onChange: (update: (current: ClockLayout) => ClockLayout) => void;
     // Group member menu (right-click on a member).
     onMoveMember: (groupId: number, index: number, step: number) => void;
@@ -81,22 +77,33 @@ const CANVAS_MARGIN = 48;
 // Smallest size a block shrinks to while its edge is pulled, in px at scale 1.
 const MIN_LIVE_WIDTH = 40;
 const MIN_LIVE_HEIGHT = 36;
-// Column and row bars: the strip along the top and left edge, how far outside the grid it sits
-// (in the clock padding), and how far each bar stays clear of its neighbours. In screen px.
-const TRACK_BAR_SIZE = 8;
-const TRACK_BAR_OUTSIDE = 12;
-const TRACK_BAR_INSET = 7;
+// Column edges: grips in a strip above the grid (in the clock padding), this far outside it and
+// this high, in screen px.
+const COLUMN_EDGE_OUTSIDE = 16;
+const COLUMN_EDGE_HEIGHT = 14;
+
+// A column edge being dragged: the column, its width when grabbed (px at scale 1), the pointer
+// x then (screen px) and the canvas scale then, so a canvas that rescales does not move the
+// pointer's meaning mid-drag.
+interface ColumnDrag
+{
+    column: number;
+    startWidth: number;
+    startX: number;
+    scale: number;
+}
 
 // The editor canvas: the real clock, scaled to fit, with the editing layer on top (cells, the
 // snap ghost, one hit box per block with its resize handles).
 export function LayoutCanvas(props: LayoutCanvasProps)
 {
-    const { layout, editing, selectedIds, selectedTrack, poppingId, removingIds, shaking, toast, onSelect, onSelectTrack, onPlace, onMerge, onInsert, onChange, onMoveMember, onDetachMember, onOpenMember } = props;
+    const { layout, editing, selectedIds, poppingId, removingIds, shaking, toast, onSelect, onPlace, onMerge, onInsert, onChange, onMoveMember, onDetachMember, onOpenMember } = props;
     const padding = useAtomValue(ATOMS.CLOCK_PADDING);
     const strings = useStrings();
     const stageRef = useRef<HTMLDivElement>(null);
     const [scale, setScale] = useState(1);
     const [drag, setDrag] = useState<Drag | null>(null);
+    const [columnDrag, setColumnDrag] = useState<ColumnDrag | null>(null);
     const [memberTarget, setMemberTarget] = useState<MemberTarget | null>(null);
     const [memberHighlight, setMemberHighlight] = useState<PixelRect | null>(null);
     const grid = useLayoutGrid(layout);
@@ -425,55 +432,57 @@ export function LayoutCanvas(props: LayoutCanvasProps)
         return cells;
     }
 
-    function isOpen(track: TrackRef): boolean
+    function setColumnWidth(column: number, width: number | null)
     {
-        return selectedTrack?.axis === track.axis && selectedTrack.index === track.index;
+        onChange((current) => new LayoutGrid(current).withColumnWidth(column, width));
     }
 
-    // One bar per column above the grid and per row left of it: click for its settings popover.
-    function renderTrackBars()
+    function startColumnDrag(event: PointerEvent<HTMLElement>, column: number)
     {
-        const bars = [];
-        for (const axis of ["column", "row"] as const)
+        event.stopPropagation();
+        event.currentTarget.setPointerCapture(event.pointerId);
+        setColumnDrag({ column, startWidth: grid.trackSize({ axis: "column", index: column }), startX: event.clientX, scale });
+    }
+
+    function moveColumnEdge(event: PointerEvent<HTMLElement>)
+    {
+        if (!columnDrag)
         {
-            const count = axis === "column" ? layout.columns : layout.rows;
-            for (let index = 0; index < count; index++)
-            {
-                const start = (axis === "column" ? grid.columnStart(index) : grid.rowStart(index)) * scale + TRACK_BAR_INSET;
-                const length = Math.max(grid.trackSize({ axis, index }) * scale - 2 * TRACK_BAR_INSET, TRACK_BAR_SIZE);
-                const outside = -TRACK_BAR_OUTSIDE;
-                const style: CSSProperties = axis === "column"
-                    ? { left: start, top: outside, width: length, height: TRACK_BAR_SIZE }
-                    : { top: start, left: outside, height: length, width: TRACK_BAR_SIZE };
-                const track = { axis, index };
-                const selected = isOpen(track);
-                const name = strings.grid.trackSize(axis, index + 1);
-                bars.push(
-                    <TrackPopover
-                        key={`${axis}-${index}`}
-                        track={track}
-                        opened={selected}
-                        layout={layout}
-                        grid={grid}
-                        blockHeights={blockHeights}
-                        onClose={() => onSelectTrack(null)}
-                        onChange={onChange}
-                    >
-                        <button
-                            type="button"
-                            aria-label={name}
-                            title={name}
-                            aria-pressed={selected}
-                            className={`track-bar ${axis}${selected ? " selected" : ""}`}
-                            style={style}
-                            onPointerDown={(event) => event.stopPropagation()}
-                            onClick={() => onSelectTrack(selected ? null : track)}
-                        />
-                    </TrackPopover>,
-                );
-            }
+            return;
         }
-        return bars;
+        const { min, max } = SLIDER_CONFIGS.COLUMN_WIDTH;
+        const width = columnDrag.startWidth + (event.clientX - columnDrag.startX) / columnDrag.scale;
+        setColumnWidth(columnDrag.column, Math.round(Math.min(max, Math.max(min, width))));
+    }
+
+    // One grip per column at its right edge (in the gap after it), above the grid: drag to set
+    // its width, double-click to let it follow the default width again.
+    function renderColumnEdges()
+    {
+        const edges = [];
+        for (let column = 0; column < layout.columns; column++)
+        {
+            const edge = (grid.columnEnd(column) + grid.gap("column") / 2) * scale;
+            const name = strings.grid.columnEdge(column + 1);
+            const dragging = columnDrag?.column === column;
+            const own = grid.columnWidthOverride(column) !== null;
+            edges.push(
+                <button
+                    key={column}
+                    type="button"
+                    aria-label={name}
+                    title={name}
+                    className={`column-edge${dragging ? " dragging" : ""}${own ? " own" : ""}`}
+                    style={{ left: edge, top: -COLUMN_EDGE_OUTSIDE, height: COLUMN_EDGE_HEIGHT }}
+                    onPointerDown={(event) => startColumnDrag(event, column)}
+                    onPointerMove={moveColumnEdge}
+                    onPointerUp={() => setColumnDrag(null)}
+                    onPointerCancel={() => setColumnDrag(null)}
+                    onDoubleClick={() => setColumnWidth(column, null)}
+                />,
+            );
+        }
+        return edges;
     }
 
     const overlay = (
@@ -483,7 +492,7 @@ export function LayoutCanvas(props: LayoutCanvasProps)
             onPointerDown={() => editing && onSelect(null)}
         >
             {renderGhost()}
-            {editing && renderTrackBars()}
+            {editing && renderColumnEdges()}
             {editing && layout.blocks.map((block) =>
             {
                 const selected = selectedIds.includes(block.id);

@@ -1,6 +1,7 @@
-import { Select } from "@mantine/core";
+import { SegmentedControl, Select } from "@mantine/core";
+import { IconLayoutAlignBottom, IconLayoutAlignMiddle, IconLayoutAlignTop } from "@tabler/icons-react";
 import { useAtom } from "jotai";
-import { LayoutGrid } from "../../../layout/ClockLayout";
+import { LayoutGrid, type RowAlign } from "../../../layout/ClockLayout";
 import { useStrings } from "../../../i18n/useStrings";
 import { ATOMS } from "../../../settings/atoms";
 import { FONT_OPTIONS, SLIDER_CONFIGS } from "../../../settings/options";
@@ -22,7 +23,13 @@ export function ClockInspector()
     const [textColor, setTextColor] = useAtom(ATOMS.TEXT_COLOR);
     const [layout, setLayout] = useAtom(ATOMS.CLOCK_LAYOUT);
     const grid = new LayoutGrid(layout);
-    const text = useStrings().clockInspector;
+    const strings = useStrings();
+    const text = strings.clockInspector;
+    const alignData = [
+        { value: "top", label: <IconLayoutAlignTop size={16} aria-label={strings.row.top} /> },
+        { value: "center", label: <IconLayoutAlignMiddle size={16} aria-label={strings.row.center} /> },
+        { value: "bottom", label: <IconLayoutAlignBottom size={16} aria-label={strings.row.bottom} /> },
+    ];
 
     const fontLabel = FONT_OPTIONS.find((option) => option.value === font)?.label ?? font;
 
@@ -55,7 +62,7 @@ export function ClockInspector()
                 summary={text.gridSummary(grid.defaultColumnWidth())}
                 defaultOpen={false}
             >
-                <InspectorField label={text.columnWidth} help={text.rowHeightNote}>
+                <InspectorField label={text.columnWidth} help={text.columnWidthNote}>
                     <SliderControl
                         label={text.columnWidth}
                         value={grid.defaultColumnWidth()}
@@ -65,7 +72,7 @@ export function ClockInspector()
                 </InspectorField>
             </InspectorSection>
 
-            {/* Every space between and around blocks; a block's own padding only exists with its own background. */}
+            {/* Every space between and around blocks, and where blocks lower than their row sit. */}
             <InspectorSection
                 id="clock-spacing"
                 title={text.sectionSpacing}
@@ -91,6 +98,16 @@ export function ClockInspector()
                         value={grid.gap("row")}
                         onChange={(rowGap) => setLayout((current) => ({ ...current, rowGap }))}
                         {...SLIDER_CONFIGS.GAP}
+                    />
+                </InspectorField>
+
+                <InspectorField label={strings.row.alignLabel} help={strings.row.alignNote}>
+                    <SegmentedControl
+                        fullWidth
+                        size="xs"
+                        data={alignData}
+                        value={grid.rowAlign()}
+                        onChange={(rowAlign) => setLayout((current) => ({ ...current, rowAlign: rowAlign as RowAlign }))}
                     />
                 </InspectorField>
             </InspectorSection>

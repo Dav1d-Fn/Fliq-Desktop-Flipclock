@@ -57,18 +57,20 @@ interface TextSample
     lineBoxHeight: number;
 }
 
+// Layouts of that time could set a row's height by hand (dropped later, see
+// LayoutMigration.withAutomaticRows).
+type LayoutWithRowHeights = ClockLayout & { rowHeightOverrides?: (number | null)[] };
+
 // One-time move to "no hidden space": plain text used to keep 38 % of its row empty, and every
 // block had padding (8 / 4 px when unset) even without a background, where it only acted as
 // extra space between blocks. Now text is as high as its glyphs, padding without a background
-// is 0 when unset and not shown, and rows have a minimum height instead of a fixed one.
+// is 0 when unset, and rows are as high as their highest block.
 //
 // Turns what was implicit into settings the editor shows, so a layout looks about the same:
 // - Text keeps its size: the text size is set to what the old fit drew (it also takes over the
 //   left/right padding of blocks without a background, and its narrower room).
-// - A row of only plain-text blocks keeps its height as its minimum height; blocks without a
-//   background in it lose their top/bottom padding, which that height now holds.
-// - Elsewhere a block without a background keeps its top/bottom padding stored (it still
-//   works, the slider is just not shown).
+// - A block without a background keeps its top/bottom padding stored. The 38 % hidden air
+//   goes, so rows of plain text get lower; their padding gives the room back.
 // Sizes come from sample text (see TextSample), so "about the same", not to the pixel.
 // ponytail: flip cards and faces in rows set by hand, and blocks over several rows, keep their
 // settings; they could now grow where a row used to squeeze them.
@@ -77,41 +79,14 @@ export class HiddenSpaceMigration
     static withoutHiddenSpace(layout: ClockLayout): ClockLayout
     {
         const grid = new LayoutGrid(layout);
-        const minimumHeights = Array.from({ length: layout.rows }, (_, row) => layout.rowHeightOverrides?.[row] ?? null);
-        const rowsOfText = new Set<number>();
-
-        // Rows without a height set by hand whose single-row blocks are all plain text keep
-        // their old height as their minimum.
-        for (let row = 0; row < layout.rows; row++)
-        {
-            const blocks = layout.blocks.filter((block) => block.y === row && block.h === 1);
-            const samples = blocks.map((block) => HiddenSpaceMigration.textSample(block));
-            if (minimumHeights[row] !== null || blocks.length === 0 || samples.some((sample) => sample === null))
-            {
-                continue;
-            }
-            const heights = blocks.map((block, index) =>
-            {
-                const oldPadding = HiddenSpaceMigration.oldPadding(block);
-                const width = grid.pixelRect(block, 1).width - 2 * oldPadding.x;
-                const fontSize = HiddenSpaceMigration.oldFontSize(block, samples[index]!, width);
-                return fontSize * samples[index]!.lineBoxHeight / OLD_TEXT_HEIGHT_SHARE + 2 * oldPadding.y;
-            });
-            minimumHeights[row] = Math.round(Math.max(...heights));
-            rowsOfText.add(row);
-        }
-
-        const blocks = layout.blocks.map((block) => HiddenSpaceMigration.converted(block, grid, rowsOfText.has(block.y) && block.h === 1));
-        const migrated = { ...layout, blocks };
-        if (minimumHeights.some((height) => height !== null))
-        {
-            migrated.rowHeightOverrides = minimumHeights;
-        }
-        return migrated;
+        const rowHeights = (layout as LayoutWithRowHeights).rowHeightOverrides ?? [];
+        const blocks = layout.blocks.map((block) => HiddenSpaceMigration.converted(block, grid, block.h === 1 ? rowHeights[block.y] ?? null : null));
+        return { ...layout, blocks };
     }
 
-    // One block's settings without its hidden space.
-    private static converted(block: LayoutBlock, grid: LayoutGrid, inRowOfText: boolean): LayoutBlock
+    // One block's settings without its hidden space; `fixedHeight` is the height of its row
+    // when one was set by hand.
+    private static converted(block: LayoutBlock, grid: LayoutGrid, fixedHeight: number | null): LayoutBlock
     {
         const oldPadding = HiddenSpaceMigration.oldPadding(block);
         const blockWidth = grid.pixelRect(block, 1).width;
@@ -119,18 +94,13 @@ export class HiddenSpaceMigration
         const converted: LayoutBlock = { ...block };
 
         // Without a background the padding goes: left/right into the text size (and the offset,
-        // so aligned content stays put), top/bottom into the row's minimum height where there is
-        // one, else it stays stored.
+        // so aligned content stays put); top/bottom stays stored.
         let newWidth = oldWidth;
         if (!block.background)
         {
             newWidth = blockWidth;
             delete converted.paddingX;
-            if (inRowOfText)
-            {
-                delete converted.paddingY;
-            }
-            else if (oldPadding.y > 0)
+            if (oldPadding.y > 0)
             {
                 converted.paddingY = oldPadding.y;
             }
@@ -147,8 +117,8 @@ export class HiddenSpaceMigration
         if (sample !== null)
         {
             // The same font size in the new room, height limits included (a row set by hand
-            // squeezed it; now that height is only a minimum).
-            const oldFontSize = HiddenSpaceMigration.oldFontSize(block, sample, oldWidth, grid);
+            // squeezed it).
+            const oldFontSize = HiddenSpaceMigration.oldFontSize(block, sample, oldWidth, fixedHeight);
             textSize = 100 * oldFontSize * sample.spacedWidth / newWidth;
         }
         if (Math.abs(textSize - oldTextSize) >= 0.5 && newWidth > 0)
@@ -165,13 +135,12 @@ export class HiddenSpaceMigration
     }
 
     // Font size (px at scale 1) the old fit gave plain text in a room this wide: the width at
-    // the text size, never wider than the unspaced text allows, and in a row set by hand (when
-    // a grid is given) no higher than 62 % of the room.
-    private static oldFontSize(block: LayoutBlock, sample: TextSample, width: number, grid?: LayoutGrid): number
+    // the text size, never wider than the unspaced text allows, and in a row set by hand no
+    // higher than 62 % of the room.
+    private static oldFontSize(block: LayoutBlock, sample: TextSample, width: number, fixedHeight: number | null): number
     {
         const textSize = (block.textSize ?? 100) / 100;
         let fontSize = Math.min(textSize * width / sample.spacedWidth, width / sample.unspacedWidth);
-        const fixedHeight = grid && block.h === 1 ? grid.rowHeightOverride(block.y) : null;
         if (fixedHeight !== null)
         {
             const room = fixedHeight - 2 * HiddenSpaceMigration.oldPadding(block).y;

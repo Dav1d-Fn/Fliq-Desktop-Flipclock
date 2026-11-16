@@ -156,12 +156,11 @@ export interface ClockLayout
     columnWidth?: number;
     // Width of column i, overriding the default. null or missing: the default.
     columnWidths?: (number | null)[];
-    // Rows are as high as their highest block (autoRowHeights), at least the height set here:
-    // minimum height of row i in px at scale 1, null or missing for none. Older versions stored
-    // rowHeight / rowHeights; those values are stale and ignored, hence the new name.
-    rowHeightOverrides?: (number | null)[];
-    // Where lower blocks sit in row i. null or missing: center.
-    rowAligns?: (RowAlign | null)[];
+    // Rows are always as high as their highest block (autoRowHeights); room above and below
+    // comes from block padding. Older versions stored row heights (rowHeight, rowHeights,
+    // rowHeightOverrides) and one alignment per row (rowAligns); see LayoutMigration.
+    // Where a block lower than its row sits in it, the same in every row. Unset: center.
+    rowAlign?: RowAlign;
 }
 
 export type GapAxis = "column" | "row";
@@ -202,8 +201,6 @@ export interface PixelRect
 export const CELL_WIDTH = 64;
 export const CELL_HEIGHT = 56;
 export const CELL_GAP = 2;
-// Measured heights differ by fractions of a pixel; below this a block counts as filling its row.
-const ALIGN_TOLERANCE = 0.5;
 
 export const GRID_LIMITS = {
     minColumns: 2,
@@ -233,16 +230,15 @@ const CONTENT_FIELDS = ["kind", "display", "customFormat", "text", "weatherIcon"
 const PLACEMENT_FIELDS = ["id", "x", "y", "w", "h"] as const;
 
 // What a new installation starts with.
-// Flip time on top, a group of date, next sun event and temperature below. The rows' minimum
-// heights keep the room around them the earlier default had.
+// Flip time on top, a group of date, next sun event and temperature below. The padding keeps
+// the room around them the earlier default had (rows 62 and 42 px high).
 export const DEFAULT_LAYOUT: ClockLayout = {
     columns: 4,
     rows: 2,
     columnGap: 0,
     rowGap: 0,
-    rowHeightOverrides: [62, 42],
     blocks: [
-        { id: 1, kind: "clock", textStyle: "flip", x: 0, y: 0, w: 4, h: 1, display: "HH:mm", cardColor: "#212121ff", letterSpacing: -0.03, textSize: 99 },
+        { id: 1, kind: "clock", textStyle: "flip", x: 0, y: 0, w: 4, h: 1, display: "HH:mm", cardColor: "#212121ff", letterSpacing: -0.03, textSize: 99, paddingY: 4 },
         {
             id: 2,
             kind: "group",
@@ -259,6 +255,7 @@ export const DEFAULT_LAYOUT: ClockLayout = {
             itemGap: 0.9,
             letterSpacing: -0.14,
             textSize: 82,
+            paddingY: 13,
         },
     ],
 };
@@ -277,33 +274,18 @@ export class LayoutGrid
     }
 
     // Height of every row: the natural height of its highest single-row block (px at scale 1,
-    // keyed by block id; measured by the clock), at least the row's minimum height if one is
-    // set. Rows with neither get CELL_HEIGHT. A minimum never makes a block's content smaller.
+    // keyed by block id; measured by the clock). Rows without one get CELL_HEIGHT.
     // ponytail: blocks spanning several rows do not size rows, their content fits into what the
     // single-row blocks leave. Spread their height over the rows if layouts need it.
     static autoRowHeights(layout: ClockLayout, blockHeights: Record<number, number>): number[]
     {
         return Array.from({ length: layout.rows }, (_, row) =>
         {
-            const minimum = layout.rowHeightOverrides?.[row] ?? null;
             const heights = layout.blocks
                 .filter((block) => block.y === row && block.h === 1 && blockHeights[block.id] !== undefined)
                 .map((block) => blockHeights[block.id]);
-            if (heights.length === 0)
-            {
-                return minimum ?? CELL_HEIGHT;
-            }
-            return Math.max(minimum ?? 0, ...heights);
+            return heights.length === 0 ? CELL_HEIGHT : Math.max(...heights);
         });
-    }
-
-    // Whether row alignment changes anything in `row`: only when one of its single-row blocks
-    // is lower than the row (a minimum height above it, or a higher neighbour).
-    static rowHasRoomToAlign(layout: ClockLayout, blockHeights: Record<number, number>, row: number): boolean
-    {
-        const rowHeight = LayoutGrid.autoRowHeights(layout, blockHeights)[row];
-        return layout.blocks.some((block) =>
-            block.y === row && block.h === 1 && blockHeights[block.id] !== undefined && blockHeights[block.id] < rowHeight - ALIGN_TOLERANCE);
     }
 
     // Room between a block's edges and its content, in px at scale 1. Only a block with its own
@@ -314,29 +296,10 @@ export class LayoutGrid
         return { x: block.paddingX ?? fallback.paddingX, y: block.paddingY ?? fallback.paddingY };
     }
 
-    rowHeightOverride(row: number): number | null
+    // Where blocks lower than their row sit in it.
+    rowAlign(): RowAlign
     {
-        return this.layout.rowHeightOverrides?.[row] ?? null;
-    }
-
-    // The layout with one row set to its own height, or back to automatic with null.
-    withRowHeight(row: number, value: number | null): ClockLayout
-    {
-        const rowHeightOverrides = this.overridesWith(this.layout.rows, row, value, (index) => this.rowHeightOverride(index));
-        return { ...this.layout, rowHeightOverrides };
-    }
-
-    // Where lower blocks sit in a row.
-    rowAlign(row: number): RowAlign
-    {
-        return this.layout.rowAligns?.[row] ?? BLOCK_DEFAULTS.rowAlign;
-    }
-
-    // The layout with one row's alignment set.
-    withRowAlign(row: number, align: RowAlign): ClockLayout
-    {
-        const rowAligns = Array.from({ length: this.layout.rows }, (_, index) => (index === row ? align : this.layout.rowAligns?.[index] ?? null));
-        return { ...this.layout, rowAligns };
+        return this.layout.rowAlign ?? BLOCK_DEFAULTS.rowAlign;
     }
 
     // True when the rect lies inside the grid and overlaps no block except `ignoredId`.
@@ -393,15 +356,13 @@ export class LayoutGrid
             }
         }
 
-        // Settings of tracks that no longer exist are dropped, so a re-added column starts fresh.
+        // Widths of columns that no longer exist are dropped, so a re-added column starts fresh.
         const result: ClockLayout = {
             ...this.layout,
             columns,
             rows,
             blocks: inside,
             columnWidths: this.layout.columnWidths?.slice(0, columns),
-            rowAligns: this.layout.rowAligns?.slice(0, rows),
-            rowHeightOverrides: this.layout.rowHeightOverrides?.slice(0, rows),
         };
         for (const block of outside)
         {
@@ -638,8 +599,6 @@ export class LayoutGrid
             ...this.layout,
             rows: rows + 1,
             blocks: this.layout.blocks.filter((block) => block.id !== droppedId).map(shifted),
-            rowAligns: LayoutGrid.spliced(this.layout.rowAligns, rows, row, 0, null),
-            rowHeightOverrides: LayoutGrid.spliced(this.layout.rowHeightOverrides, rows, row, 0, null),
         };
         const roomy = new LayoutGrid(layout);
         const ownColumns = { x: Math.min(dropped.x, columns - Math.min(dropped.w, columns)), y: row, w: Math.min(dropped.w, columns), h: 1 };
@@ -680,29 +639,14 @@ export class LayoutGrid
         return result;
     }
 
-    // The layout without one empty row: the rows below move up, its settings go.
+    // The layout without one empty row: the rows below move up.
     private static withoutRow(layout: ClockLayout, row: number): ClockLayout
     {
         return {
             ...layout,
             rows: layout.rows - 1,
             blocks: layout.blocks.map((block) => (block.y > row ? { ...block, y: block.y - 1 } : block)),
-            rowAligns: LayoutGrid.spliced(layout.rowAligns, layout.rows, row, 1),
-            rowHeightOverrides: LayoutGrid.spliced(layout.rowHeightOverrides, layout.rows, row, 1),
         };
-    }
-
-    // A per-row override list of `count` entries with entries removed or added at
-    // `index`, like Array.splice. Stays undefined when there was none.
-    private static spliced<T>(values: (T | null)[] | undefined, count: number, index: number, deleteCount: number, ...added: (T | null)[]): (T | null)[] | undefined
-    {
-        if (!values)
-        {
-            return undefined;
-        }
-        const padded: (T | null)[] = Array.from({ length: count }, (_, valueIndex) => values[valueIndex] ?? null);
-        padded.splice(index, deleteCount, ...added);
-        return padded;
     }
 
     // New x of the blocks from `start` onwards (direction 1) or from `start` back (direction

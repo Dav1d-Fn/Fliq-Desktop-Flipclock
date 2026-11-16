@@ -28,21 +28,21 @@ gtk-layer-shell, X11 fallback). macOS is not shipped. Meant to grow into a widge
     registry, `ContentEditor` for what a block or group member shows, `SelectionInspector`
     for several blocks shift/ctrl-clicked on the canvas). Inspector settings sit in collapsible
     `InspectorSection`s (open/closed kept in localStorage `inspectorSections`, summary shown
-    while closed); long explanations go into `InspectorField`'s `help` tooltip. Column and row
-    bars open `TrackPopover` at the track: width or minimum height (rows: as high as their
-    highest block, `rowHeightOverrides` is only a minimum), and row alignment only while a block
-    in the row is lower than it (`LayoutGrid.rowHasRoomToAlign`). Column and row gaps are one
-    value each (Whole clock › Spacing), no per-gap values; a single block is inset with its
-    padding, which every block has (unset: 8/4 with an own background, else 0). Offset sits
-    under "Advanced". `pages/` the other pages,
+    while closed); long explanations go into `InspectorField`'s `help` tooltip. Rows are always
+    as high as their highest block (`LayoutGrid.autoRowHeights`), no row settings; room comes
+    from block padding, which every block has (unset: 8/4 with an own background, else 0).
+    Column widths are per column (`columnWidths`), set by dragging the grip above a column's
+    edge on the canvas (double-click resets). Column gap, row gap and row alignment (`rowAlign`,
+    where blocks lower than their row sit) are one value each for the whole clock (Whole clock
+    › Spacing). Offset sits under "Advanced". `pages/` the other pages,
     `controls/` and `layout/` shared pieces. `savedLayouts/`: `LayoutSwitcher` (header of the Layout
     page: load, save, save as new, discard) and the Clock › Saved layouts page; both through
     `useLayoutLibrary` over `SAVED_LAYOUTS`/`ACTIVE_LAYOUT_ID` (logic in `src/layout/LayoutLibrary`,
     tested). A saved layout is the `ClockLayout` only, not the whole-clock settings.
 - `src/layout/` — `ClockLayout` (block and grid shapes, `LayoutGrid`: fits, free spot, snap
   targets, grouping; pure and tested), `LayoutMigration` (one-time moves, from the old two
-  template rows on), `HiddenSpaceMigration` (old hidden text air and background-less padding
-  turned into text size and row minimum heights).
+  template rows on; the last one drops row heights and per-row alignments),
+  `HiddenSpaceMigration` (old hidden text air and background-less padding turned into text size).
 - Groups: a block of kind `group` with `items` (members: kind and content fields only —
   display, custom format, text, weather icon) and `itemGap`. Every other field (text size,
   spacing, padding, offset, font, color, background, cards) is the group's look, shared by

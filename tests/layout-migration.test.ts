@@ -149,43 +149,58 @@ test("grid: a row is as high as its highest single-row block, empty rows keep th
         { id: 3, kind: "clock", clockStyle: "progress", x: 0, y: 1, w: 4, h: 1, display: "bar" },
         { id: 4, kind: "text", x: 0, y: 2, w: 1, h: 2, display: "text" },
     ];
-    const layout: ClockLayout = { columns: 4, rows: 4, blocks, rowAligns: [null, "bottom"] };
+    const layout: ClockLayout = { columns: 4, rows: 4, blocks, rowAlign: "bottom" };
     const heights = LayoutGrid.autoRowHeights(layout, { 1: 90, 2: 50, 3: 8, 4: 300 });
     assert.deepEqual(heights, [90, 8, CELL_HEIGHT, CELL_HEIGHT]);
 
     const grid = new LayoutGrid(layout, heights);
-    assert.equal(grid.rowAlign(0), "center");
-    assert.equal(grid.rowAlign(1), "bottom");
-    assert.deepEqual(grid.withRowAlign(0, "bottom").rowAligns, ["bottom", "bottom", null, null]);
+    assert.equal(grid.rowAlign(), "bottom");
+    assert.equal(new LayoutGrid({ ...layout, rowAlign: undefined }).rowAlign(), "center");
     // A seconds bar joins no group.
     assert.equal(grid.groupable([1, 2]) !== null, true);
     assert.equal(new LayoutGrid({ ...layout, blocks: [blocks[2], { ...blocks[3], y: 1, x: 4, h: 1 }], columns: 5 }).groupable([3, 4]), null);
     assert.equal(grid.mergedInto(1, 3, false), null);
 });
 
-test("grid: a row's own height is a minimum, null goes back to automatic", () =>
+test("grid: stale row heights of older versions are ignored", () =>
 {
     const blocks: LayoutBlock[] = [
         { id: 1, kind: "clock", x: 0, y: 0, w: 2, h: 1, display: "HH:mm" },
         { id: 2, kind: "text", x: 0, y: 1, w: 2, h: 1, display: "text" },
     ];
-    // Stale values of older versions stay ignored.
-    const layout = { columns: 2, rows: 3, blocks, rowHeight: 99, rowHeights: [99, 99, 99] } as ClockLayout;
-    const measured = { 1: 90, 2: 30 };
-    assert.deepEqual(LayoutGrid.autoRowHeights(layout, measured), [90, 30, CELL_HEIGHT]);
+    const layout = { columns: 2, rows: 3, blocks, rowHeight: 99, rowHeights: [99, 99, 99], rowHeightOverrides: [120, 120, 120] } as ClockLayout;
+    assert.deepEqual(LayoutGrid.autoRowHeights(layout, { 1: 90, 2: 30 }), [90, 30, CELL_HEIGHT]);
+});
 
-    // Lower than the block (the block wins, its content never shrinks) and higher than an empty row.
-    const overridden = new LayoutGrid(layout).withRowHeight(0, 40);
-    const raised = new LayoutGrid(overridden).withRowHeight(2, 120);
-    assert.deepEqual(raised.rowHeightOverrides, [40, null, 120]);
-    assert.deepEqual(LayoutGrid.autoRowHeights(raised, measured), [90, 30, 120]);
-    assert.deepEqual(LayoutGrid.autoRowHeights(new LayoutGrid(raised).withRowHeight(1, 50), measured), [90, 50, 120]);
-    assert.equal(new LayoutGrid(raised).rowHeightOverride(1), null);
+test("once: row heights are dropped and the most common row alignment is kept, saved layouts too", () =>
+{
+    const old = { columns: 4, rows: 3, blocks: [], rowHeightOverrides: [62, null, 42], rowAligns: ["top", "bottom", "bottom"] };
+    const store = storage({
+        layoutMigrated: true,
+        clockLayout: old,
+        savedLayouts: [{ id: 1, name: "Old", layout: { ...old, rowAligns: [null, "center"] } }],
+    });
+    new LayoutMigration(store).run();
+    const layout = JSON.parse(store.getItem("clockLayout")!);
+    assert.equal(layout.rowAlign, "bottom");
+    assert.equal("rowHeightOverrides" in layout, false);
+    assert.equal("rowAligns" in layout, false);
+    // Center is the default: nothing stored.
+    const saved = JSON.parse(store.getItem("savedLayouts")!)[0].layout;
+    assert.deepEqual(Object.keys(saved).sort(), ["blocks", "columns", "rows"]);
 
-    const reset = new LayoutGrid(raised).withRowHeight(0, null);
-    assert.deepEqual(LayoutGrid.autoRowHeights(reset, measured), [90, 30, 120]);
-    // A removed row drops its own height.
-    assert.deepEqual(new LayoutGrid(raised).resized(2, 2)?.rowHeightOverrides, [40, null]);
+    // A second run leaves what the user changed since.
+    store.setItem("clockLayout", JSON.stringify(old));
+    new LayoutMigration(store).run();
+    assert.deepEqual(JSON.parse(store.getItem("clockLayout")!).rowHeightOverrides, [62, null, 42]);
+});
+
+test("rows: a tie between alignments goes to the upper row, none set means none stored", () =>
+{
+    const base: ClockLayout = { columns: 2, rows: 2, blocks: [] };
+    assert.equal(LayoutMigration.withAutomaticRows({ ...base, rowAligns: ["top", "bottom"] } as ClockLayout).rowAlign, "top");
+    assert.equal(LayoutMigration.withAutomaticRows({ ...base, rowAligns: [null, null] } as ClockLayout).rowAlign, undefined);
+    assert.equal(LayoutMigration.withAutomaticRows(base).rowAlign, undefined);
 });
 
 test("once: per-gap values are dropped from the current and the saved layouts", () =>
@@ -523,20 +538,4 @@ test("text, weather, date and calendar blocks carry their text style in their se
     assert.deepEqual(segmentsOf({ ...base, kind: "date", display: "dddd", textStyle: "nixie" }), [{ type: "FACE", value: "dddd", face: "nixie" }]);
     assert.deepEqual(segmentsOf({ ...base, kind: "date", display: "dddd", textStyle: "flip", flipUnit: "word" }), [{ type: "FLIPTIME", value: "dddd", flipUnit: "word" }]);
     assert.equal(segmentsOf({ ...base, kind: "calendar", display: "next", textStyle: "segment" })[0].textStyle, "segment");
-});
-
-test("grid: row alignment only matters while a block is lower than its row", () =>
-{
-    const layout: ClockLayout = {
-        columns: 2,
-        rows: 1,
-        blocks: [
-            { id: 1, kind: "text", x: 0, y: 0, w: 1, h: 1, display: "text" },
-            { id: 2, kind: "text", x: 1, y: 0, w: 1, h: 1, display: "text" },
-        ],
-    };
-    assert.equal(LayoutGrid.rowHasRoomToAlign(layout, { 1: 30, 2: 30 }, 0), false, "auto height fits the blocks");
-    assert.equal(LayoutGrid.rowHasRoomToAlign(layout, { 1: 30, 2: 20 }, 0), true, "a lower neighbour");
-    assert.equal(LayoutGrid.rowHasRoomToAlign({ ...layout, rowHeightOverrides: [50] }, { 1: 30, 2: 30 }, 0), true, "a minimum above the blocks");
-    assert.equal(LayoutGrid.rowHasRoomToAlign({ ...layout, rowHeightOverrides: [20] }, { 1: 30, 2: 30 }, 0), false, "a minimum below the blocks");
 });
