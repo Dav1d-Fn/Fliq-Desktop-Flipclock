@@ -119,6 +119,8 @@ pub fn run(mode: overlay::OverlayMode, config: overlay::LinuxConfig) {
             #[cfg(target_os = "linux")]
             tuxhub::tuxhub_changed,
             #[cfg(target_os = "linux")]
+            tuxhub::tuxhub_settings_changed,
+            #[cfg(target_os = "linux")]
             tuxhub::tuxhub_schema_changed
         ])
         .build(tauri::generate_context!())

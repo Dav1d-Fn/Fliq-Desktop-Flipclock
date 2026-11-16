@@ -1,9 +1,12 @@
 import { getDefaultStore, type WritableAtom } from "jotai";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import { getVersion } from "@tauri-apps/api/app";
 import { ATOMS } from "../settings/atoms";
 import { AppActions } from "../settings/AppActions";
-import { schema, check, toLocale, Refusal, ACTION_IDS } from "./tuxhubSchema.ts";
+import { SettingsReset } from "../settings/SettingsReset";
+import { LAYOUT_KEYS } from "../layout/LayoutMigration";
+import { schema, check, checkStored, toLocale, Refusal, ACTION_IDS } from "./tuxhubSchema.ts";
 
 interface Request
 {
@@ -49,9 +52,23 @@ const SETTINGS: Record<string, Setting> = {
     alwaysOnTop: ATOMS.ALWAYS_ON_TOP,
 };
 
+// What Fliq stores besides the schema fields: the block layout, and the weather caches the
+// layout editor needs to draw weather blocks. Only `settings.get` returns these.
+// Calendar sources (secret ICS links) and the events read from them are left out on purpose:
+// nothing outside the settings window may read or write them (tests/tuxhub-schema.test.ts).
+const STORED_ONLY: Record<string, Setting> = {
+    [LAYOUT_KEYS.layout]: ATOMS.CLOCK_LAYOUT,
+    weatherReport: ATOMS.WEATHER_REPORT,
+    sunDays: ATOMS.SUN_DAYS,
+};
+
 // tuxhub live interface: answers the requests that src-tauri/src/tuxhub.rs forwards to the
 // clock window and reports changes of the settings, including those made in the settings window
 // (they arrive here through the localStorage sync of atomWithStorage).
+//
+// `settings.get`, `settings.set` and `settings.reset` with the notification `settings-changed`
+// cover every stored setting by its storage key, including the layout, so tuxhub can build its
+// own editor for them. `get`, `set` and `changed` stay limited to the schema fields.
 //
 // Without the Rust side (Windows, macOS) `tuxhub_ready` fails and the bridge stays idle.
 export class TuxhubBridge
@@ -99,6 +116,10 @@ export class TuxhubBridge
         {
             this.keep(this.store.sub(atom, () => this.reportChange(key, atom)));
         }
+        for (const [key, atom] of Object.entries({ ...SETTINGS, ...STORED_ONLY }))
+        {
+            this.keep(this.store.sub(atom, () => this.reportStoredChange(key, atom)));
+        }
     }
 
     private stop(): void
@@ -124,6 +145,12 @@ export class TuxhubBridge
     {
         invoke("tuxhub_changed", { values: { [key]: this.store.get(atom) }, exclude: this.origin })
             .catch((error) => console.error("tuxhub_changed failed:", error));
+    }
+
+    private reportStoredChange(key: string, atom: Setting): void
+    {
+        invoke("tuxhub_settings_changed", { values: { [key]: this.store.get(atom) }, exclude: this.origin })
+            .catch((error) => console.error("tuxhub_settings_changed failed:", error));
     }
 
     private async answer(request: Request): Promise<void>
@@ -170,6 +197,19 @@ export class TuxhubBridge
             }
             case "action":
                 return this.runAction(params.id);
+            case "settings.get":
+                return { result: await this.storedSettings() };
+            case "settings.set":
+            {
+                const key = typeof params.key === "string" ? params.key : "";
+                // Refusal messages are English for these keys, whatever language tuxhub uses.
+                const value = checkStored(key, params.value, "en");
+                await this.applyStored(key, value, request.conn);
+                return { result: { value } };
+            }
+            case "settings.reset":
+                await SettingsReset.resetAll();
+                return { result: true };
         }
         throw new Error(`unknown method ${request.method}`);
     }
@@ -180,6 +220,9 @@ export class TuxhubBridge
         {
             case "open-styling":
                 await AppActions.openSettings();
+                return { result: true };
+            case "reset":
+                await SettingsReset.resetAll();
                 return { result: true };
             case "quit":
                 // Like "Exit" in the context menu, after the answer is out.
@@ -220,15 +263,53 @@ export class TuxhubBridge
         }
     }
 
+    private async applyStored(key: string, value: unknown, connection: number): Promise<void>
+    {
+        const storedOnly = STORED_ONLY[key];
+        if (!storedOnly)
+        {
+            await this.apply(key, value, connection);
+            return;
+        }
+        this.origin = connection;
+        try
+        {
+            // `checkStored` validated the value for this key, so it fits the atom.
+            this.store.set(storedOnly, value as never);
+        }
+        finally
+        {
+            this.origin = null;
+        }
+    }
+
+    // Every stored setting, the overlay state and the version.
+    private async storedSettings(): Promise<Record<string, unknown>>
+    {
+        const overlay = await invoke<{ mode: string; preference: string }>("get_overlay_state");
+        const values = this.valuesWith(overlay.preference);
+        for (const [key, atom] of Object.entries(STORED_ONLY))
+        {
+            values[key] = this.store.get(atom);
+        }
+        return { values, overlay, version: await getVersion() };
+    }
+
     private async values(): Promise<Record<string, unknown>>
+    {
+        const overlay = await invoke<{ preference: string }>("get_overlay_state");
+        return this.valuesWith(overlay.preference);
+    }
+
+    // The schema fields; the overlay mode lives in Rust and is passed in.
+    private valuesWith(overlayMode: string): Record<string, unknown>
     {
         const values: Record<string, unknown> = {};
         for (const [key, atom] of Object.entries(SETTINGS))
         {
             values[key] = this.store.get(atom);
         }
-        const overlay = await invoke<{ preference: string }>("get_overlay_state");
-        values.overlayMode = overlay.preference;
+        values.overlayMode = overlayMode;
         return values;
     }
 
