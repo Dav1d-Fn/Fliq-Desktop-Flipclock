@@ -1,9 +1,12 @@
 import { CSSProperties, MouseEvent, PointerEvent, useEffect, useRef, useState } from "react";
 import { useAtomValue } from "jotai";
 import GridClock from "../../../clock/GridClock";
-import { LayoutGrid, type CellRect, type ClockLayout, type GapRef, type LayoutBlock, type PixelRect, type TrackRef } from "../../../layout/ClockLayout";
+import { BLOCK_HEIGHTS, useLayoutGrid } from "../../../clock/useLayoutGrid";
+import { LayoutGrid, type CellRect, type ClockLayout, type DropZone, type LayoutBlock, type PixelRect } from "../../../layout/ClockLayout";
+import { useStrings } from "../../../i18n/useStrings";
 import { ATOMS } from "../../../settings/atoms";
 import { MemberMenu } from "./MemberMenu";
+import { SLIDER_CONFIGS } from "../../../settings/options";
 
 type DragMode = "move" | "right" | "bottom" | "corner";
 
@@ -32,11 +35,14 @@ interface MemberTarget
     y: number;
 }
 
-// A block the dragged one would join on drop, and on which side of its members.
-interface MergeTarget
+// A block the dragged one was dropped onto: join it (on which side of its members), or slide
+// in beside it or into a new row above or below it, with the layout that gives (`inserted`).
+interface DropTarget
 {
     block: LayoutBlock;
+    zone: DropZone;
     before: boolean;
+    inserted: ClockLayout | null;
 }
 
 interface LayoutCanvasProps
@@ -45,19 +51,19 @@ interface LayoutCanvasProps
     editing: boolean;
     // Several with shift/ctrl-click, to group them.
     selectedIds: number[];
-    selectedGap: GapRef | null;
-    selectedTrack: TrackRef | null;
     poppingId: number | null;
     removingIds: number[];
     shaking: boolean;
     toast: string | null;
     // `additive`: shift/ctrl-click, adds the block to the selection or takes it out.
     onSelect: (blockId: number | null, additive?: boolean) => void;
-    onSelectGap: (gap: GapRef) => void;
-    onSelectTrack: (track: TrackRef) => void;
     onPlace: (blockId: number, rect: CellRect) => void;
     // A block dropped onto another: they become a group, or it joins the target group.
     onMerge: (targetId: number, droppedId: number, before: boolean) => void;
+    // A block dropped near another's edge: it slides in there, the line makes room.
+    onInsert: (layout: ClockLayout) => void;
+    // A column's width dragged on its edge, or reset with a double-click.
+    onChange: (update: (current: ClockLayout) => ClockLayout) => void;
     // Group member menu (right-click on a member).
     onMoveMember: (groupId: number, index: number, step: number) => void;
     onDetachMember: (groupId: number, index: number) => void;
@@ -71,27 +77,37 @@ const CANVAS_MARGIN = 48;
 // Smallest size a block shrinks to while its edge is pulled, in px at scale 1.
 const MIN_LIVE_WIDTH = 40;
 const MIN_LIVE_HEIGHT = 36;
-// Gap targets: smallest clickable thickness, and how far they reach past the grid (into the
-// clock padding), so a gap stays clickable where blocks span across it. In screen px.
-const GAP_HIT_SIZE = 12;
-const GAP_OVERHANG = 14;
-// Column and row bars: the strip along the top and left edge, inside the gap overhang, and how
-// far they stay clear of the gap knobs at both ends. In screen px.
-const TRACK_BAR_SIZE = 8;
-const TRACK_BAR_INSET = 7;
+// Column edges: grips in a strip above the grid (in the clock padding), this far outside it and
+// this high, in screen px.
+const COLUMN_EDGE_OUTSIDE = 16;
+const COLUMN_EDGE_HEIGHT = 14;
+
+// A column edge being dragged: the column, its width when grabbed (px at scale 1), the pointer
+// x then (screen px) and the canvas scale then, so a canvas that rescales does not move the
+// pointer's meaning mid-drag.
+interface ColumnDrag
+{
+    column: number;
+    startWidth: number;
+    startX: number;
+    scale: number;
+}
 
 // The editor canvas: the real clock, scaled to fit, with the editing layer on top (cells, the
 // snap ghost, one hit box per block with its resize handles).
 export function LayoutCanvas(props: LayoutCanvasProps)
 {
-    const { layout, editing, selectedIds, selectedGap, selectedTrack, poppingId, removingIds, shaking, toast, onSelect, onSelectGap, onSelectTrack, onPlace, onMerge, onMoveMember, onDetachMember, onOpenMember } = props;
+    const { layout, editing, selectedIds, poppingId, removingIds, shaking, toast, onSelect, onPlace, onMerge, onInsert, onChange, onMoveMember, onDetachMember, onOpenMember } = props;
     const padding = useAtomValue(ATOMS.CLOCK_PADDING);
+    const strings = useStrings();
     const stageRef = useRef<HTMLDivElement>(null);
     const [scale, setScale] = useState(1);
     const [drag, setDrag] = useState<Drag | null>(null);
+    const [columnDrag, setColumnDrag] = useState<ColumnDrag | null>(null);
     const [memberTarget, setMemberTarget] = useState<MemberTarget | null>(null);
     const [memberHighlight, setMemberHighlight] = useState<PixelRect | null>(null);
-    const grid = new LayoutGrid(layout);
+    const grid = useLayoutGrid(layout);
+    const blockHeights = useAtomValue(BLOCK_HEIGHTS);
     const gridSize = grid.size(1);
 
     // Largest scale up to 1 at which the whole clock fits the canvas.
@@ -177,8 +193,8 @@ export function LayoutCanvas(props: LayoutCanvasProps)
 
     const draggedBlock = drag ? layout.blocks.find((block) => block.id === drag.blockId) : undefined;
 
-    // The block under the pointer while one is moved, if any; left half means before its members.
-    function mergeTarget(current: Drag | null): MergeTarget | null
+    // The block under the pointer while one is moved, if any, and what dropping there does.
+    function dropTarget(current: Drag | null): DropTarget | null
     {
         const dragged = current && layout.blocks.find((block) => block.id === current.blockId);
         if (!current || !dragged || !current.moved || current.mode !== "move")
@@ -193,13 +209,35 @@ export function LayoutCanvas(props: LayoutCanvasProps)
             const rect = grid.pixelRect(block, 1);
             if (block.id !== dragged.id && pointerX >= rect.left && pointerX < rect.left + rect.width && pointerY >= rect.top && pointerY < rect.top + rect.height)
             {
-                return { block, before: pointerX < rect.left + rect.width / 2 };
+                const shareX = (pointerX - rect.left) / rect.width;
+                const shareY = (pointerY - rect.top) / rect.height;
+                let zone = LayoutGrid.dropZone(block, dragged, shareX, shareY, true);
+                let inserted = zone === "above" || zone === "below" ? grid.withBlockInNewRow(block.id, dragged.id, zone === "below") : null;
+                if ((zone === "above" || zone === "below") && !inserted)
+                {
+                    // No new row possible here: the other zones take its place.
+                    zone = LayoutGrid.dropZone(block, dragged, shareX, shareY, false);
+                }
+                if (zone === "group")
+                {
+                    return { block, zone, before: shareX < 0.5, inserted: null };
+                }
+                if (zone === "before" || zone === "after")
+                {
+                    inserted = grid.withBlockInserted(block.id, dragged.id, zone === "before");
+                }
+                return zone && inserted ? { block, zone, before: zone === "before", inserted } : null;
             }
         }
         return null;
     }
 
-    const merge = mergeTarget(drag);
+    const drop = dropTarget(drag);
+    const merge = drop?.zone === "group" ? drop : null;
+    // While a block hovers near another's edge, the others already stand where they would go
+    // (and as wide, when the line had to shrink), drawn on the grid of that layout.
+    const preview = drop?.inserted ? new Map(drop.inserted.blocks.map((block) => [block.id, block])) : null;
+    const previewGrid = drop?.inserted ? new LayoutGrid(drop.inserted, LayoutGrid.autoRowHeights(drop.inserted, blockHeights)) : grid;
 
     function target(block: LayoutBlock, current: Drag): CellRect
     {
@@ -214,7 +252,7 @@ export function LayoutCanvas(props: LayoutCanvasProps)
         const rect = grid.pixelRect(block, scale);
         if (!drag || !drag.moved || drag.blockId !== block.id)
         {
-            return rect;
+            return preview ? previewGrid.pixelRect(preview.get(block.id) ?? block, scale) : rect;
         }
         if (drag.mode === "move")
         {
@@ -319,6 +357,10 @@ export function LayoutCanvas(props: LayoutCanvasProps)
         {
             onMerge(merge.block.id, draggedBlock.id, merge.before);
         }
+        else if (drop?.inserted)
+        {
+            onInsert(drop.inserted);
+        }
         else if (drag?.moved && draggedBlock)
         {
             const rect = target(draggedBlock, drag);
@@ -340,16 +382,24 @@ export function LayoutCanvas(props: LayoutCanvasProps)
         {
             return (
                 <div className="snap-ghost merge" style={{ ...grid.pixelRect(merge.block, scale), borderRadius: 10 * scale }}>
-                    <span>{merge.block.kind === "group" ? "Drop to add to the group" : "Drop to group"}</span>
+                    <span>{merge.block.kind === "group" ? strings.canvas.dropToAddToGroup : strings.canvas.dropToGroup}</span>
+                </div>
+            );
+        }
+        if (preview)
+        {
+            return (
+                <div className="snap-ghost" style={{ ...previewGrid.pixelRect(preview.get(draggedBlock.id)!, scale), borderRadius: 10 * scale }}>
+                    <span>{drop?.zone === "above" || drop?.zone === "below" ? strings.canvas.dropToNewRow : strings.canvas.dropToSlideIn}</span>
                 </div>
             );
         }
         const rect = target(draggedBlock, drag);
         const valid = grid.fits(rect, draggedBlock.id);
-        let label = "Occupied";
+        let label = strings.canvas.occupied;
         if (valid)
         {
-            label = drag.mode === "move" ? "Drop here" : `${rect.w} × ${rect.h}`;
+            label = drag.mode === "move" ? strings.canvas.dropHere : `${rect.w} × ${rect.h}`;
         }
         return (
             <div className={valid ? "snap-ghost" : "snap-ghost occupied"} style={{ ...grid.pixelRect(rect, scale), borderRadius: 10 * scale }}>
@@ -382,78 +432,57 @@ export function LayoutCanvas(props: LayoutCanvasProps)
         return cells;
     }
 
-    // One target per boundary between two columns or rows, centred on the gap.
-    function renderGapTargets()
+    function setColumnWidth(column: number, width: number | null)
     {
-        const targets = [];
-        const full = grid.size(scale);
-        for (const axis of ["column", "row"] as const)
-        {
-            const count = (axis === "column" ? layout.columns : layout.rows) - 1;
-            for (let index = 0; index < count; index++)
-            {
-                const ref = { axis, index };
-                const gap = grid.gap(ref) * scale;
-                const start = axis === "column"
-                    ? grid.columnEnd(index) * scale
-                    : grid.rowEnd(index) * scale;
-                const hit = Math.max(gap, GAP_HIT_SIZE);
-                const across = start + gap / 2 - hit / 2;
-                const style: CSSProperties = axis === "column"
-                    ? { left: across, top: -GAP_OVERHANG, width: hit, height: full.height + 2 * GAP_OVERHANG }
-                    : { top: across, left: -GAP_OVERHANG, height: hit, width: full.width + 2 * GAP_OVERHANG };
-                const selected = selectedGap?.axis === axis && selectedGap.index === index;
-                const name = axis === "column" ? `columns ${index + 1} and ${index + 2}` : `rows ${index + 1} and ${index + 2}`;
-                targets.push(
-                    <button
-                        key={`${axis}-${index}`}
-                        type="button"
-                        aria-label={`Space between ${name}`}
-                        aria-pressed={selected}
-                        className={`gap-target ${axis}${selected ? " selected" : ""}`}
-                        style={{ ...style, "--gap-size": `${Math.max(gap, 2)}px` } as CSSProperties}
-                        onPointerDown={(event) => event.stopPropagation()}
-                        onClick={() => onSelectGap(ref)}
-                    />,
-                );
-            }
-        }
-        return targets;
+        onChange((current) => new LayoutGrid(current).withColumnWidth(column, width));
     }
 
-    // One bar per column above the grid and per row left of it: click to size that one apart.
-    function renderTrackBars()
+    function startColumnDrag(event: PointerEvent<HTMLElement>, column: number)
     {
-        const bars = [];
-        for (const axis of ["column", "row"] as const)
+        event.stopPropagation();
+        event.currentTarget.setPointerCapture(event.pointerId);
+        setColumnDrag({ column, startWidth: grid.trackSize({ axis: "column", index: column }), startX: event.clientX, scale });
+    }
+
+    function moveColumnEdge(event: PointerEvent<HTMLElement>)
+    {
+        if (!columnDrag)
         {
-            const count = axis === "column" ? layout.columns : layout.rows;
-            for (let index = 0; index < count; index++)
-            {
-                const start = (axis === "column" ? grid.columnStart(index) : grid.rowStart(index)) * scale + TRACK_BAR_INSET;
-                const length = Math.max(grid.trackSize({ axis, index }) * scale - 2 * TRACK_BAR_INSET, TRACK_BAR_SIZE);
-                const outside = -GAP_OVERHANG + 2;
-                const style: CSSProperties = axis === "column"
-                    ? { left: start, top: outside, width: length, height: TRACK_BAR_SIZE }
-                    : { top: start, left: outside, height: length, width: TRACK_BAR_SIZE };
-                const selected = selectedTrack?.axis === axis && selectedTrack.index === index;
-                const name = axis === "column" ? `Width of column ${index + 1}` : `Height of row ${index + 1}`;
-                bars.push(
-                    <button
-                        key={`${axis}-${index}`}
-                        type="button"
-                        aria-label={name}
-                        title={name}
-                        aria-pressed={selected}
-                        className={`track-bar ${axis}${selected ? " selected" : ""}`}
-                        style={style}
-                        onPointerDown={(event) => event.stopPropagation()}
-                        onClick={() => onSelectTrack({ axis, index })}
-                    />,
-                );
-            }
+            return;
         }
-        return bars;
+        const { min, max } = SLIDER_CONFIGS.COLUMN_WIDTH;
+        const width = columnDrag.startWidth + (event.clientX - columnDrag.startX) / columnDrag.scale;
+        setColumnWidth(columnDrag.column, Math.round(Math.min(max, Math.max(min, width))));
+    }
+
+    // One grip per column at its right edge (in the gap after it), above the grid: drag to set
+    // its width, double-click to let it follow the default width again.
+    function renderColumnEdges()
+    {
+        const edges = [];
+        for (let column = 0; column < layout.columns; column++)
+        {
+            const edge = (grid.columnEnd(column) + grid.gap("column") / 2) * scale;
+            const name = strings.grid.columnEdge(column + 1);
+            const dragging = columnDrag?.column === column;
+            const own = grid.columnWidthOverride(column) !== null;
+            edges.push(
+                <button
+                    key={column}
+                    type="button"
+                    aria-label={name}
+                    title={name}
+                    className={`column-edge${dragging ? " dragging" : ""}${own ? " own" : ""}`}
+                    style={{ left: edge, top: -COLUMN_EDGE_OUTSIDE, height: COLUMN_EDGE_HEIGHT }}
+                    onPointerDown={(event) => startColumnDrag(event, column)}
+                    onPointerMove={moveColumnEdge}
+                    onPointerUp={() => setColumnDrag(null)}
+                    onPointerCancel={() => setColumnDrag(null)}
+                    onDoubleClick={() => setColumnWidth(column, null)}
+                />,
+            );
+        }
+        return edges;
     }
 
     const overlay = (
@@ -463,8 +492,7 @@ export function LayoutCanvas(props: LayoutCanvasProps)
             onPointerDown={() => editing && onSelect(null)}
         >
             {renderGhost()}
-            {editing && renderGapTargets()}
-            {editing && renderTrackBars()}
+            {editing && renderColumnEdges()}
             {editing && layout.blocks.map((block) =>
             {
                 const selected = selectedIds.includes(block.id);
@@ -483,9 +511,9 @@ export function LayoutCanvas(props: LayoutCanvasProps)
                     >
                         {handles && (
                             <>
-                                <button type="button" aria-label="Resize width" className="resize-handle right" onPointerDown={(event) => startDrag(event, block, "right")} onPointerMove={moveDrag} onPointerUp={endDrag} onPointerCancel={endDrag} />
-                                <button type="button" aria-label="Resize height" className="resize-handle bottom" onPointerDown={(event) => startDrag(event, block, "bottom")} onPointerMove={moveDrag} onPointerUp={endDrag} onPointerCancel={endDrag} />
-                                <button type="button" aria-label="Resize width and height" className="resize-handle corner" onPointerDown={(event) => startDrag(event, block, "corner")} onPointerMove={moveDrag} onPointerUp={endDrag} onPointerCancel={endDrag} />
+                                <button type="button" aria-label={strings.canvas.resizeWidth} className="resize-handle right" onPointerDown={(event) => startDrag(event, block, "right")} onPointerMove={moveDrag} onPointerUp={endDrag} onPointerCancel={endDrag} />
+                                <button type="button" aria-label={strings.canvas.resizeHeight} className="resize-handle bottom" onPointerDown={(event) => startDrag(event, block, "bottom")} onPointerMove={moveDrag} onPointerUp={endDrag} onPointerCancel={endDrag} />
+                                <button type="button" aria-label={strings.canvas.resizeBoth} className="resize-handle corner" onPointerDown={(event) => startDrag(event, block, "corner")} onPointerMove={moveDrag} onPointerUp={endDrag} onPointerCancel={endDrag} />
                             </>
                         )}
                     </div>

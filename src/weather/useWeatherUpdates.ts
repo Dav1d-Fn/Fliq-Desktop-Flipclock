@@ -3,6 +3,7 @@ import { useAtomValue, useStore } from "jotai";
 import { ATOMS } from "../settings/atoms";
 import { WeatherService } from "./WeatherService";
 import { WeatherFormatter } from "./WeatherFormatter";
+import { WeatherPlaces } from "./WeatherPlace";
 
 // wttr.in itself updates roughly every 15-30 minutes; asking more often only adds requests.
 const REFRESH_INTERVAL_MS = 15 * 60 * 1000;
@@ -12,6 +13,8 @@ const REFRESH_INTERVAL_MS = 15 * 60 * 1000;
 export function useWeatherUpdates(): void
 {
     const location = useAtomValue(ATOMS.WEATHER_LOCATION);
+    const place = useAtomValue(ATOMS.WEATHER_PLACE);
+    const query = WeatherPlaces.query(location, place);
     const language = useAtomValue(ATOMS.LANGUAGE);
     const store = useStore();
 
@@ -30,7 +33,7 @@ export function useWeatherUpdates(): void
         {
             try
             {
-                const report = await WeatherService.fetchReport(location, language);
+                const report = await WeatherService.fetchReport(query, language);
                 if (cancelled)
                 {
                     return;
@@ -70,5 +73,5 @@ export function useWeatherUpdates(): void
             cancelled = true;
             clearInterval(intervalId);
         };
-    }, [location, language, store]);
+    }, [query, language, store]);
 }

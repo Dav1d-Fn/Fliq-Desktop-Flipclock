@@ -34,6 +34,7 @@ type Setting = WritableAtom<unknown, [never], void>;
 
 // Schema key -> atom. The keys are the localStorage keys of the atoms.
 const SETTINGS: Record<string, Setting> = {
+    uiLanguage: ATOMS.UI_LANGUAGE,
     lang: ATOMS.LANGUAGE,
     hourCycle: ATOMS.HOUR_CYCLE,
     hourLeadingZero: ATOMS.HOUR_LEADING_ZERO,
@@ -45,6 +46,7 @@ const SETTINGS: Record<string, Setting> = {
     textColor: ATOMS.TEXT_COLOR,
     weatherUnit: ATOMS.WEATHER_UNIT,
     weatherLocation: ATOMS.WEATHER_LOCATION,
+    calendarRefreshMinutes: ATOMS.CALENDAR_REFRESH_MINUTES,
     autostart: ATOMS.AUTOSTART,
     hideInTaskbar: ATOMS.HIDE_IN_TASKBAR,
     alwaysOnTop: ATOMS.ALWAYS_ON_TOP,
@@ -59,7 +61,7 @@ const STORED_ONLY: Record<string, Setting> = {
 };
 
 // tuxhub live interface: answers the requests that src-tauri/src/tuxhub.rs forwards to the
-// clock window and reports changes of the settings, including those made in the styling window
+// clock window and reports changes of the settings, including those made in the settings window
 // (they arrive here through the localStorage sync of atomWithStorage).
 //
 // `settings.get`, `settings.set` and `settings.reset` with the notification `settings-changed`
@@ -215,7 +217,7 @@ export class TuxhubBridge
         switch (id)
         {
             case "open-styling":
-                await AppActions.openStyling();
+                await AppActions.openSettings();
                 return { result: true };
             case "reset":
                 await SettingsReset.resetAll();

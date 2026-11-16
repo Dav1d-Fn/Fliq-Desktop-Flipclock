@@ -1,0 +1,125 @@
+/* Clock faces (ClockFace). Sized in em like text, so BlockContent fits them to the block.
+   Colors: the block's --glow-color / --dial-color / --hand-color / --second-hand-color when
+   set (ClockBlock), else each style's own default below. */
+
+.clock-face {
+   display: block;
+   flex: none;
+   height: 1em;
+   width: 1em;
+   overflow: visible;
+}
+
+/* Seven-segment and dot matrix: lit and faint unlit parts in the glow color. */
+.face-segment { --face-glow: var(--glow-color, #ff3b30); }
+.face-dots { --face-glow: var(--glow-color, #7fdcff); }
+.face-nixie { --face-glow: var(--glow-color, #ffa64d); }
+
+.face-segment .face-lit,
+.face-dots .face-lit {
+   fill: var(--face-glow);
+}
+
+.face-segment .face-lit {
+   filter: drop-shadow(0 0 3px var(--face-glow));
+}
+
+.face-segment .face-unlit,
+.face-dots .face-unlit {
+   fill: var(--face-glow);
+   opacity: 0.08;
+}
+
+/* Nixie tubes. */
+.face-nixie {
+   display: inline-flex;
+   align-items: center;
+   gap: 0.06em;
+   width: auto;
+}
+
+.nixie-tube {
+   position: relative;
+   width: 0.62em;
+   height: 1em;
+   box-sizing: border-box;
+   border-radius: 0.31em 0.31em 0.1em 0.1em;
+   border: 0.015em solid rgba(255, 255, 255, 0.12);
+   background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
+   overflow: hidden;
+}
+
+.nixie-digit {
+   position: absolute;
+   inset: 0;
+   display: flex;
+   align-items: center;
+   justify-content: center;
+   font: 300 0.68em/1 "DejaVu Serif", Georgia, serif;
+   color: var(--face-glow);
+   opacity: 0.07;
+}
+
+.nixie-digit.face-lit,
+.nixie-glyph {
+   opacity: 1;
+   color: var(--face-glow);
+   color: color-mix(in srgb, var(--face-glow) 70%, white);
+   text-shadow: 0 0 0.08em var(--face-glow), 0 0 0.25em var(--face-glow);
+}
+
+.nixie-glyph {
+   font: 300 0.68em/1 "DejaVu Serif", Georgia, serif;
+   white-space: pre;
+}
+
+.nixie-dot {
+   width: 0.09em;
+   height: 0.09em;
+   border-radius: 50%;
+   margin: 0 0.04em;
+   background: var(--face-glow);
+   box-shadow: 0 0 0.12em var(--face-glow);
+}
+
+.nixie-gap {
+   width: 0.2em;
+}
+
+/* Analog. */
+.face-analog.analogMinimal { --face-dial: var(--dial-color, #20242b); --face-hand: var(--hand-color, #f2f4f7); --face-second: var(--second-hand-color, #ff5a4e); }
+.face-analog.analogClassic { --face-dial: var(--dial-color, #f3efe6); --face-hand: var(--hand-color, #222222); --face-second: var(--second-hand-color, #b8322a); }
+.face-analog.analogFine { --face-dial: var(--dial-color, transparent); --face-hand: var(--hand-color, #ffffff); --face-second: var(--second-hand-color, #7fdcff); }
+
+.analog-dial { fill: var(--face-dial); }
+.analog-rim { stroke: var(--face-hand); }
+.analog-ring { stroke: var(--face-hand); stroke-opacity: 0.4; }
+.analog-mark { fill: var(--face-hand); opacity: 0.6; }
+.analog-tick { stroke: var(--face-hand); }
+.analog-numeral { fill: var(--face-hand); font: 20px Georgia, "DejaVu Serif", serif; }
+.analog-hand { stroke: var(--face-hand); }
+.analog-hand-fill { fill: var(--face-hand); }
+.analog-second { stroke: var(--face-second); }
+.analog-second-fill { fill: var(--face-second); }
+
+/* Rings: each ring's own color when set, else red, amber, green. */
+.face-rings circle { fill: none; }
+.face-rings .ring-track { stroke: rgba(255, 255, 255, 0.1); }
+.face-rings .ring-fill { stroke-linecap: round; }
+.face-rings .ring-hours .ring-fill { stroke: var(--hour-ring-color, #ff5a4e); }
+.face-rings .ring-minutes .ring-fill { stroke: var(--minute-ring-color, #ffb547); }
+.face-rings .ring-seconds .ring-fill { stroke: var(--second-ring-color, #6fe3a6); }
+.face-rings .ring-label {
+   fill: var(--text-color, #ffffff);
+   font-family: var(--text-font, system-ui), sans-serif;
+   font-variant-numeric: tabular-nums;
+}
+
+/* Progress ring and dots: the block's progress colors (--bar-color, --bar-track-color). */
+.face-progress circle { fill: none; }
+.face-progress .progress-track { stroke: var(--bar-track-color, #ffffff26); }
+.face-progress .progress-dot-track { fill: var(--bar-track-color, #ffffff26); }
+.face-progress .progress-fill { stroke: var(--bar-color, var(--text-color, #ffffff)); stroke-linecap: round; }
+.face-progress .progress-dot { fill: var(--bar-color, var(--text-color, #ffffff)); }
+.face-progress.animated .progress-fill { transition: stroke-dashoffset 1s linear; }
+.face-progress.animated .progress-dot { transition: opacity 1s linear; }

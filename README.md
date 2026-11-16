@@ -71,7 +71,7 @@ you arrange like widgets on a phone home screen.
 
 ### 🧩 Grid Layout Editor
 
-Right-click the clock and pick **Styling** to open the settings. The **Layout** page shows the real
+Right-click the clock and pick **Settings** to open them. The **Layout** page shows the real
 clock on a grid:
 
 - **Blocks:** Flip Time, Time, Date, Weather and Text. Click a tile to add one; it lands on the
@@ -198,7 +198,7 @@ A few other things worth knowing:
   restart.
 - **X11 compatibility mode** has no drag outline at all — dragging is handled by the window
   manager directly, same as on Windows.
-- If auto-detection picks the wrong mode, override it under **Styling → General →
+- If auto-detection picks the wrong mode, override it under **Settings → General →
   Overlay mode** (takes effect after a restart).
 
 Only **KDE Plasma 6.7.3 on Wayland** has actually been tested. GNOME, XFCE, Cinnamon, Sway,

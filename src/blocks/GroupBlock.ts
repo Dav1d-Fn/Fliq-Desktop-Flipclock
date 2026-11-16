@@ -2,7 +2,7 @@ import { BLOCK_DEFAULTS } from "../layout/ClockLayout.ts";
 import type { BlockDefinition } from "./BlockDefinition.ts";
 import { blockDefinition } from "./BlockRegistry.ts";
 
-// Several blocks' contents in one row with one look, like a line of the old template rows: one
+// Several blocks' contents in one row (or stacked, one line each) with one look, like a line of the old template rows: one
 // BlockContent, so every member gets the same font size. Made from the selection in the editor
 // (LayoutGrid.grouped), never from the palette.
 export const GROUP_BLOCK: BlockDefinition = {
@@ -13,9 +13,10 @@ export const GROUP_BLOCK: BlockDefinition = {
     displayOptions: [],
     supportsCustomFormat: false,
     alignable: true,
-    // Each member shows what its own block would, with the group's look; spacers between.
+    // Each member shows what its own block would, with the group's look; spacers between, or
+    // line breaks when stacked.
     segments: (block, context) => (block.items ?? []).flatMap((item, index) => [
-        ...(index > 0 ? [{ type: "SPACE" as const, value: String(block.itemGap ?? BLOCK_DEFAULTS.itemGap) }] : []),
+        ...(index > 0 ? [{ type: block.direction === "column" ? "BREAK" as const : "SPACE" as const, value: String(block.itemGap ?? BLOCK_DEFAULTS.itemGap) }] : []),
         ...blockDefinition(item.kind).segments({ ...block, ...item }, context).map((segment) => ({ ...segment, member: index })),
     ]),
 };

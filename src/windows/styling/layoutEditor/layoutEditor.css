@@ -14,11 +14,24 @@
   box-sizing: border-box;
 }
 
+/* Wraps the actions below the title and switcher in narrow windows. */
 .layout-header {
   display: flex;
-  align-items: flex-end;
+  flex-wrap: wrap;
+  align-items: center;
   justify-content: space-between;
+  gap: 10px 16px;
+}
+
+.layout-header-title {
+  display: flex;
+  flex: none;
+  align-items: center;
   gap: 16px;
+}
+
+.layout-header-title .page-title {
+  margin: 0;
 }
 
 .layout-header-actions {
@@ -119,111 +132,47 @@
   outline-color: var(--fliq-accent);
 }
 
-/* Gap between two columns or rows: a knob at both ends (outside the grid, so always
-   clickable) and the gap itself, filled green on hover and while selected. */
-.gap-target {
-  --gap-fill: transparent;
-  --gap-knob: rgba(150, 158, 170, 0.75);
-  position: absolute;
-  z-index: 0;
-  padding: 0;
-  border: none;
-  cursor: pointer;
-  background: linear-gradient(var(--gap-fill), var(--gap-fill)) center / var(--gap-size) calc(100% - 28px) no-repeat;
-  transition: background-size .36s cubic-bezier(.34,1.45,.64,1);
-  animation: fliq-cell-in .3s ease-out;
-}
+/* Column edges above the grid: drag to set a column's width (LayoutCanvas.renderColumnEdges).
+   The button is a wide hit area, the line in it what shows. */
 
-.gap-target.row {
-  background-size: calc(100% - 28px) var(--gap-size);
-}
-
-.gap-target::before,
-.gap-target::after {
-  content: "";
-  position: absolute;
-  border-radius: 2px;
-  background: var(--gap-knob);
-  transition: background .2s, transform .2s;
-}
-
-.gap-target.column::before,
-.gap-target.column::after {
-  left: 50%;
-  width: 4px;
-  height: 10px;
-  margin-left: -2px;
-}
-
-.gap-target.column::before {
-  top: 2px;
-}
-
-.gap-target.column::after {
-  bottom: 2px;
-}
-
-.gap-target.row::before,
-.gap-target.row::after {
-  top: 50%;
-  width: 10px;
-  height: 4px;
-  margin-top: -2px;
-}
-
-.gap-target.row::before {
-  left: 2px;
-}
-
-.gap-target.row::after {
-  right: 2px;
-}
-
-.gap-target:hover {
-  --gap-fill: rgba(47, 168, 79, 0.3);
-  --gap-knob: var(--fliq-accent);
-}
-
-.gap-target.selected {
-  --gap-fill: rgba(47, 168, 79, 0.4);
-  --gap-knob: var(--fliq-accent);
-}
-
-.gap-target.selected::before,
-.gap-target.selected::after {
-  transform: scale(1.3);
-}
-
-.gap-target:focus-visible {
-  outline: 2px solid var(--fliq-accent);
-  outline-offset: 1px;
-}
-
-/* Column and row bars along the top and left edge of the grid */
-
-.track-bar {
+.column-edge {
   position: absolute;
   z-index: 1;
+  width: 14px;
+  margin-left: -7px;
   padding: 0;
   border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  background: rgba(150, 158, 170, 0.35);
-  transition: background .2s, left .36s cubic-bezier(.34,1.45,.64,1), top .36s cubic-bezier(.34,1.45,.64,1), width .36s cubic-bezier(.34,1.45,.64,1), height .36s cubic-bezier(.34,1.45,.64,1);
+  background: none;
+  cursor: col-resize;
+  touch-action: none;
   animation: fliq-cell-in .3s ease-out;
 }
 
-.track-bar:hover {
+.column-edge::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 5px;
+  width: 4px;
+  border-radius: 2px;
+  background: rgba(150, 158, 170, 0.45);
+  transition: background .2s;
+}
+
+.column-edge.own::after {
   background: rgba(47, 168, 79, 0.6);
 }
 
-.track-bar.selected {
+.column-edge:hover::after,
+.column-edge.dragging::after {
   background: var(--fliq-accent);
 }
 
-.track-bar:focus-visible {
+.column-edge:focus-visible {
   outline: 2px solid var(--fliq-accent);
   outline-offset: 1px;
+  border-radius: 4px;
 }
 
 .resize-handle {
@@ -372,10 +321,31 @@
 
 /* Inspector */
 
-.inspector {
-  width: 310px;
+/* Drag handle between canvas and inspector; draws the inspector's left border. */
+.inspector-divider {
   flex: none;
+  width: 7px;
+  margin-right: -6px;
   border-left: 1px solid var(--fliq-border);
+  box-sizing: border-box;
+  cursor: col-resize;
+  touch-action: none;
+  position: relative;
+  z-index: 1;
+  outline: none;
+  transition: border-color .15s;
+}
+
+.inspector-divider:hover,
+.inspector-divider:focus-visible,
+.inspector-divider:active {
+  border-left: 3px solid var(--fliq-accent);
+}
+
+/* Grows with the window; the divider sets a fixed width instead (inline style). */
+.inspector {
+  width: clamp(310px, 30%, 520px);
+  flex: none;
   background: #ffffff;
   padding: 26px 22px 22px;
   box-sizing: border-box;
@@ -423,11 +393,130 @@
 }
 
 .inspector-label {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 4px;
   font-size: 12px;
   font-weight: 600;
   color: var(--fliq-text-muted);
-  margin: 20px 0 8px;
+  margin: 16px 0 8px;
+}
+
+/* The ? behind a label: its longer explanation as a tooltip. */
+.inspector-help {
+  display: inline-flex;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--fliq-text-muted);
+  cursor: help;
+  border-radius: 50%;
+}
+
+.inspector-help:hover,
+.inspector-help:focus-visible {
+  color: var(--fliq-link);
+}
+
+/* Block header: kind icon, name, size in cells. */
+.inspector-block-heading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 2px 0 6px;
+}
+
+.inspector-block-heading h2 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.inspector-block-heading span {
+  font-size: 12px;
+  color: var(--fliq-text-muted);
+}
+
+.inspector-block-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  background: var(--fliq-nav-active-bg);
+  color: var(--fliq-link) !important;
+}
+
+/* Collapsible sections (InspectorSection). */
+.inspector-section {
+  border-top: 1px solid var(--fliq-border);
+}
+
+.inspector-section:last-of-type {
+  border-bottom: 1px solid var(--fliq-border);
+}
+
+.inspector-section-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 44px;
+  padding: 0 2px;
+}
+
+.inspector-section-title {
+  font-size: 13px;
+  font-weight: 700;
+  flex: none;
+}
+
+.inspector-section-summary {
+  flex: 1;
+  min-width: 0;
+  text-align: right;
+  font-size: 12px;
+  color: var(--fliq-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.inspector-section-chevron {
+  flex: none;
+  margin-left: auto;
+  color: var(--fliq-text-muted);
+  transition: transform .2s;
+}
+
+.inspector-section-summary + .inspector-section-chevron {
+  margin-left: 0;
+}
+
+.inspector-section.open .inspector-section-chevron {
+  transform: rotate(180deg);
+}
+
+.inspector-section-body {
+  padding-bottom: 16px;
+  animation: fliq-fade-up .2s ease-out;
+}
+
+.inspector-section-body > .inspector-field:first-child .inspector-label {
+  margin-top: 2px;
+}
+
+.color-dot {
+  display: inline-block;
+  vertical-align: -2px;
+  margin-right: 6px;
+  flex: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.18);
 }
 
 .inspector .slider-control {
@@ -739,4 +828,299 @@
 @keyframes fliq-fade-up {
   from { opacity: 0; transform: translateY(6px); }
   to { opacity: 1; transform: none; }
+}
+
+/* Clock style picker: live previews in a grid (ClockStylePicker). */
+/* --style-columns tiles per row (about two rows), but never narrower than 80px: a narrow
+   inspector wraps them into more rows instead. */
+.clock-style-picker {
+  --style-gap: 6px;
+  display: grid;
+  grid-template-columns: repeat(
+    auto-fill,
+    minmax(max(80px, calc((100% - (var(--style-columns) - 1) * var(--style-gap)) / var(--style-columns))), 1fr)
+  );
+  gap: var(--style-gap);
+}
+
+.clock-style {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 3px 3px 4px;
+  border-radius: 10px;
+  border: 1px solid var(--fliq-border-strong);
+}
+
+.clock-style.selected {
+  border-color: var(--mantine-primary-color-filled);
+  box-shadow: 0 0 0 1px var(--mantine-primary-color-filled);
+}
+
+/* Grows in height with its width; the faces are sized in em, so the font size follows the
+   box: round faces fill its height, digits its width. */
+.clock-style-preview {
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  container-type: size;
+  border-radius: 7px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  color: #fafafa;
+}
+
+/* Container units measure the box from inside only, hence the wrapper. */
+.clock-style-preview-scale {
+  display: contents;
+  font-size: min(17cqw, 34cqh);
+}
+
+.clock-style-preview.round .clock-style-preview-scale {
+  font-size: 88cqh;
+}
+
+.clock-style-name {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  font-size: 12px;
+  line-height: 1.2;
+  text-align: center;
+}
+
+.style-preview-flip {
+  display: flex;
+  gap: 2px;
+  font-size: 1.1em;
+  font-weight: 600;
+}
+
+.style-preview-flip b {
+  width: 0.72em;
+  border-radius: 0.14em;
+  background: #2a2e35;
+  text-align: center;
+  line-height: 1.3;
+}
+
+.style-preview-flip i {
+  width: 0.2em;
+}
+
+.style-preview-text {
+  font-size: 1.3em;
+  font-weight: 300;
+}
+
+.style-preview-bar {
+  width: 70%;
+  height: 4px;
+  border-radius: 2px;
+  background: #ffffff26;
+  overflow: hidden;
+}
+
+.style-preview-bar i {
+  display: block;
+  height: 100%;
+  background: #fafafa;
+}
+
+/* Shape, unit and motion of the progress style (ClockStylePicker). */
+.progress-options {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 10px;
+}
+
+.progress-option-label {
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+/* Layout switcher in the header (LayoutSwitcher) and its menu. */
+.layout-switcher {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.layout-switcher > * {
+  flex: none;
+}
+
+.layout-switcher-button {
+  max-width: 260px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 44px;
+  padding: 0 10px 0 7px;
+  border: 1px solid var(--fliq-border-strong);
+  border-radius: 10px;
+  background: #ffffff;
+  min-width: 0;
+}
+
+.layout-switcher-button:hover {
+  background: var(--fliq-chip-bg);
+}
+
+.layout-switcher-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.25;
+}
+
+.layout-switcher-text strong {
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.layout-switcher-changes {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: #b45309;
+}
+
+.layout-switcher-changes i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #f59e0b;
+}
+
+.layout-schematic {
+  display: grid;
+  flex: none;
+  box-sizing: border-box;
+  border-radius: 4px;
+  max-width: 100%;
+}
+
+/* The real clock, drawn full size and scaled down (LayoutThumbnail). */
+.layout-thumbnail {
+  display: block;
+  flex: none;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.layout-thumbnail-clock {
+  display: block;
+  transform-origin: 0 0;
+}
+
+.layout-schematic-block {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  min-height: 0;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.14);
+  color: rgba(255, 255, 255, 0.8);
+  overflow: hidden;
+}
+
+.layout-menu-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 8px 4px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--fliq-text-muted);
+}
+
+.layout-menu-heading .text-link {
+  font-size: 12px;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.layout-menu-empty {
+  margin: 4px 8px 8px;
+  font-size: 13px;
+  color: var(--fliq-text-muted);
+}
+
+.layout-menu-item,
+.layout-menu-action {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 7px 8px;
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+.layout-menu-item:hover,
+.layout-menu-action:hover:not(:disabled) {
+  background: var(--fliq-chip-bg);
+}
+
+.layout-menu-action:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.layout-menu-item-text {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  line-height: 1.3;
+}
+
+.layout-menu-item-text span {
+  font-size: 12px;
+  color: var(--fliq-text-muted);
+}
+
+.layout-menu-check {
+  color: var(--fliq-link);
+  flex: none;
+}
+
+.layout-menu-divider {
+  height: 1px;
+  margin: 6px 4px;
+  background: var(--fliq-border);
+}
+
+.layout-menu-save-as {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  padding: 4px 8px 8px;
+}
+
+/* "Advanced" inside a section: fine-tuning that stays folded away until needed. */
+.inspector-advanced {
+  margin-top: 10px;
+}
+
+.inspector-advanced > summary {
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--fliq-text-muted);
+  user-select: none;
+}
+
+.inspector-advanced[open] > summary {
+  margin-bottom: 8px;
 }

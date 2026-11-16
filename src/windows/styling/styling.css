@@ -278,3 +278,116 @@ body {
   padding-top: 40px;
 }
 
+
+.nav-count {
+  margin-left: auto;
+  min-width: 20px;
+  padding: 1px 7px;
+  border-radius: 10px;
+  background: var(--fliq-badge-bg);
+  font-size: 11px;
+  text-align: center;
+  box-sizing: border-box;
+}
+
+/* Clock › Saved layouts */
+
+.saved-layouts-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.saved-layouts-empty {
+  color: var(--fliq-text-muted);
+}
+
+.saved-layouts-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 14px;
+}
+
+.saved-layout-card {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--fliq-border);
+  border-radius: 14px;
+  background: #ffffff;
+}
+
+.saved-layout-card.active {
+  border-color: var(--fliq-accent);
+  box-shadow: 0 0 0 1px var(--fliq-accent);
+}
+
+.saved-layout-preview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 150px;
+  padding: 16px;
+  box-sizing: border-box;
+  background: var(--fliq-divider);
+}
+
+.saved-layout-preview .layout-thumbnail,
+.saved-layout-preview .layout-schematic {
+  max-height: 100%;
+  border-radius: 8px;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.18);
+}
+
+.saved-layout-footer {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 10px 8px 10px 14px;
+}
+
+.saved-layout-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.saved-layout-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.saved-layout-name strong {
+  font-size: 14px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.saved-layout-meta {
+  font-size: 12px;
+  color: var(--fliq-text-muted);
+}
+
+.saved-layout-confirm {
+  margin: 0 0 10px;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.saved-layout-confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.saved-layout-badge {
+  flex: none;
+}

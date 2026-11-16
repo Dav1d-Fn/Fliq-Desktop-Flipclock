@@ -1,6 +1,6 @@
 // Schema and value checks for the tuxhub live interface (protocol 1).
 // Kept free of React, Jotai and Tauri so `npm test` can run it with plain Node.
-import { LOCALE_OPTIONS, FONT_OPTIONS, TEMPERATURE_UNIT_OPTIONS, SLIDER_CONFIGS } from "../settings/options.ts";
+import { LOCALE_OPTIONS, UI_LANGUAGE_OPTIONS, FONT_OPTIONS, TEMPERATURE_UNIT_OPTIONS, SLIDER_CONFIGS } from "../settings/options.ts";
 import { LAYOUT_KEYS } from "../layout/LayoutMigration.ts";
 import { LayoutValidator } from "../layout/LayoutValidator.ts";
 
@@ -47,12 +47,19 @@ const number = (key: string, label: Text, cfg: { min: number; max: number; unit:
     unit: cfg.unit,
 });
 
-// Same order and grouping as the styling window, then the context menu.
+// Same order and grouping as the settings window, then the context menu.
 const SECTIONS: { id: string; label: Text; fields: FieldDef[] }[] = [
     {
         id: "general",
         label: { en: "General", de: "Allgemein" },
         fields: [
+            {
+                key: "uiLanguage",
+                type: "select",
+                label: { en: "Language", de: "Sprache" },
+                help: { en: "Language of the settings window and the right-click menu.", de: "Sprache des Einstellungsfensters und des Rechtsklick-Menüs." },
+                options: UI_LANGUAGE_OPTIONS.map((language) => ({ value: language.value, label: same(language.label) })),
+            },
             number("clockScale", { en: "Size", de: "Größe" }, SLIDER_CONFIGS.SCALE),
             { key: "boxBackgroundColor", type: "color", label: { en: "Background color", de: "Hintergrundfarbe" } },
             number("clockCornerRadius", { en: "Corner rounding", de: "Eckenrundung" }, SLIDER_CONFIGS.CORNER_RADIUS),
@@ -68,7 +75,7 @@ const SECTIONS: { id: string; label: Text; fields: FieldDef[] }[] = [
                 key: "textColor",
                 type: "color",
                 label: { en: "Default text color", de: "Standard-Textfarbe" },
-                help: { en: "Blocks are edited in the styling window.", de: "Die Blöcke selbst bearbeitest du im Styling-Fenster." },
+                help: { en: "Blocks are edited in the settings window.", de: "Die Blöcke selbst bearbeitest du im Einstellungsfenster." },
             },
             {
                 key: "overlayMode",
@@ -130,6 +137,13 @@ const SECTIONS: { id: string; label: Text; fields: FieldDef[] }[] = [
         ],
     },
     {
+        id: "calendar",
+        label: { en: "Calendar", de: "Kalender" },
+        fields: [
+            number("calendarRefreshMinutes", { en: "Refresh every", de: "Aktualisieren alle" }, { min: 5, max: 240, unit: "min" }),
+        ],
+    },
+    {
         id: "window",
         label: { en: "Window", de: "Fenster" },
         fields: [
@@ -141,7 +155,7 @@ const SECTIONS: { id: string; label: Text; fields: FieldDef[] }[] = [
 ];
 
 const ACTIONS: { id: string; label: Text; danger?: boolean; confirm?: Text }[] = [
-    { id: "open-styling", label: { en: "Open styling window", de: "Styling-Fenster öffnen" } },
+    { id: "open-styling", label: { en: "Open settings", de: "Einstellungen öffnen" } },
     {
         id: "reset",
         label: { en: "Reset all settings", de: "Alle Einstellungen zurücksetzen" },

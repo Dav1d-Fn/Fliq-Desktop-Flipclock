@@ -2,9 +2,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { LayoutMigration } from "../src/layout/LayoutMigration.ts";
-import { LayoutGrid, type ClockLayout } from "../src/layout/ClockLayout.ts";
+import { CELL_HEIGHT, LayoutGrid, type ClockLayout, type LayoutBlock } from "../src/layout/ClockLayout.ts";
 import { blockDefinition } from "../src/blocks/BlockRegistry.ts";
 import { DEFAULT_SEGMENT_CONTEXT, timeFormat } from "../src/blocks/BlockDefinition.ts";
+import { progressShare } from "../src/clock/ProgressShare.ts";
 
 function storage(values: Record<string, unknown>)
 {
@@ -35,7 +36,7 @@ test("old rows become one grid row each, one block per placeholder", () =>
     assert.equal(layout.rows, 2);
     assert.equal(layout.columns, 6);
     const [flip, date, feels, sun] = layout.blocks;
-    assert.deepEqual([flip.kind, flip.display, flip.x, flip.y, flip.w], ["flip", "HH:mm", 0, 0, 6]);
+    assert.deepEqual([flip.kind, flip.clockStyle, flip.textStyle, flip.display, flip.x, flip.y, flip.w], ["clock", undefined, "flip", "HH:mm", 0, 0, 6]);
     assert.equal(flip.cardColor, "#ff0000ff");
     assert.deepEqual([date.kind, date.display, date.customFormat], ["date", "custom", "dddd, DD.MM"]);
     assert.deepEqual([feels.kind, feels.display, feels.weatherIcon], ["weather", "feels", true]);
@@ -90,7 +91,7 @@ test("grid: shrinking cuts blocks back and moves the ones left outside", () =>
         columns: 4,
         rows: 2,
         blocks: [
-            { id: 1, kind: "flip", x: 0, y: 0, w: 4, h: 1, display: "HH:mm" },
+            { id: 1, kind: "clock", x: 0, y: 0, w: 4, h: 1, display: "HH:mm" },
             { id: 2, kind: "text", x: 3, y: 1, w: 1, h: 1, display: "text" },
         ],
     };
@@ -100,93 +101,131 @@ test("grid: shrinking cuts blocks back and moves the ones left outside", () =>
     assert.equal(new LayoutGrid(layout).resized(4, 1), null);
 });
 
-test("grid: variable gaps move cells, size and snapping; missing gaps use 2 px", () =>
+test("grid: one gap per axis moves cells, size and snapping; missing gaps use 2 px", () =>
 {
     const layout: ClockLayout = {
         columns: 3,
         rows: 2,
-        columnGaps: [0, 40],
+        columnGap: 10,
+        rowGap: 6,
         blocks: [{ id: 1, kind: "text", x: 0, y: 0, w: 1, h: 1, display: "text" }],
     };
     const grid = new LayoutGrid(layout);
-    // Columns start at 0, 64 (no gap) and 168 (64 + 64 + 40); rows keep the default 2 px.
-    assert.deepEqual(grid.pixelRect({ x: 1, y: 1, w: 2, h: 1 }, 1), { left: 64, top: 58, width: 168, height: 56 });
-    assert.deepEqual(grid.pixelRect({ x: 2, y: 0, w: 1, h: 1 }, 0.5), { left: 84, top: 0, width: 32, height: 28 });
-    assert.deepEqual(grid.size(1), { width: 232, height: 114 });
-    assert.deepEqual(new LayoutGrid({ ...layout, columnGaps: undefined }).size(1), { width: 196, height: 114 });
-    // 150 px right lands nearer the start of column 2 (168) than of column 1 (64).
-    assert.deepEqual(grid.moveTarget(layout.blocks[0], 150, 0), { x: 2, y: 0, w: 1, h: 1 });
-    assert.deepEqual(grid.moveTarget(layout.blocks[0], 100, 0), { x: 1, y: 0, w: 1, h: 1 });
-    // Right edge pulled from 64 to 200: nearer the end of column 2 (232) than of column 1 (128).
-    assert.deepEqual(grid.resizeTarget(layout.blocks[0], "right", 136, 0), { x: 0, y: 0, w: 3, h: 1 });
-
-    const changed = grid.withGap({ axis: "row", index: 0 }, 20);
-    assert.deepEqual(changed.rowGaps, [20]);
-    assert.deepEqual(changed.columnGaps, [0, 40]);
-    assert.equal(new LayoutGrid(changed).size(1).height, 132);
-    // Removing the last column drops its gap; the remaining one is kept.
-    assert.deepEqual(grid.resized(2, 2)!.columnGaps, [0]);
-});
-
-test("grid: gap defaults per axis, single gaps override them until reset", () =>
-{
-    const layout: ClockLayout = { columns: 3, rows: 2, columnGap: 10, rowGap: 6, columnGaps: [null, 40], blocks: [] };
-    const grid = new LayoutGrid(layout);
     assert.equal(grid.columnStart(1), 74);
-    assert.equal(grid.columnStart(2), 178);
+    assert.equal(grid.columnStart(2), 148);
     assert.equal(grid.rowStart(1), 62);
-    assert.equal(grid.gapOverride({ axis: "column", index: 0 }), null);
-
-    const reset = grid.withGap({ axis: "column", index: 1 }, null);
-    assert.deepEqual(reset.columnGaps, [null, null]);
-    assert.equal(new LayoutGrid(reset).columnStart(2), 148);
-    // A new default moves every gap that has no own value.
-    assert.equal(new LayoutGrid({ ...layout, columnGap: 0 }).columnStart(2), 168);
+    assert.deepEqual(grid.size(1), { width: 212, height: 118 });
+    assert.deepEqual(new LayoutGrid({ ...layout, columnGap: undefined, rowGap: undefined }).size(1), { width: 196, height: 114 });
+    // 120 px right lands nearer the start of column 2 (148) than of column 1 (74).
+    assert.deepEqual(grid.moveTarget(layout.blocks[0], 120, 0), { x: 2, y: 0, w: 1, h: 1 });
+    assert.deepEqual(grid.moveTarget(layout.blocks[0], 100, 0), { x: 1, y: 0, w: 1, h: 1 });
+    // Right edge pulled from 64 to 214: nearer the end of column 2 (212) than of column 1 (138).
+    assert.deepEqual(grid.resizeTarget(layout.blocks[0], "right", 150, 0), { x: 0, y: 0, w: 3, h: 1 });
 });
 
-test("grid: column widths and row heights follow their defaults until set apart", () =>
+test("grid: column widths follow their default until set apart, rows their highest block", () =>
 {
-    // Gaps 2 px. Columns 64, 100, 64; rows 40, 40.
-    const layout: ClockLayout = { columns: 3, rows: 2, rowHeight: 40, columnWidths: [null, 100], blocks: [] };
-    const grid = new LayoutGrid(layout);
+    // Gaps 2 px. Columns 64, 100, 64; rows 40, 40 (measured), an old stored row height is ignored.
+    const layout = { columns: 3, rows: 2, rowHeight: 99, columnWidths: [null, 100], blocks: [] } as ClockLayout;
+    const grid = new LayoutGrid(layout, [40, 40]);
     assert.equal(grid.columnStart(2), 64 + 2 + 100 + 2);
     assert.deepEqual(grid.pixelRect({ x: 1, y: 0, w: 2, h: 2 }, 1), { left: 66, top: 0, width: 166, height: 82 });
     assert.deepEqual(grid.size(1), { width: 232, height: 82 });
     // Resize snaps to the far edge of the wide column.
     assert.equal(grid.resizeTarget({ id: 1, kind: "text", x: 0, y: 0, w: 1, h: 1, display: "text" }, "right", 100, 0).w, 2);
 
-    const set = grid.withTrackSize({ axis: "row", index: 1 }, 80);
-    assert.deepEqual(set.rowHeights, [null, 80]);
-    assert.deepEqual(set.columnWidths, [null, 100]);
-    const reset = new LayoutGrid(set).withTrackSize({ axis: "column", index: 1 }, null);
+    const reset = grid.withColumnWidth(1, null);
+    assert.deepEqual(reset.columnWidths, [null, null, null]);
     assert.equal(new LayoutGrid(reset).columnEnd(2), 64 * 3 + 4);
     // A removed column drops its own width.
     assert.deepEqual(grid.resized(1, 2)?.columnWidths, [null]);
 });
 
-test("once: gap values of earlier built-in defaults follow the defaults again", () =>
+test("grid: a row is as high as its highest single-row block, empty rows keep the cell height", () =>
 {
+    const blocks: LayoutBlock[] = [
+        { id: 1, kind: "clock", x: 0, y: 0, w: 3, h: 1, display: "HH:mm" },
+        { id: 2, kind: "clock", x: 3, y: 0, w: 1, h: 1, display: "ss" },
+        { id: 3, kind: "clock", clockStyle: "progress", x: 0, y: 1, w: 4, h: 1, display: "bar" },
+        { id: 4, kind: "text", x: 0, y: 2, w: 1, h: 2, display: "text" },
+    ];
+    const layout: ClockLayout = { columns: 4, rows: 4, blocks, rowAlign: "bottom" };
+    const heights = LayoutGrid.autoRowHeights(layout, { 1: 90, 2: 50, 3: 8, 4: 300 });
+    assert.deepEqual(heights, [90, 8, CELL_HEIGHT, CELL_HEIGHT]);
+
+    const grid = new LayoutGrid(layout, heights);
+    assert.equal(grid.rowAlign(), "bottom");
+    assert.equal(new LayoutGrid({ ...layout, rowAlign: undefined }).rowAlign(), "center");
+    // A seconds bar joins no group.
+    assert.equal(grid.groupable([1, 2]) !== null, true);
+    assert.equal(new LayoutGrid({ ...layout, blocks: [blocks[2], { ...blocks[3], y: 1, x: 4, h: 1 }], columns: 5 }).groupable([3, 4]), null);
+    assert.equal(grid.mergedInto(1, 3, false), null);
+});
+
+test("grid: stale row heights of older versions are ignored", () =>
+{
+    const blocks: LayoutBlock[] = [
+        { id: 1, kind: "clock", x: 0, y: 0, w: 2, h: 1, display: "HH:mm" },
+        { id: 2, kind: "text", x: 0, y: 1, w: 2, h: 1, display: "text" },
+    ];
+    const layout = { columns: 2, rows: 3, blocks, rowHeight: 99, rowHeights: [99, 99, 99], rowHeightOverrides: [120, 120, 120] } as ClockLayout;
+    assert.deepEqual(LayoutGrid.autoRowHeights(layout, { 1: 90, 2: 30 }), [90, 30, CELL_HEIGHT]);
+});
+
+test("once: row heights are dropped and the most common row alignment is kept, saved layouts too", () =>
+{
+    const old = { columns: 4, rows: 3, blocks: [], rowHeightOverrides: [62, null, 42], rowAligns: ["top", "bottom", "bottom"] };
     const store = storage({
         layoutMigrated: true,
-        clockLayout: { columns: 4, rows: 2, blocks: [], columnGaps: [2, 8, 30], rowGaps: [0], columnGap: 11, rowGap: 16 },
+        clockLayout: old,
+        savedLayouts: [{ id: 1, name: "Old", layout: { ...old, rowAligns: [null, "center"] } }],
     });
     new LayoutMigration(store).run();
-    const layout = layoutOf(store);
-    assert.deepEqual(layout.columnGaps, [null, null, 30]);
-    assert.deepEqual(layout.rowGaps, [0]);
-    assert.equal(new LayoutGrid(layout).gap({ axis: "column", index: 0 }), 11);
+    const layout = JSON.parse(store.getItem("clockLayout")!);
+    assert.equal(layout.rowAlign, "bottom");
+    assert.equal("rowHeightOverrides" in layout, false);
+    assert.equal("rowAligns" in layout, false);
+    // Center is the default: nothing stored.
+    const saved = JSON.parse(store.getItem("savedLayouts")!)[0].layout;
+    assert.deepEqual(Object.keys(saved).sort(), ["blocks", "columns", "rows"]);
 
-    // Runs once: a value of 2 set later is kept.
-    store.setItem("clockLayout", JSON.stringify({ ...layout, columnGaps: [2, null, 30] }));
+    // A second run leaves what the user changed since.
+    store.setItem("clockLayout", JSON.stringify(old));
     new LayoutMigration(store).run();
-    assert.deepEqual(layoutOf(store).columnGaps, [2, null, 30]);
+    assert.deepEqual(JSON.parse(store.getItem("clockLayout")!).rowHeightOverrides, [62, null, 42]);
+});
+
+test("rows: a tie between alignments goes to the upper row, none set means none stored", () =>
+{
+    const base: ClockLayout = { columns: 2, rows: 2, blocks: [] };
+    assert.equal(LayoutMigration.withAutomaticRows({ ...base, rowAligns: ["top", "bottom"] } as ClockLayout).rowAlign, "top");
+    assert.equal(LayoutMigration.withAutomaticRows({ ...base, rowAligns: [null, null] } as ClockLayout).rowAlign, undefined);
+    assert.equal(LayoutMigration.withAutomaticRows(base).rowAlign, undefined);
+});
+
+test("once: per-gap values are dropped from the current and the saved layouts", () =>
+{
+    const withOverrides = { columns: 4, rows: 2, blocks: [], columnGaps: [2, 8, 30], rowGaps: [0], columnGap: 11, rowGap: 16 };
+    const store = storage({
+        layoutMigrated: true,
+        clockLayout: withOverrides,
+        savedLayouts: [{ id: "a", name: "A", layout: withOverrides }],
+    });
+    new LayoutMigration(store).run();
+    for (const layout of [layoutOf(store), (JSON.parse(store.getItem("savedLayouts")!) as { layout: ClockLayout }[])[0].layout])
+    {
+        assert.equal("columnGaps" in layout, false);
+        assert.equal("rowGaps" in layout, false);
+        assert.equal(layout.columnGap, 11);
+        assert.equal(new LayoutGrid(layout).columnStart(3), 3 * 64 + 3 * 11);
+    }
 });
 
 const rowLayout = (): ClockLayout => ({
     columns: 6,
     rows: 2,
     blocks: [
-        { id: 1, kind: "flip", x: 0, y: 0, w: 6, h: 1, display: "HH:mm" },
+        { id: 1, kind: "clock", x: 0, y: 0, w: 6, h: 1, display: "HH:mm" },
         { id: 2, kind: "date", x: 0, y: 1, w: 2, h: 1, display: "custom", customFormat: "dddd", textSize: 80, color: "#ff0000ff" },
         { id: 3, kind: "weather", x: 2, y: 1, w: 1, h: 1, display: "feels", weatherIcon: false, textSize: 120 },
         { id: 4, kind: "weather", x: 3, y: 1, w: 3, h: 1, display: "sun" },
@@ -295,7 +334,7 @@ test("a group shows its members' segments in a row, spaced", () =>
 
 test("time blocks follow the global clock format, custom formats stay as typed", () =>
 {
-    const block = { id: 1, kind: "time" as const, x: 0, y: 0, w: 1, h: 1, display: "HH:mm:ss", customFormat: "HH[h]" };
+    const block = { id: 1, kind: "clock" as const, x: 0, y: 0, w: 1, h: 1, display: "HH:mm:ss", customFormat: "HH[h]" };
     assert.equal(timeFormat(block, DEFAULT_SEGMENT_CONTEXT, true), "HH:mm:ss");
     assert.equal(timeFormat(block, { hourCycle: "12", hourLeadingZero: false }, true), "h:mm:ss A");
     assert.equal(timeFormat({ ...block, display: "hh:mm" }, { hourCycle: "12", hourLeadingZero: true }, false), "hh:mm");
@@ -326,10 +365,177 @@ test("old 12-hour blocks turn the global clock format to 12-hour once", () =>
     assert.equal(store.items.get("hourCycle"), JSON.stringify("24"), "runs only once");
 });
 
+test("flip and time blocks become clock blocks that look the same, also in groups", () =>
+{
+    const before = timeLayout(["HH:mm", "HH:mm:ss"]);
+    const store = storage({ layoutMigrated: true, clockLayout: before });
+    new LayoutMigration(store).run();
+    const [flip, group] = layoutOf(store).blocks;
+    assert.deepEqual([flip.kind, flip.clockStyle, flip.textStyle], ["clock", undefined, "flip"]);
+    assert.deepEqual(group.items!.map((item) => [item.kind, item.clockStyle, item.textStyle]), [["clock", undefined, undefined], ["date", undefined, undefined]]);
+    assert.equal(group.textStyle, undefined);
+
+    // Same segments as the old flip time and time definitions drew.
+    const segmentsOf = (block: LayoutBlock) => blockDefinition(block.kind).segments(block, DEFAULT_SEGMENT_CONTEXT);
+    assert.deepEqual(segmentsOf(flip), [{ type: "FLIPTIME", value: "HH:mm" }]);
+    assert.deepEqual(segmentsOf(group).filter((segment) => segment.member === 0), [{ type: "TIME", value: "HH:mm:ss", member: 0 }]);
+
+    store.items.set("clockLayout", JSON.stringify(before));
+    new LayoutMigration(store).run();
+    assert.equal(layoutOf(store).blocks[0].kind, "flip", "runs only once");
+});
+
+test("seconds bars become smooth minute progress bars that keep their look", () =>
+{
+    const bar = { id: 1, kind: "secondsBar", x: 0, y: 0, w: 4, h: 1, display: "bar", barColor: "#ff0000ff", barThickness: 6 };
+    const store = storage({ layoutMigrated: true, clockLayout: { columns: 4, rows: 1, blocks: [bar] } });
+    new LayoutMigration(store).run();
+    const [block] = layoutOf(store).blocks;
+    assert.deepEqual(
+        [block.kind, block.clockStyle, block.progressShape, block.progressUnit, block.progressMotion, block.barColor, block.barThickness],
+        ["clock", "progress", "bar", "minute", "smooth", "#ff0000ff", 6],
+    );
+    assert.deepEqual(blockDefinition(block.kind).segments(block, DEFAULT_SEGMENT_CONTEXT), [{ type: "PROGRESSBAR", value: "", unit: "minute", motion: "smooth" }]);
+});
+
+test("progress: smooth ends where the old seconds bar did, stepped counts the current step", () =>
+{
+    const at = (hours: number, minutes: number, seconds: number) => new Date(2026, 10, 15, hours, minutes, seconds);
+    // Old bar: (seconds + 1) / 60, full after second 59.
+    assert.equal(progressShare(at(9, 0, 0), "minute", "smooth"), 1 / 60);
+    assert.equal(progressShare(at(9, 0, 59), "minute", "smooth"), 1);
+    assert.equal(progressShare(at(9, 0, 59), "minute", "stepped"), 1);
+    assert.equal(progressShare(at(9, 30, 0), "hour", "smooth"), 1801 / 3600);
+    assert.equal(progressShare(at(9, 30, 59), "hour", "stepped"), 31 / 60);
+    assert.equal(progressShare(at(12, 0, 0), "day", "stepped"), 721 / 1440);
+    assert.equal(progressShare(at(23, 59, 59), "day", "smooth"), 1);
+});
+
+test("old rows become clock blocks with the flip or text style", () =>
+{
+    const store = storage({ format: "$FLIPTIME(HH:mm) $TIME(HH:mm:ss) $TIME(dddd)", secondRowEnabled: false });
+    new LayoutMigration(store).run();
+    const kinds = layoutOf(store).blocks.map((block) => [block.kind, block.clockStyle, block.textStyle]);
+    assert.deepEqual(kinds, [["clock", undefined, "flip"], ["clock", undefined, "text"], ["date", undefined, undefined]]);
+});
+
 test("mixed 12- and 24-hour blocks keep the 24-hour default", () =>
 {
     const store = storage({ layoutMigrated: true, clockLayout: timeLayout(["HH:mm:ss", "h:mm A"]) });
     new LayoutMigration(store).run();
     assert.equal(store.items.has("hourCycle"), false);
     assert.equal(layoutOf(store).blocks[1].items![0].display, "HH:mm");
+});
+
+test("one block padding becomes horizontal and vertical padding drawn as before", () =>
+{
+    const block = (id: number, padding?: number) => ({ id, kind: "text", display: "text", x: id, y: 0, w: 1, h: 1, ...(padding !== undefined && { padding }) });
+    const layout = { columns: 4, rows: 1, blocks: [block(0, 0), block(1, 6), block(2, 16), block(3)] };
+    // Only the split, not the later move of hidden space (see HiddenSpaceMigration).
+    const store = storage({ layoutMigrated: true, hiddenSpaceRemoved: true, clockLayout: layout });
+    new LayoutMigration(store).run();
+    const blocks = layoutOf(store).blocks as (LayoutBlock & { padding?: number })[];
+    // Old: horizontal the padding, vertical half of it but at least 4 px.
+    assert.deepEqual(blocks.map((migrated) => [migrated.paddingX, migrated.paddingY, migrated.padding]), [
+        [0, 4, undefined],
+        [6, 4, undefined],
+        [16, 8, undefined],
+        // Unset stays unset: the new defaults (8 / 4) are the old default 8.
+        [undefined, undefined, undefined],
+    ]);
+
+    // Once only: a later run keeps what the user set since.
+    store.setItem("clockLayout", JSON.stringify({ ...layout, blocks: [{ ...block(0), paddingX: 3, paddingY: 0 }] }));
+    new LayoutMigration(store).run();
+    assert.deepEqual([layoutOf(store).blocks[0].paddingX, layoutOf(store).blocks[0].paddingY], [3, 0]);
+});
+
+test("saved layouts get their padding split too", () =>
+{
+    const layout = { columns: 2, rows: 1, blocks: [{ id: 1, kind: "text", display: "text", x: 0, y: 0, w: 1, h: 1, padding: 12 }] };
+    const store = storage({ layoutMigrated: true, hiddenSpaceRemoved: true, savedLayouts: [{ id: 1, name: "Old", layout }] });
+    new LayoutMigration(store).run();
+    const saved = JSON.parse(store.getItem("savedLayouts")!) as { name: string; layout: { blocks: (LayoutBlock & { padding?: number })[] } }[];
+    const migrated = saved[0].layout.blocks[0];
+    assert.equal(saved[0].name, "Old");
+    assert.deepEqual([migrated.paddingX, migrated.paddingY, migrated.padding], [12, 6, undefined]);
+});
+
+// A layout of the clock-styles version: digit styles were clock styles, unset meant flip.
+const clockStyleLayout = (): ClockLayout => ({
+    columns: 8,
+    rows: 2,
+    blocks: [
+        { id: 1, kind: "clock", x: 0, y: 0, w: 2, h: 1, display: "HH:mm", cardColor: "#ff0000ff" },
+        { id: 2, kind: "clock", clockStyle: "segment" as never, x: 2, y: 0, w: 2, h: 1, display: "HH:mm", glowColor: "#00ff00ff" },
+        { id: 3, kind: "clock", clockStyle: "analogFine", x: 4, y: 0, w: 2, h: 1, display: "HH:mm" },
+        { id: 4, kind: "date", x: 6, y: 0, w: 2, h: 1, display: "dddd" },
+        {
+            id: 5, kind: "group", x: 0, y: 1, w: 4, h: 1, display: "group",
+            items: [{ kind: "clock", display: "HH:mm", clockStyle: "dots" as never }, { kind: "clock", display: "HH:mm", clockStyle: "rings" }],
+        },
+        {
+            id: 6, kind: "group", x: 4, y: 1, w: 4, h: 1, display: "group",
+            items: [{ kind: "clock", display: "HH:mm" }, { kind: "weather", display: "temp" }],
+        },
+    ],
+});
+
+test("clock digit styles become text styles and every block draws as before", () =>
+{
+    const before = clockStyleLayout();
+    const store = storage({ layoutMigrated: true, clockKindMigrated: true, clockLayout: before });
+    new LayoutMigration(store).run();
+    const [flip, lcd, analog, date, dotsGroup, mixedGroup] = layoutOf(store).blocks;
+    const segmentsOf = (block: LayoutBlock) => blockDefinition(block.kind).segments(block, DEFAULT_SEGMENT_CONTEXT);
+
+    assert.deepEqual([flip.clockStyle, flip.textStyle, flip.cardColor], [undefined, "flip", "#ff0000ff"]);
+    assert.deepEqual(segmentsOf(flip), [{ type: "FLIPTIME", value: "HH:mm" }]);
+    assert.deepEqual([lcd.clockStyle, lcd.textStyle, lcd.glowColor], [undefined, "segment", "#00ff00ff"]);
+    assert.deepEqual(segmentsOf(lcd), [{ type: "FACE", value: "HH:mm", face: "segment" }]);
+    assert.deepEqual([analog.clockStyle, analog.textStyle], ["analogFine", undefined]);
+    assert.deepEqual(segmentsOf(date), [{ type: "TIME", value: "dddd" }], "other blocks stay plain text");
+
+    // One drawn style in the group: it becomes the group's, the face member keeps its face.
+    assert.equal(dotsGroup.textStyle, "dots");
+    assert.deepEqual(dotsGroup.items!.map((item) => [item.clockStyle, item.textStyle]), [[undefined, undefined], ["rings", undefined]]);
+    assert.deepEqual(segmentsOf(dotsGroup).map((segment) => segment.face), ["dots", undefined, "rings"]);
+
+    // Flip clock beside plain weather: the group stays plain text, the clock keeps its flip.
+    assert.equal(mixedGroup.textStyle, undefined);
+    assert.deepEqual(mixedGroup.items!.map((item) => item.textStyle), ["flip", undefined]);
+    assert.deepEqual(segmentsOf(mixedGroup).map((segment) => [segment.type, segment.textStyle]), [
+        ["FLIPTIME", undefined],
+        ["SPACE", undefined],
+        ["WEATHER", undefined],
+    ]);
+
+    store.items.set("clockLayout", JSON.stringify(before));
+    new LayoutMigration(store).run();
+    assert.equal(layoutOf(store).blocks[1].clockStyle, "segment", "runs only once");
+});
+
+test("saved layouts get text styles too, also from the old block kinds", () =>
+{
+    const flipKind = { id: 1, kind: "flip", x: 0, y: 0, w: 2, h: 1, display: "HH:mm" };
+    const store = storage({
+        layoutMigrated: true,
+        clockKindMigrated: true,
+        savedLayouts: [{ id: 1, name: "Old", layout: clockStyleLayout() }, { id: 2, name: "Older", layout: { columns: 2, rows: 1, blocks: [flipKind] } }],
+    });
+    new LayoutMigration(store).run();
+    const saved = JSON.parse(store.getItem("savedLayouts")!) as { layout: ClockLayout }[];
+    assert.deepEqual([saved[0].layout.blocks[1].clockStyle, saved[0].layout.blocks[1].textStyle], [undefined, "segment"]);
+    assert.deepEqual([saved[1].layout.blocks[0].kind, saved[1].layout.blocks[0].textStyle], ["clock", "flip"]);
+});
+
+test("text, weather, date and calendar blocks carry their text style in their segments", () =>
+{
+    const base = { id: 1, x: 0, y: 0, w: 2, h: 1 };
+    const segmentsOf = (block: LayoutBlock) => blockDefinition(block.kind).segments(block, DEFAULT_SEGMENT_CONTEXT);
+    assert.deepEqual(segmentsOf({ ...base, kind: "text", display: "text", text: "Hi", textStyle: "dots" }), [{ type: "TEXT", value: "Hi", textStyle: "dots" }]);
+    assert.deepEqual(segmentsOf({ ...base, kind: "weather", display: "temp", textStyle: "flip", flipUnit: "word" }), [{ type: "WEATHER", value: "tempEmoji", textStyle: "flip", flipUnit: "word" }]);
+    assert.deepEqual(segmentsOf({ ...base, kind: "date", display: "dddd", textStyle: "nixie" }), [{ type: "FACE", value: "dddd", face: "nixie" }]);
+    assert.deepEqual(segmentsOf({ ...base, kind: "date", display: "dddd", textStyle: "flip", flipUnit: "word" }), [{ type: "FLIPTIME", value: "dddd", flipUnit: "word" }]);
+    assert.equal(segmentsOf({ ...base, kind: "calendar", display: "next", textStyle: "segment" })[0].textStyle, "segment");
 });

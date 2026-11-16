@@ -31,3 +31,26 @@ export const CARD_SWATCHES: Swatch[] = [
     { color: "#1e3a8aff", label: "Blue" },
     { color: "#9a3412ff", label: "Rust" },
 ];
+
+// Lit segments, dots, tubes and rings, and the second hand of analog clocks.
+export const GLOW_SWATCHES: Swatch[] = [
+    { color: "#ff3b30ff", label: "Red" },
+    { color: "#fbbf24ff", label: "Amber" },
+    { color: "#4ade80ff", label: "Green" },
+    { color: "#7fdcffff", label: "Cyan" },
+    { color: "#60a5faff", label: "Blue" },
+    { color: "#f472b6ff", label: "Pink" },
+    { color: "#fafafaff", label: "White" },
+];
+
+export const DIAL_SWATCHES: Swatch[] = [
+    { color: "#00000000", label: "None" },
+    { color: "#f3efe6ff", label: "Cream" },
+    { color: "#fafafaff", label: "White" },
+    ...BACKGROUND_SWATCHES,
+];
+
+export const HAND_SWATCHES: Swatch[] = [
+    ...TEXT_SWATCHES,
+    { color: "#222222ff", label: "Black" },
+];

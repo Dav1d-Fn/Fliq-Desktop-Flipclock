@@ -1,27 +1,24 @@
-import { BLOCK_DEFAULTS } from "../../../../layout/ClockLayout";
-import { SliderControl } from "../../controls/SliderControl";
+import { SegmentedControl } from "@mantine/core";
+import { type GroupDirection } from "../../../../layout/ClockLayout";
+import { useStrings } from "../../../../i18n/useStrings";
 import type { BlockSettingsProps } from "../BlockEditors";
 import { InspectorField } from "../InspectorField";
-import { FlipCardSettings } from "./FlipCardSettings";
+import { IconStyleSettings } from "./IconStyleSettings";
 
-// Look of a group beyond the shared block settings: the space between members, and the card
-// settings when a member is flip time.
+// Look of a group beyond the shared block settings: members side by side or stacked (the
+// space between them is under Spacing) and the icon style when one shows a weather icon.
 export function GroupStyleSettings({ block, onChange }: BlockSettingsProps)
 {
-    const hasFlip = (block.items ?? []).some((item) => item.kind === "flip");
+    const text = useStrings().group;
     return (
         <>
-            {hasFlip && <FlipCardSettings block={block} onChange={onChange} />}
-            <InspectorField label="Space between items">
-                <SliderControl
-                    label="Space between items"
-                    value={block.itemGap ?? BLOCK_DEFAULTS.itemGap}
-                    onChange={(itemGap) => onChange({ itemGap })}
-                    min={0}
-                    max={3}
-                    step={0.05}
-                    marks={[]}
-                    unit="em"
+            <IconStyleSettings block={block} onChange={onChange} />
+            <InspectorField label={text.direction}>
+                <SegmentedControl
+                    fullWidth
+                    data={[{ value: "row", label: text.sideBySide }, { value: "column", label: text.stacked }]}
+                    value={block.direction ?? "row"}
+                    onChange={(direction) => onChange({ direction: direction as GroupDirection })}
                 />
             </InspectorField>
         </>

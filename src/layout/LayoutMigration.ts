@@ -1,5 +1,6 @@
 import { ClockTemplate, type Segment } from "../clock/ClockTemplate.ts";
-import { BLOCK_DEFAULTS, CELL_HEIGHT, GRID_LIMITS, LayoutGrid, type ClockLayout, type LayoutBlock } from "./ClockLayout.ts";
+import { HiddenSpaceMigration } from "./HiddenSpaceMigration.ts";
+import { BLOCK_DEFAULTS, CELL_HEIGHT, GRID_LIMITS, LayoutGrid, type ClockLayout, type GroupItem, type LayoutBlock, type RowAlign, type TextStyle } from "./ClockLayout.ts";
 
 export interface KeyValueStorage
 {
@@ -14,24 +15,54 @@ export const LAYOUT_KEYS = {
     cornerRadius: "clockCornerRadius",
     hourCycle: "hourCycle",
     hourLeadingZero: "hourLeadingZero",
+    savedLayouts: "savedLayouts",
 };
 
 // Set once the old settings were looked at, so a reset does not bring the old rows back.
 const MIGRATED_MARKER = "layoutMigrated";
 
-// Set once the per-gap values of the first gap editor were cleaned (see cleanGapOverrides).
-const GAPS_CLEANED_MARKER = "gapOverridesCleaned";
+// Set once the per-gap values (columnGaps / rowGaps) were dropped: gaps are one value per axis,
+// a single block is inset with its padding (see dropGapOverrides). Replaces the earlier
+// "gapOverridesCleaned" step, which only reset values equal to an old built-in default.
+const GAP_OVERRIDES_MARKER = "gapOverridesDropped";
 
 // Set once the 12-hour display options were turned into the global clock format.
 const HOUR_CYCLE_MARKER = "hourCycleMigrated";
 
+// Set once flip time, time and seconds bar blocks became clock blocks with a style.
+const CLOCK_KIND_MARKER = "clockKindMigrated";
+
+// Set once the clock's flip, text, LCD, dot matrix and nixie styles became text styles.
+const TEXT_STYLE_MARKER = "textStylesMigrated";
+
+// Clock styles that only said how digits are drawn; they are text styles now.
+const OLD_TEXT_STYLES: readonly string[] = ["flip", "text", "segment", "dots", "nixie"] satisfies TextStyle[];
+
+// Set once the one block padding became a horizontal and a vertical one.
+const PADDING_SPLIT_MARKER = "paddingSplit";
+
+// Set once the space plain text and background-less padding kept hidden became settings.
+const HIDDEN_SPACE_MARKER = "hiddenSpaceRemoved";
+
+// Set once rows became automatic: per-row minimum heights dropped, one alignment for all rows.
+const AUTO_ROWS_MARKER = "autoRows";
+
+// Before the split: horizontally the padding, vertically half of it but at least this (px).
+const OLD_MIN_VERTICAL_PADDING = 4;
+const OLD_DEFAULT_PADDING = 8;
+
+// Block kinds before the clock block, and the clock fields each became. The seconds bar filled
+// over each minute, sliding over every second: progress, bar, minute, smooth.
+// The digit styles are converted on by withTextStyles.
+const OLD_CLOCK_KINDS: Record<string, Record<string, string>> = {
+    flip: { clockStyle: "flip" },
+    time: { clockStyle: "text" },
+    secondsBar: { clockStyle: "progress", progressShape: "bar", progressUnit: "minute", progressMotion: "smooth" },
+};
+
 // Display ids of time blocks before Data › Time: 12-hour ones, and what they become.
 const TWELVE_HOUR_DISPLAYS = ["hh:mm", "h:mm A"];
 const HOURS_AND_MINUTES = "HH:mm";
-
-// Built-in gap sizes of earlier versions. The first gap editor wrote them for every gap it did
-// not touch; as overrides they would hide the "Whole clock" defaults.
-const OLD_DEFAULT_GAPS = [8, 2];
 
 // Settings of the two-row clock before the grid layout, with their old defaults. They stay in
 // storage untouched, so an older version still finds them.
@@ -89,9 +120,229 @@ export class LayoutMigration
 
     run(): void
     {
-        this.cleanGapOverrides();
+        this.dropGapOverrides();
         this.convertOldRows();
         this.moveHourCycle();
+        this.convertClockKinds();
+        this.convertTextStyles();
+        this.splitPadding();
+        this.removeHiddenSpace();
+        this.makeRowsAutomatic();
+    }
+
+    // One-time, after removeHiddenSpace (which still wrote row minimums): rows are as high as
+    // their highest block, room comes from block padding. Rows may get a bit lower. The
+    // per-row alignments become one. Saved layouts too.
+    private makeRowsAutomatic(): void
+    {
+        if (this.storage.getItem(AUTO_ROWS_MARKER) !== null)
+        {
+            return;
+        }
+        this.storage.setItem(AUTO_ROWS_MARKER, "true");
+        const stored = this.storage.getItem(LAYOUT_KEYS.layout);
+        if (stored !== null)
+        {
+            this.storage.setItem(LAYOUT_KEYS.layout, JSON.stringify(LayoutMigration.withAutomaticRows(JSON.parse(stored) as ClockLayout)));
+        }
+        const saved = this.storage.getItem(LAYOUT_KEYS.savedLayouts);
+        if (saved !== null)
+        {
+            const layouts = (JSON.parse(saved) as { layout: ClockLayout }[]).map((entry) => ({ ...entry, layout: LayoutMigration.withAutomaticRows(entry.layout) }));
+            this.storage.setItem(LAYOUT_KEYS.savedLayouts, JSON.stringify(layouts));
+        }
+    }
+
+    // Without row heights; the alignment most rows had set (ties: the upper row's), none when
+    // no row had one or it is the default.
+    static withAutomaticRows(layout: ClockLayout): ClockLayout
+    {
+        const migrated = { ...layout } as ClockLayout & { rowHeightOverrides?: unknown; rowAligns?: (RowAlign | null)[] };
+        const rowAligns = migrated.rowAligns;
+        delete migrated.rowHeightOverrides;
+        delete migrated.rowAligns;
+        const counts = new Map<RowAlign, number>();
+        for (const align of rowAligns ?? [])
+        {
+            if (align)
+            {
+                counts.set(align, (counts.get(align) ?? 0) + 1);
+            }
+        }
+        let common: RowAlign | null = null;
+        for (const [align, count] of counts)
+        {
+            if (common === null || count > counts.get(common)!)
+            {
+                common = align;
+            }
+        }
+        if (common !== null && common !== BLOCK_DEFAULTS.rowAlign && migrated.rowAlign === undefined)
+        {
+            migrated.rowAlign = common;
+        }
+        return migrated;
+    }
+
+    // One-time, after every other step (they write layouts the old way): see HiddenSpaceMigration.
+    // Saved layouts too.
+    private removeHiddenSpace(): void
+    {
+        if (this.storage.getItem(HIDDEN_SPACE_MARKER) !== null)
+        {
+            return;
+        }
+        this.storage.setItem(HIDDEN_SPACE_MARKER, "true");
+        const stored = this.storage.getItem(LAYOUT_KEYS.layout);
+        if (stored !== null)
+        {
+            this.storage.setItem(LAYOUT_KEYS.layout, JSON.stringify(HiddenSpaceMigration.withoutHiddenSpace(JSON.parse(stored) as ClockLayout)));
+        }
+        const saved = this.storage.getItem(LAYOUT_KEYS.savedLayouts);
+        if (saved !== null)
+        {
+            const layouts = (JSON.parse(saved) as { layout: ClockLayout }[]).map((entry) => ({ ...entry, layout: HiddenSpaceMigration.withoutHiddenSpace(entry.layout) }));
+            this.storage.setItem(LAYOUT_KEYS.savedLayouts, JSON.stringify(layouts));
+        }
+    }
+
+    // One-time: the clock's digit styles became the text style every block has (a look
+    // setting, one per group). Saved layouts too, after the clock kinds they also missed.
+    private convertTextStyles(): void
+    {
+        if (this.storage.getItem(TEXT_STYLE_MARKER) !== null)
+        {
+            return;
+        }
+        this.storage.setItem(TEXT_STYLE_MARKER, "true");
+        const stored = this.storage.getItem(LAYOUT_KEYS.layout);
+        if (stored !== null)
+        {
+            this.storage.setItem(LAYOUT_KEYS.layout, JSON.stringify(LayoutMigration.withTextStyles(JSON.parse(stored) as ClockLayout)));
+        }
+        const saved = this.storage.getItem(LAYOUT_KEYS.savedLayouts);
+        if (saved !== null)
+        {
+            const layouts = (JSON.parse(saved) as { layout: ClockLayout }[]).map((entry) => ({
+                ...entry,
+                layout: LayoutMigration.withTextStyles(LayoutMigration.withClockKinds(entry.layout)),
+            }));
+            this.storage.setItem(LAYOUT_KEYS.savedLayouts, JSON.stringify(layouts));
+        }
+    }
+
+    // A clock block's or member's old digit style (unset meant flip), or null for a face.
+    private static oldTextStyle(content: { clockStyle?: string }): TextStyle | null
+    {
+        const style = content.clockStyle ?? "flip";
+        return OLD_TEXT_STYLES.includes(style) ? style as TextStyle : null;
+    }
+
+    // Moves old digit styles out of clockStyle. A clock block keeps its look as its text
+    // style; other blocks were plain text, which is the default. A group gets the one style
+    // all its text members were drawn in; where they differed, it stays plain text and each
+    // member drawn differently keeps its style as its own (GroupItem.textStyle).
+    static withTextStyles(layout: ClockLayout): ClockLayout
+    {
+        const withoutOldStyle = <T extends { kind: string; clockStyle?: string }>(content: T): T =>
+        {
+            if (content.kind !== "clock" || LayoutMigration.oldTextStyle(content) === null)
+            {
+                return content;
+            }
+            const converted = { ...content };
+            delete converted.clockStyle;
+            return converted;
+        };
+        const blocks = layout.blocks.map((block): LayoutBlock =>
+        {
+            // Clock blocks of the old rows are written with their text style already.
+            if (block.kind === "clock" && block.textStyle === undefined)
+            {
+                const style = LayoutMigration.oldTextStyle(block);
+                return style === null ? block : { ...withoutOldStyle(block), textStyle: style };
+            }
+            if (block.kind !== "group" || !block.items || block.textStyle !== undefined)
+            {
+                return block;
+            }
+            const memberStyles = block.items.map((item) => (item.kind === "clock" ? LayoutMigration.oldTextStyle(item) : "text"));
+            const drawnStyles = new Set(memberStyles.filter((style): style is TextStyle => style !== null));
+            const groupStyle: TextStyle = drawnStyles.size === 1 ? [...drawnStyles][0] : "text";
+            const items = block.items.map((item, index): GroupItem =>
+            {
+                const style = memberStyles[index];
+                const converted = withoutOldStyle(item);
+                return style === null || style === groupStyle ? converted : { ...converted, textStyle: style };
+            });
+            return { ...block, items, ...(groupStyle !== "text" && { textStyle: groupStyle }) };
+        });
+        return { ...layout, blocks };
+    }
+
+    // One-time: blocks had one "padding", used fully left and right and half (at least 4 px)
+    // above and below. They get both values as they were drawn, so they look the same.
+    private splitPadding(): void
+    {
+        if (this.storage.getItem(PADDING_SPLIT_MARKER) !== null)
+        {
+            return;
+        }
+        this.storage.setItem(PADDING_SPLIT_MARKER, "true");
+        const stored = this.storage.getItem(LAYOUT_KEYS.layout);
+        if (stored !== null)
+        {
+            this.storage.setItem(LAYOUT_KEYS.layout, JSON.stringify(LayoutMigration.withSplitPadding(JSON.parse(stored) as ClockLayout)));
+        }
+        // Saved layouts were stored with the same one padding.
+        const saved = this.storage.getItem(LAYOUT_KEYS.savedLayouts);
+        if (saved !== null)
+        {
+            const layouts = (JSON.parse(saved) as { layout: ClockLayout }[]).map((entry) => ({ ...entry, layout: LayoutMigration.withSplitPadding(entry.layout) }));
+            this.storage.setItem(LAYOUT_KEYS.savedLayouts, JSON.stringify(layouts));
+        }
+    }
+
+    private static withSplitPadding(layout: ClockLayout): ClockLayout
+    {
+        const blocks = layout.blocks.map((oldBlock) =>
+        {
+            const { padding, ...block } = oldBlock as LayoutBlock & { padding?: number };
+            if (padding === undefined)
+            {
+                return block;
+            }
+            return { ...block, paddingX: padding, paddingY: Math.max(OLD_MIN_VERTICAL_PADDING, padding / 2) };
+        });
+        return { ...layout, blocks };
+    }
+
+    // One-time: "flip", "time" and "secondsBar" blocks (and group members) became "clock"
+    // blocks with a style. Everything else about them stays, so they look the same.
+    private convertClockKinds(): void
+    {
+        if (this.storage.getItem(CLOCK_KIND_MARKER) !== null)
+        {
+            return;
+        }
+        this.storage.setItem(CLOCK_KIND_MARKER, "true");
+        const stored = this.storage.getItem(LAYOUT_KEYS.layout);
+        if (stored === null)
+        {
+            return;
+        }
+        this.storage.setItem(LAYOUT_KEYS.layout, JSON.stringify(LayoutMigration.withClockKinds(JSON.parse(stored) as ClockLayout)));
+    }
+
+    private static withClockKinds(layout: ClockLayout): ClockLayout
+    {
+        const convert = <T extends { kind: string }>(content: T): T =>
+        {
+            const fields = OLD_CLOCK_KINDS[content.kind];
+            return fields ? { ...content, kind: "clock", ...fields } : content;
+        };
+        const blocks = layout.blocks.map((block) => convert({ ...block, ...(block.items && { items: block.items.map(convert) }) }));
+        return { ...layout, blocks };
     }
 
     private convertOldRows(): void
@@ -112,7 +363,7 @@ export class LayoutMigration
 
         const layout = this.convertRows();
         const textSize = this.legacy("clockTextSize");
-        const blockHeight = CELL_HEIGHT - 2 * BLOCK_DEFAULTS.padding;
+        const blockHeight = CELL_HEIGHT - 2 * OLD_DEFAULT_PADDING;
         const scalePercent = Math.round(textSize * OLD_CARD_HEIGHT_PER_FONT_PX / blockHeight * 100);
 
         // Old rounding: percent of half the shorter side of the box.
@@ -126,7 +377,8 @@ export class LayoutMigration
         this.storage.setItem(LAYOUT_KEYS.cornerRadius, JSON.stringify(Math.min(64, cornerRadius)));
     }
 
-    // One-time: the 12-hour display options of flip time and time blocks became the global
+    // One-time: the 12-hour display options of flip time and time blocks (now clock blocks)
+    // became the global
     // clock format. Those blocks now show "Hours & minutes"; when every time block was 12-hour,
     // the clock format becomes 12-hour (without leading zero if none had one).
     private moveHourCycle(): void
@@ -143,7 +395,7 @@ export class LayoutMigration
         }
         const layout = JSON.parse(stored) as ClockLayout;
         const isTime = (content: { kind: string; display: string }) =>
-            (content.kind === "flip" || content.kind === "time") && content.display !== "custom";
+            ["flip", "time", "clock"].includes(content.kind) && content.display !== "custom";
         const contents = layout.blocks
             .flatMap((block): { kind: string; display: string }[] => (block.kind === "group" ? block.items ?? [] : [block]))
             .filter(isTime);
@@ -164,28 +416,34 @@ export class LayoutMigration
         this.storage.setItem(LAYOUT_KEYS.layout, JSON.stringify({ ...layout, blocks }));
     }
 
-    // One-time: per-gap values equal to an old built-in default become "follow the default"
-    // again. Anything else (e.g. a 0 set on purpose) stays an override.
-    private cleanGapOverrides(): void
+    // One-time: per-gap values are no setting anymore; left in storage they would be dead
+    // data a later version could pick up again. Saved layouts too.
+    private dropGapOverrides(): void
     {
-        if (this.storage.getItem(GAPS_CLEANED_MARKER) !== null)
+        if (this.storage.getItem(GAP_OVERRIDES_MARKER) !== null)
         {
             return;
         }
-        this.storage.setItem(GAPS_CLEANED_MARKER, "true");
+        this.storage.setItem(GAP_OVERRIDES_MARKER, "true");
         const stored = this.storage.getItem(LAYOUT_KEYS.layout);
-        if (stored === null)
+        if (stored !== null)
         {
-            return;
+            this.storage.setItem(LAYOUT_KEYS.layout, JSON.stringify(LayoutMigration.withoutGapOverrides(JSON.parse(stored) as ClockLayout)));
         }
-        const layout = JSON.parse(stored) as ClockLayout;
-        const clean = (gaps: (number | null)[] | undefined) =>
-            gaps?.map((gap) => (gap === null || OLD_DEFAULT_GAPS.includes(gap) ? null : gap));
-        this.storage.setItem(LAYOUT_KEYS.layout, JSON.stringify({
-            ...layout,
-            columnGaps: clean(layout.columnGaps),
-            rowGaps: clean(layout.rowGaps),
-        }));
+        const saved = this.storage.getItem(LAYOUT_KEYS.savedLayouts);
+        if (saved !== null)
+        {
+            const layouts = (JSON.parse(saved) as { layout: ClockLayout }[]).map((entry) => ({ ...entry, layout: LayoutMigration.withoutGapOverrides(entry.layout) }));
+            this.storage.setItem(LAYOUT_KEYS.savedLayouts, JSON.stringify(layouts));
+        }
+    }
+
+    private static withoutGapOverrides(layout: ClockLayout): ClockLayout
+    {
+        const cleaned = { ...layout } as ClockLayout & { columnGaps?: unknown; rowGaps?: unknown };
+        delete cleaned.columnGaps;
+        delete cleaned.rowGaps;
+        return cleaned;
     }
 
     private convertRows(): ClockLayout
@@ -240,7 +498,8 @@ export class LayoutMigration
             case "FLIPTIME":
                 return {
                     ...base,
-                    kind: "flip",
+                    kind: "clock",
+                    textStyle: "flip",
                     ...LayoutMigration.display(segment.value, FLIP_OPTIONS),
                     color: this.legacy("clockTextColor"),
                     cardColor: this.legacy("flipCardBackground"),
@@ -249,11 +508,11 @@ export class LayoutMigration
             case "TIME":
             {
                 const showsTime = /[Hhms]/.test(segment.value.replace(/\[[^\]]*\]/g, ""));
-                return {
-                    ...base,
-                    kind: showsTime ? "time" : "date",
-                    ...LayoutMigration.display(segment.value, showsTime ? TIME_OPTIONS : DATE_OPTIONS),
-                };
+                if (!showsTime)
+                {
+                    return { ...base, kind: "date", ...LayoutMigration.display(segment.value, DATE_OPTIONS) };
+                }
+                return { ...base, kind: "clock", textStyle: "text", ...LayoutMigration.display(segment.value, TIME_OPTIONS) };
             }
             case "WEATHER":
                 return { ...base, kind: "weather", ...(LEGACY_WEATHER[segment.value.toLowerCase()] ?? LEGACY_WEATHER.fullemoji) };
@@ -261,6 +520,10 @@ export class LayoutMigration
                 // Spaces between placeholders were only separators; the grid gap does that now.
                 return segment.value.trim() === "" ? null : { ...base, kind: "text", display: "text", text: segment.value };
             case "SPACE":
+            case "BREAK":
+            case "PROGRESSBAR":
+            case "FACE":
+            case "CALENDAR":
                 return null;
         }
     }

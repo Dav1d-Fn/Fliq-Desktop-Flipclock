@@ -3,9 +3,11 @@ import { ActionIcon, UnstyledButton } from "@mantine/core";
 import { IconArrowDown, IconArrowUp, IconX } from "@tabler/icons-react";
 import { useAtomValue } from "jotai";
 import { blockDefinition } from "../../../../blocks/BlockRegistry";
+import { useCalendarText } from "../../../../calendar/useCalendarText";
 import { ClockTemplate } from "../../../../clock/ClockTemplate";
 import { useSegmentContext } from "../../../../clock/useSegmentContext";
 import type { GroupItem, LayoutBlock } from "../../../../layout/ClockLayout";
+import { named, useStrings } from "../../../../i18n/useStrings";
 import { ATOMS } from "../../../../settings/atoms";
 import { WeatherFormatter } from "../../../../weather/WeatherFormatter";
 import { BLOCK_EDITORS, type BlockSettingsProps } from "../BlockEditors";
@@ -24,6 +26,9 @@ export function GroupMembers({ block, onChange, openMember, onOpenMember }: Bloc
     const sunDays = useAtomValue(ATOMS.SUN_DAYS);
     const weatherUnit = useAtomValue(ATOMS.WEATHER_UNIT);
     const segmentContext = useSegmentContext();
+    const calendarText = useCalendarText();
+    const strings = useStrings();
+    const text = strings.group;
     const weather = new WeatherFormatter(weatherReport, sunDays, weatherUnit, new Date());
 
     // Opened from the canvas menu: bring it into view.
@@ -61,20 +66,23 @@ export function GroupMembers({ block, onChange, openMember, onOpenMember }: Bloc
     // Only content fields reach a member; the rest of the patch would be the group's look.
     function changeItem(index: number, patch: Partial<LayoutBlock>)
     {
-        const { display, customFormat, text, weatherIcon } = { ...items[index], ...patch };
-        const item: GroupItem = { kind: items[index].kind, display, customFormat, text, weatherIcon };
+        const { display, customFormat, text, weatherIcon, clockStyle, calendar, progressShape, progressUnit, progressMotion } = { ...items[index], ...patch };
+        // A member's own text style (from the migration) is not content, but it stays.
+        const { textStyle } = items[index];
+        const item: GroupItem = { kind: items[index].kind, display, customFormat, text, weatherIcon, clockStyle, calendar, progressShape, progressUnit, progressMotion, textStyle };
         setItems(items.map((current, itemIndex) => (itemIndex === index ? item : current)));
     }
 
     return (
-        <InspectorField label="Items">
+        <InspectorField label={text.items} help={text.itemsNote}>
             <div className="group-members" ref={listRef}>
                 {items.map((item, index) =>
                 {
                     const definition = blockDefinition(item.kind);
+                    const name = named(strings, definition.name);
                     const Icon = BLOCK_EDITORS[item.kind].icon;
                     const merged = { ...block, ...item };
-                    const preview = new ClockTemplate(definition.segments(merged, segmentContext)).plainText((key) => weather.format(key));
+                    const preview = new ClockTemplate(definition.segments(merged, segmentContext)).plainText((key) => weather.format(key), calendarText);
                     const open = openIndex === index;
                     return (
                         <div key={index} className={open ? "group-member selected" : "group-member"}>
@@ -85,29 +93,28 @@ export function GroupMembers({ block, onChange, openMember, onOpenMember }: Bloc
                                     onClick={() => setOpenIndex(open ? null : index)}
                                 >
                                     <Icon size={16} />
-                                    <span>{definition.name}</span>
+                                    <span>{name}</span>
                                     <span className="group-member-preview">{preview}</span>
                                 </UnstyledButton>
-                                <ActionIcon variant="subtle" size={26} aria-label={`Move ${definition.name} left`} disabled={index === 0} onClick={() => move(index, -1)}>
+                                <ActionIcon variant="subtle" size={26} aria-label={text.moveLeft(name)} disabled={index === 0} onClick={() => move(index, -1)}>
                                     <IconArrowUp size={15} />
                                 </ActionIcon>
-                                <ActionIcon variant="subtle" size={26} aria-label={`Move ${definition.name} right`} disabled={index === items.length - 1} onClick={() => move(index, 1)}>
+                                <ActionIcon variant="subtle" size={26} aria-label={text.moveRight(name)} disabled={index === items.length - 1} onClick={() => move(index, 1)}>
                                     <IconArrowDown size={15} />
                                 </ActionIcon>
-                                <ActionIcon variant="subtle" size={26} c="red.8" aria-label={`Remove ${definition.name} from group`} disabled={items.length === 1} onClick={() => remove(index)}>
+                                <ActionIcon variant="subtle" size={26} c="red.8" aria-label={text.remove(name)} disabled={items.length === 1} onClick={() => remove(index)}>
                                     <IconX size={15} />
                                 </ActionIcon>
                             </div>
                             {open && (
                                 <div className="group-member-settings">
-                                    <ContentEditor block={merged} onChange={(patch) => changeItem(index, patch)} />
+                                    <ContentEditor block={merged} onChange={(patch) => changeItem(index, patch)} inGroup />
                                 </div>
                             )}
                         </div>
                     );
                 })}
             </div>
-            <p className="inspector-note">Click an item to change what it shows. To add one, select the group and a block next to it and group them.</p>
         </InspectorField>
     );
 }
