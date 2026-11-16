@@ -1,6 +1,8 @@
 // Schema and value checks for the tuxhub live interface (protocol 1).
 // Kept free of React, Jotai and Tauri so `npm test` can run it with plain Node.
 import { LOCALE_OPTIONS, UI_LANGUAGE_OPTIONS, FONT_OPTIONS, TEMPERATURE_UNIT_OPTIONS, SLIDER_CONFIGS } from "../settings/options.ts";
+import { LAYOUT_KEYS } from "../layout/LayoutMigration.ts";
+import { LayoutValidator } from "../layout/LayoutValidator.ts";
 
 type Locale = "en" | "de";
 type Text = Record<Locale, string>;
@@ -31,7 +33,7 @@ export type Field = {
 
 export type Schema = {
     sections: { id: string; label: string; fields: Field[] }[];
-    actions: { id: string; label: string }[];
+    actions: { id: string; label: string; danger?: boolean; confirm?: string }[];
 };
 
 const same = (s: string): Text => ({ en: s, de: s });
@@ -152,8 +154,17 @@ const SECTIONS: { id: string; label: Text; fields: FieldDef[] }[] = [
     },
 ];
 
-const ACTIONS: { id: string; label: Text }[] = [
+const ACTIONS: { id: string; label: Text; danger?: boolean; confirm?: Text }[] = [
     { id: "open-styling", label: { en: "Open settings", de: "Einstellungen öffnen" } },
+    {
+        id: "reset",
+        label: { en: "Reset all settings", de: "Alle Einstellungen zurücksetzen" },
+        danger: true,
+        confirm: {
+            en: "Reset all settings to their defaults? This can't be undone.",
+            de: "Alle Einstellungen auf die Standardwerte zurücksetzen? Das lässt sich nicht rückgängig machen.",
+        },
+    },
     { id: "quit", label: { en: "Quit Fliq", de: "Fliq beenden" } },
 ];
 
@@ -199,7 +210,12 @@ export function schema(locale: unknown): Schema
             label: s.label[lang],
             fields: s.fields.map((f) => render(f, lang)),
         })),
-        actions: ACTIONS.map((a) => ({ id: a.id, label: a.label[lang] })),
+        actions: ACTIONS.map((a) => ({
+            id: a.id,
+            label: a.label[lang],
+            ...(a.danger ? { danger: true } : {}),
+            ...(a.confirm ? { confirm: a.confirm[lang] } : {}),
+        })),
     };
 }
 
@@ -225,6 +241,7 @@ const MESSAGES = {
     text: { en: "Expected text.", de: "Erwartet Text." },
     length: { en: "At most {max} characters.", de: "Höchstens {max} Zeichen." },
     color: { en: "Expected a color like #rrggbbaa.", de: "Erwartet eine Farbe wie #rrggbbaa." },
+    layout: { en: "This layout does not fit Fliq's grid.", de: "Dieses Layout passt nicht in Fliqs Raster." },
 };
 
 /**
@@ -260,4 +277,23 @@ export function check(key: string, value: unknown, locale: unknown = "en"): unkn
             if (typeof value !== "string" || !/^#([0-9a-f]{6}|[0-9a-f]{8})$/i.test(value)) throw refuse("color");
             return value.length === 7 ? `${value.toLowerCase()}ff` : value.toLowerCase();
     }
+}
+
+/**
+ * Checks a value for `settings.set`. Besides the schema fields tuxhub may write the block
+ * layout. Everything else Fliq stores
+ * (the weather caches) is not writable from outside.
+ */
+export function checkStored(key: string, value: unknown, locale: unknown = "en"): unknown 
+{
+    if (key !== LAYOUT_KEYS.layout)
+    {
+        return check(key, value, locale);
+    }
+    const layout = new LayoutValidator().validated(value);
+    if (layout === null)
+    {
+        throw new Refusal(key, MESSAGES.layout[toLocale(locale)]);
+    }
+    return layout;
 }

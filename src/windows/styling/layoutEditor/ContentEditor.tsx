@@ -4,7 +4,7 @@ import { blockDefinition } from "../../../blocks/BlockRegistry";
 import { useCalendarText } from "../../../calendar/useCalendarText";
 import { ClockTemplate } from "../../../clock/ClockTemplate";
 import { useSegmentContext } from "../../../clock/useSegmentContext";
-import type { LayoutBlock } from "../../../layout/ClockLayout";
+import { CONTENT_LIMITS, type LayoutBlock } from "../../../layout/ClockLayout";
 import { named, useStrings } from "../../../i18n/useStrings";
 import { ATOMS } from "../../../settings/atoms";
 import { WeatherFormatter } from "../../../weather/WeatherFormatter";
@@ -76,6 +76,7 @@ export function ContentEditor({ block, onChange, inGroup = false }: ContentEdito
                         value={block.customFormat ?? ""}
                         onChange={(event) => onChange({ customFormat: event.currentTarget.value })}
                         placeholder="HH:mm"
+                        maxLength={CONTENT_LIMITS.textLength}
                         spellCheck={false}
                         styles={{ input: { fontFamily: "var(--mantine-font-family-monospace)", fontSize: 13 } }}
                     />
