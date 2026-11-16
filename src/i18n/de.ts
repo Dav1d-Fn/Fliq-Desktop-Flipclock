@@ -164,7 +164,7 @@ export const DE: Strings = {
     },
     layout: {
         title: "Layout",
-        intro: "Blöcke ziehen, um sie zu verschieben. An den grünen Griffen ziehen, um die Größe zu ändern. Auf den Balken über einer Spalte oder neben einer Zeile (oder den Abstand danach) klicken für Größe, Ausrichtung und Abstand. Einen Block auf einen anderen ziehen, um sie zu gruppieren, oder nebeneinanderliegende Blöcke mit Umschalt anklicken.",
+        intro: "Blöcke ziehen, um sie zu verschieben. An den grünen Griffen ziehen, um die Größe zu ändern. Den Rand über einer Spalte ziehen, um sie breiter oder schmaler zu machen. Einen Block auf einen anderen ziehen, um sie zu gruppieren, oder nebeneinanderliegende Blöcke mit Umschalt anklicken.",
         undo: "Rückgängig",
         undoTitle: "Rückgängig (Strg+Z)",
         redo: "Wiederholen",
@@ -178,8 +178,6 @@ export const DE: Strings = {
         selection: "Auswahl",
         block: "Block",
         blocks: (count: number) => `${count} Blöcke`,
-        column: (number: number) => `Spalte ${number}`,
-        row: (number: number) => `Zeile ${number}`,
         noSpace: "Kein Platz mehr. Erst eine Spalte oder Zeile hinzufügen.",
         noRoomColumn: "Kein Platz für die Blöcke in der letzten Spalte. Erst einen verschieben oder entfernen.",
         noRoomRow: "Kein Platz für die Blöcke in der letzten Zeile. Erst einen verschieben oder entfernen.",
@@ -209,15 +207,7 @@ export const DE: Strings = {
         resizeBoth: "Breite und Höhe ändern",
     },
     grid: {
-        trackSize: (axis: "column" | "row", number: number) => axis === "column"
-            ? `Breite von Spalte ${number}`
-            : `Zeile ${number}`,
-        width: "Breite",
-        height: "Mindesthöhe",
-        resetToDefault: "Auf Standard zurücksetzen",
-        followsDefault: "Ohne eigene Breite folgt die Spalte der Spaltenbreite unter Ganze Uhr › Raster.",
-        automatic: "Kein Minimum",
-        automaticNote: "So hoch wie ihr höchster Block. Eine Mindesthöhe macht die Zeile höher, ihre Blöcke aber nie kleiner.",
+        columnEdge: (number: number) => `Breite von Spalte ${number}: ziehen, Doppelklick setzt zurück`,
     },
     clockInspector: {
         intro: "Das Uhrfenster selbst und die Standards, die jeder Block übernimmt.",
@@ -227,7 +217,7 @@ export const DE: Strings = {
         padding: "Abstand zum Rand",
         paddingNote: "Platz zwischen dem Hintergrund der Uhr und den äußeren Blöcken.",
         columnWidth: "Spaltenbreite",
-        rowHeightNote: "Auf den Balken über einer Spalte klicken, um sie einzeln einzustellen. Zeilen sind so hoch wie ihr höchster Block; der Balken neben einer Zeile legt eine Mindesthöhe fest.",
+        columnWidthNote: "Für Spalten ohne eigene Breite. Eine einzelne Spalte stellt man ein, indem man ihren Rand über der Fläche zieht; Doppelklick auf den Rand setzt sie zurück. Zeilen sind immer so hoch wie ihr höchster Block; für mehr Luft den Innenabstand eines Blocks erhöhen.",
         columnSpace: "Abstand zwischen Spalten",
         rowSpace: "Abstand zwischen Zeilen",
         gapNote: "Gleich zwischen allen Spalten bzw. Zeilen. Um einen einzelnen Block einzurücken, seinen Innenabstand nutzen.",
@@ -329,7 +319,7 @@ export const DE: Strings = {
     },
     row: {
         alignLabel: "Niedrigere Blöcke sitzen",
-        alignNote: "Unten setzt kleine Sekundenkarten bündig an die Unterkante der großen.",
+        alignNote: "Wirkt nur, wo ein Block niedriger als seine Zeile ist. Unten setzt kleine Sekundenkarten bündig an die Unterkante der großen.",
         top: "Oben",
         center: "Mitte",
         bottom: "Unten",

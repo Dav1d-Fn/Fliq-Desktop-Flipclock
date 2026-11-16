@@ -81,22 +81,18 @@ test("a full line makes room by shrinking its widest block", () =>
     assert.deepEqual(inserted.blocks.map((item) => [item.id, item.x, item.y, item.w]), [[1, 0, 0, 1], [2, 1, 0, 1], [3, 2, 0, 2]]);
 });
 
-test("dropping below adds a row, shifts the rows and their settings, and drops the emptied row", () =>
+test("dropping below adds a row, shifts the rows and drops the emptied row", () =>
 {
     const layout: ClockLayout = {
         columns: 4,
         rows: 3,
         blocks: [block(1, 0, 4), block(2, 0, 2, { y: 1 }), block(3, 1, 2, { y: 2 })],
-        rowAligns: ["top", "center", "bottom"],
-        rowHeightOverrides: [40, null, 70],
     };
     // Block 3 leaves row 2 for a new row under row 0: rows stay at 3.
     const result = new LayoutGrid(layout).withBlockInNewRow(1, 3, true);
     assert.ok(result);
     assert.equal(result.rows, 3);
     assert.deepEqual(positions(result), { 1: [0, 0], 2: [0, 2], 3: [1, 1] });
-    assert.deepEqual(result.rowAligns, ["top", null, "center"]);
-    assert.deepEqual(result.rowHeightOverrides, [40, null, null]);
 });
 
 test("a new row grows blocks reaching across it and finds free columns", () =>
@@ -121,9 +117,8 @@ test("no new row past the row limit", () =>
 
 test("sliding the only block of a row into another removes the emptied row", () =>
 {
-    const layout: ClockLayout = { columns: 4, rows: 2, blocks: [block(1, 0, 2), block(2, 0, 1, { y: 1 })], rowAligns: ["top", "bottom"] };
+    const layout: ClockLayout = { columns: 4, rows: 2, blocks: [block(1, 0, 2), block(2, 0, 1, { y: 1 })] };
     const result = new LayoutGrid(layout).withBlockInserted(1, 2, false);
     assert.ok(result);
     assert.equal(result.rows, 1);
-    assert.deepEqual(result.rowAligns, ["top"]);
 });

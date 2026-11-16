@@ -132,31 +132,47 @@
   outline-color: var(--fliq-accent);
 }
 
-/* Column and row bars along the top and left edge of the grid */
+/* Column edges above the grid: drag to set a column's width (LayoutCanvas.renderColumnEdges).
+   The button is a wide hit area, the line in it what shows. */
 
-.track-bar {
+.column-edge {
   position: absolute;
   z-index: 1;
+  width: 14px;
+  margin-left: -7px;
   padding: 0;
   border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  background: rgba(150, 158, 170, 0.35);
-  transition: background .2s, left .36s cubic-bezier(.34,1.45,.64,1), top .36s cubic-bezier(.34,1.45,.64,1), width .36s cubic-bezier(.34,1.45,.64,1), height .36s cubic-bezier(.34,1.45,.64,1);
+  background: none;
+  cursor: col-resize;
+  touch-action: none;
   animation: fliq-cell-in .3s ease-out;
 }
 
-.track-bar:hover {
+.column-edge::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 5px;
+  width: 4px;
+  border-radius: 2px;
+  background: rgba(150, 158, 170, 0.45);
+  transition: background .2s;
+}
+
+.column-edge.own::after {
   background: rgba(47, 168, 79, 0.6);
 }
 
-.track-bar.selected {
+.column-edge:hover::after,
+.column-edge.dragging::after {
   background: var(--fliq-accent);
 }
 
-.track-bar:focus-visible {
+.column-edge:focus-visible {
   outline: 2px solid var(--fliq-accent);
   outline-offset: 1px;
+  border-radius: 4px;
 }
 
 .resize-handle {
@@ -503,13 +519,8 @@
   box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.18);
 }
 
-.inspector .slider-control,
-.track-popover .slider-control {
+.inspector .slider-control {
   width: 100%;
-}
-
-.track-popover .slider-value {
-  white-space: nowrap;
 }
 
 .inspector-note {
@@ -817,13 +828,6 @@
 @keyframes fliq-fade-up {
   from { opacity: 0; transform: translateY(6px); }
   to { opacity: 1; transform: none; }
-}
-
-/* Column and row popover */
-
-.track-popover-title {
-  margin-bottom: 10px;
-  font-weight: 600;
 }
 
 /* Clock style picker: live previews in a grid (ClockStylePicker). */

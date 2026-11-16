@@ -20,7 +20,7 @@ test("new layouts get the next id and a unique name", () =>
 test("changes are measured against the saved layout, ignoring key order", () =>
 {
     const library = new LayoutLibrary(new LayoutLibrary([]).withNew("Desk", DEFAULT_LAYOUT).layouts);
-    const reordered = JSON.parse(JSON.stringify({ blocks: DEFAULT_LAYOUT.blocks, rowHeightOverrides: DEFAULT_LAYOUT.rowHeightOverrides, rows: DEFAULT_LAYOUT.rows, columns: 4, rowGap: 0, columnGap: 0 }));
+    const reordered = JSON.parse(JSON.stringify({ blocks: DEFAULT_LAYOUT.blocks, rows: DEFAULT_LAYOUT.rows, columns: 4, rowGap: 0, columnGap: 0 }));
     assert.equal(library.hasChanges(1, reordered), false);
     assert.equal(library.hasChanges(1, wide), true);
     assert.equal(library.hasChanges(null, DEFAULT_LAYOUT), true);

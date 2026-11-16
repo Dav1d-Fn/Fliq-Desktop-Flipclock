@@ -3,7 +3,7 @@ import { ActionIcon, SegmentedControl, Tooltip } from "@mantine/core";
 import { IconArrowBackUp, IconArrowForwardUp, IconHelpCircle } from "@tabler/icons-react";
 import { useAtom } from "jotai";
 import { blockDefinition } from "../../../blocks/BlockRegistry";
-import { LayoutGrid, type BlockKind, type CellRect, type LayoutBlock, type TrackRef } from "../../../layout/ClockLayout";
+import { LayoutGrid, type BlockKind, type CellRect, type LayoutBlock } from "../../../layout/ClockLayout";
 import { useStrings } from "../../../i18n/useStrings";
 import { ATOMS } from "../../../settings/atoms";
 import { LayoutSwitcher } from "../savedLayouts/LayoutSwitcher";
@@ -36,7 +36,6 @@ export function LayoutPage({ onNavigate }: PageProps)
     const [tab, setTab] = useState<InspectorTab>("selection");
     // One block to edit, or several to group (shift/ctrl-click).
     const [selectedIds, setSelectedIds] = useState<number[]>(layout.blocks[0] ? [layout.blocks[0].id] : []);
-    const [selectedTrack, setSelectedTrack] = useState<TrackRef | null>(null);
     const [poppingId, setPoppingId] = useState<number | null>(null);
     const [removingIds, setRemovingIds] = useState<number[]>([]);
     const [shaking, setShaking] = useState(false);
@@ -60,9 +59,6 @@ export function LayoutPage({ onNavigate }: PageProps)
     const selectedBlocks = layout.blocks.filter((block) => selectedIds.includes(block.id));
     const selectedBlock = selectedBlocks.length === 1 ? selectedBlocks[0] : undefined;
     const multiple = selectedBlocks.length > 1;
-    // A column or row can vanish while its popover is open.
-    const trackCount = selectedTrack ? (selectedTrack.axis === "column" ? layout.columns : layout.rows) : 0;
-    const activeTrack = selectedTrack && selectedTrack.index < trackCount ? selectedTrack : null;
     const hasSelection = selectedBlocks.length > 0;
     const shownTab: InspectorTab = editing && tab === "selection" && hasSelection ? "selection" : "clock";
     let selectionLabel = text.selection;
@@ -94,18 +90,11 @@ export function LayoutPage({ onNavigate }: PageProps)
         {
             setSelectedIds(blockId === null ? [] : [blockId]);
         }
-        setSelectedTrack(null);
         setOpenMember(null);
         if (blockId !== null)
         {
             setTab("selection");
         }
-    }
-
-    function selectTrack(track: TrackRef | null)
-    {
-        setSelectedIds([]);
-        setSelectedTrack(track);
     }
 
     function complain(message: string)
@@ -299,8 +288,6 @@ export function LayoutPage({ onNavigate }: PageProps)
                     shaking={shaking}
                     toast={toast}
                     onSelect={select}
-                    selectedTrack={activeTrack}
-                    onSelectTrack={selectTrack}
                     onPlace={(blockId: number, rect: CellRect) => updateBlock(blockId, rect)}
                     onMerge={merge}
                     onInsert={setLayout}
