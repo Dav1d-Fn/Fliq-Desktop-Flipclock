@@ -191,3 +191,19 @@ test("reset is offered as a dangerous action that asks first", () =>
     }
     assert.equal(schema("en").actions.find((action) => action.id === "quit")?.danger, undefined);
 });
+
+test("calendar links and caches stay out of reach of the socket", () =>
+{
+    // calendarSources hold secret ICS links, calendarFeeds the events read from them.
+    const secret = ["calendarSources", "calendarFeeds"];
+    for (const key of [...secret, "weatherPlace", "savedLayouts", "activeLayoutId"])
+    {
+        assert.throws(() => checkStored(key, []), (error: unknown) => error instanceof Refusal && error.field === key, key);
+    }
+    // `settings.get` and `settings-changed` only carry the keys of these two maps.
+    const bridge = readFileSync(new URL("../src/tuxhub/TuxhubBridge.ts", import.meta.url), "utf8");
+    for (const atom of ["CALENDAR_SOURCES", "CALENDAR_FEEDS"])
+    {
+        assert.equal(bridge.includes(`ATOMS.${atom}`), false, atom);
+    }
+});
