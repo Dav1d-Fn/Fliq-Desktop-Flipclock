@@ -2,6 +2,7 @@ import { MultiSelect, NumberInput, Select, Switch, TextInput } from "@mantine/co
 import { useAtomValue } from "jotai";
 import { CALENDAR_DEFAULTS, MAX_RANGE_DAYS, type CalendarBlockSettings, type CalendarRange, type CalendarTimeStyle } from "../../../../calendar/CalendarTypes";
 import { useStrings } from "../../../../i18n/useStrings";
+import { CONTENT_LIMITS } from "../../../../layout/ClockLayout";
 import { ATOMS } from "../../../../settings/atoms";
 import type { BlockSettingsProps } from "../BlockEditors";
 import { InspectorField } from "../InspectorField";
@@ -60,6 +61,7 @@ export function CalendarSettings({ block, onChange }: BlockSettingsProps)
                     value={settings.keywords ?? ""}
                     placeholder={text.keywordsPlaceholder}
                     onChange={(event) => change({ keywords: event.currentTarget.value })}
+                    maxLength={CONTENT_LIMITS.textLength}
                 />
             </InspectorField>
 
@@ -161,6 +163,7 @@ export function CalendarSettings({ block, onChange }: BlockSettingsProps)
                         value={settings.emptyText ?? ""}
                         placeholder={emptyDefault}
                         onChange={(event) => change({ emptyText: event.currentTarget.value || undefined })}
+                        maxLength={CONTENT_LIMITS.textLength}
                     />
                 </InspectorField>
             )}

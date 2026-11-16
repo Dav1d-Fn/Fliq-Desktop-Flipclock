@@ -54,6 +54,8 @@ const SETTINGS: Record<string, Setting> = {
 
 // What Fliq stores besides the schema fields: the block layout, and the weather caches the
 // layout editor needs to draw weather blocks. Only `settings.get` returns these.
+// Calendar sources (secret ICS links) and the events read from them are left out on purpose:
+// nothing outside the settings window may read or write them (tests/tuxhub-schema.test.ts).
 const STORED_ONLY: Record<string, Setting> = {
     [LAYOUT_KEYS.layout]: ATOMS.CLOCK_LAYOUT,
     weatherReport: ATOMS.WEATHER_REPORT,
