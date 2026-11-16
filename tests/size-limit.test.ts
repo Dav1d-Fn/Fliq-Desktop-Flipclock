@@ -7,10 +7,9 @@ import { maxSizeShare, type FitMeasure } from "../src/clock/SizeLimit.ts";
 const BASE: FitMeasure = {
     spacedWidth: 100,
     unspacedWidth: 100,
-    unspacedHeight: 20,
+    height: 20,
     areaWidth: 200,
     areaHeight: 100,
-    heightShare: 1,
     heightFollows: true,
 };
 
@@ -32,14 +31,12 @@ test("positive letter spacing may reach past the block until the plain text fill
     near(maxSizeShare({ ...BASE, spacedWidth: 150 }), 1.5);
 });
 
-test("a row that does not follow the block limits by its height", () =>
+test("a block over several rows limits by its height", () =>
 {
     // Height fit 100 / 20 = 5 times, width fit 2 times: never the height limit.
     near(maxSizeShare({ ...BASE, heightFollows: false }), 1);
     // A low room: height fit 30 / 20 = 1.5 times against 2 times for the width.
     near(maxSizeShare({ ...BASE, areaHeight: 30, heightFollows: false }), 0.75);
-    // Plain text fills only part of the height.
-    near(maxSizeShare({ ...BASE, areaHeight: 50, heightShare: 0.62, heightFollows: false }), 50 * 0.62 / 20 / 2);
     // The same low room, but the row grows with the block: the height is no limit.
     near(maxSizeShare({ ...BASE, areaHeight: 30 }), 1);
 });

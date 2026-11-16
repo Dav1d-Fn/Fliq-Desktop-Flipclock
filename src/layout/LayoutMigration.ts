@@ -1,4 +1,5 @@
 import { ClockTemplate, type Segment } from "../clock/ClockTemplate.ts";
+import { HiddenSpaceMigration } from "./HiddenSpaceMigration.ts";
 import { CELL_HEIGHT, GRID_LIMITS, LayoutGrid, type ClockLayout, type GroupItem, type LayoutBlock, type TextStyle } from "./ClockLayout.ts";
 
 export interface KeyValueStorage
@@ -37,6 +38,9 @@ const OLD_TEXT_STYLES: readonly string[] = ["flip", "text", "segment", "dots", "
 
 // Set once the one block padding became a horizontal and a vertical one.
 const PADDING_SPLIT_MARKER = "paddingSplit";
+
+// Set once the space plain text and background-less padding kept hidden became settings.
+const HIDDEN_SPACE_MARKER = "hiddenSpaceRemoved";
 
 // Before the split: horizontally the padding, vertically half of it but at least this (px).
 const OLD_MIN_VERTICAL_PADDING = 4;
@@ -121,6 +125,29 @@ export class LayoutMigration
         this.convertClockKinds();
         this.convertTextStyles();
         this.splitPadding();
+        this.removeHiddenSpace();
+    }
+
+    // One-time, after every other step (they write layouts the old way): see HiddenSpaceMigration.
+    // Saved layouts too.
+    private removeHiddenSpace(): void
+    {
+        if (this.storage.getItem(HIDDEN_SPACE_MARKER) !== null)
+        {
+            return;
+        }
+        this.storage.setItem(HIDDEN_SPACE_MARKER, "true");
+        const stored = this.storage.getItem(LAYOUT_KEYS.layout);
+        if (stored !== null)
+        {
+            this.storage.setItem(LAYOUT_KEYS.layout, JSON.stringify(HiddenSpaceMigration.withoutHiddenSpace(JSON.parse(stored) as ClockLayout)));
+        }
+        const saved = this.storage.getItem(LAYOUT_KEYS.savedLayouts);
+        if (saved !== null)
+        {
+            const layouts = (JSON.parse(saved) as { layout: ClockLayout }[]).map((entry) => ({ ...entry, layout: HiddenSpaceMigration.withoutHiddenSpace(entry.layout) }));
+            this.storage.setItem(LAYOUT_KEYS.savedLayouts, JSON.stringify(layouts));
+        }
     }
 
     // One-time: the clock's digit styles became the text style every block has (a look

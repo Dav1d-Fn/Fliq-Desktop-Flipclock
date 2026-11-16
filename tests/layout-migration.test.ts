@@ -185,7 +185,7 @@ test("grid: a row is as high as its highest single-row block, empty rows keep th
     assert.equal(grid.mergedInto(1, 3, false), null);
 });
 
-test("grid: a row height override wins over its blocks, null goes back to automatic", () =>
+test("grid: a row's own height is a minimum, null goes back to automatic", () =>
 {
     const blocks: LayoutBlock[] = [
         { id: 1, kind: "clock", x: 0, y: 0, w: 2, h: 1, display: "HH:mm" },
@@ -196,11 +196,12 @@ test("grid: a row height override wins over its blocks, null goes back to automa
     const measured = { 1: 90, 2: 30 };
     assert.deepEqual(LayoutGrid.autoRowHeights(layout, measured), [90, 30, CELL_HEIGHT]);
 
-    // Lower than the block (its content scales down) and higher than an empty row.
+    // Lower than the block (the block wins, its content never shrinks) and higher than an empty row.
     const overridden = new LayoutGrid(layout).withRowHeight(0, 40);
     const raised = new LayoutGrid(overridden).withRowHeight(2, 120);
     assert.deepEqual(raised.rowHeightOverrides, [40, null, 120]);
-    assert.deepEqual(LayoutGrid.autoRowHeights(raised, measured), [40, 30, 120]);
+    assert.deepEqual(LayoutGrid.autoRowHeights(raised, measured), [90, 30, 120]);
+    assert.deepEqual(LayoutGrid.autoRowHeights(new LayoutGrid(raised).withRowHeight(1, 50), measured), [90, 50, 120]);
     assert.equal(new LayoutGrid(raised).rowHeightOverride(1), null);
 
     const reset = new LayoutGrid(raised).withRowHeight(0, null);
@@ -437,7 +438,8 @@ test("one block padding becomes horizontal and vertical padding drawn as before"
 {
     const block = (id: number, padding?: number) => ({ id, kind: "text", display: "text", x: id, y: 0, w: 1, h: 1, ...(padding !== undefined && { padding }) });
     const layout = { columns: 4, rows: 1, blocks: [block(0, 0), block(1, 6), block(2, 16), block(3)] };
-    const store = storage({ layoutMigrated: true, clockLayout: layout });
+    // Only the split, not the later move of hidden space (see HiddenSpaceMigration).
+    const store = storage({ layoutMigrated: true, hiddenSpaceRemoved: true, clockLayout: layout });
     new LayoutMigration(store).run();
     const blocks = layoutOf(store).blocks as (LayoutBlock & { padding?: number })[];
     // Old: horizontal the padding, vertical half of it but at least 4 px.
@@ -458,7 +460,7 @@ test("one block padding becomes horizontal and vertical padding drawn as before"
 test("saved layouts get their padding split too", () =>
 {
     const layout = { columns: 2, rows: 1, blocks: [{ id: 1, kind: "text", display: "text", x: 0, y: 0, w: 1, h: 1, padding: 12 }] };
-    const store = storage({ layoutMigrated: true, savedLayouts: [{ id: 1, name: "Old", layout }] });
+    const store = storage({ layoutMigrated: true, hiddenSpaceRemoved: true, savedLayouts: [{ id: 1, name: "Old", layout }] });
     new LayoutMigration(store).run();
     const saved = JSON.parse(store.getItem("savedLayouts")!) as { name: string; layout: { blocks: (LayoutBlock & { padding?: number })[] } }[];
     const migrated = saved[0].layout.blocks[0];

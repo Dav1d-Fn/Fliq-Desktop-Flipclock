@@ -120,7 +120,8 @@ export interface LayoutBlock extends ProgressFields
     cardColor?: string;
     cardRadius?: number;
     // Room between the block's edges and its content, left/right and top/bottom, in px at
-    // scale 1. Older versions stored one "padding" (see LayoutMigration.splitPadding).
+    // scale 1. Older versions stored one "padding" (see LayoutMigration.splitPadding). Unset:
+    // BLOCK_DEFAULTS with an own background, else none (see LayoutGrid.paddingOf).
     paddingX?: number;
     paddingY?: number;
     // Own card behind the block's content, in front of the clock background.
@@ -157,9 +158,9 @@ export interface ClockLayout
     columnWidth?: number;
     // Width of column i, overriding the default. null or missing: the default.
     columnWidths?: (number | null)[];
-    // Rows are as high as their highest block (autoRowHeights) unless set here: height of row
-    // i in px at scale 1, null or missing for automatic. Older versions stored rowHeight /
-    // rowHeights; those values are stale and ignored, hence the new name.
+    // Rows are as high as their highest block (autoRowHeights), at least the height set here:
+    // minimum height of row i in px at scale 1, null or missing for none. Older versions stored
+    // rowHeight / rowHeights; those values are stale and ignored, hence the new name.
     rowHeightOverrides?: (number | null)[];
     // Where lower blocks sit in row i. null or missing: center.
     rowAligns?: (RowAlign | null)[];
@@ -218,6 +219,7 @@ export const BLOCK_DEFAULTS = {
     align: "center" as BlockAlign,
     cardColor: "#1f1f1fff",
     cardRadius: 16, // % of the card width
+    // Blocks with an own background; without one, unset padding is 0 (LayoutGrid.paddingOf).
     paddingX: 8, // px at scale 1
     paddingY: 4, // px at scale 1
     backgroundColor: "#3f3f46ff",
@@ -234,14 +236,16 @@ const CONTENT_FIELDS = ["kind", "display", "customFormat", "text", "weatherIcon"
 const PLACEMENT_FIELDS = ["id", "x", "y", "w", "h"] as const;
 
 // What a new installation starts with.
-// Flip time on top, a group of date, next sun event and temperature below.
+// Flip time on top, a group of date, next sun event and temperature below. The rows' minimum
+// heights keep the room around them the earlier default had.
 export const DEFAULT_LAYOUT: ClockLayout = {
     columns: 4,
     rows: 2,
     columnGap: 0,
     rowGap: 0,
+    rowHeightOverrides: [62, 42],
     blocks: [
-        { id: 1, kind: "clock", textStyle: "flip", x: 0, y: 0, w: 4, h: 1, display: "HH:mm", cardColor: "#212121ff", paddingX: 0, paddingY: 4, letterSpacing: -0.03, textSize: 99 },
+        { id: 1, kind: "clock", textStyle: "flip", x: 0, y: 0, w: 4, h: 1, display: "HH:mm", cardColor: "#212121ff", letterSpacing: -0.03, textSize: 99 },
         {
             id: 2,
             kind: "group",
@@ -256,10 +260,8 @@ export const DEFAULT_LAYOUT: ClockLayout = {
                 { kind: "weather", display: "temp", weatherIcon: true },
             ],
             itemGap: 0.9,
-            paddingX: 0,
-            paddingY: 8,
             letterSpacing: -0.14,
-            textSize: 100,
+            textSize: 82,
         },
     ],
 };
@@ -277,25 +279,33 @@ export class LayoutGrid
         this.rowHeights = rowHeights;
     }
 
-    // Height of every row: its override if set, else the natural height of its highest
-    // single-row block (px at scale 1, keyed by block id; measured by the clock). Rows without
-    // either get CELL_HEIGHT. Blocks higher than an overridden row scale down into it.
+    // Height of every row: the natural height of its highest single-row block (px at scale 1,
+    // keyed by block id; measured by the clock), at least the row's minimum height if one is
+    // set. Rows with neither get CELL_HEIGHT. A minimum never makes a block's content smaller.
     // ponytail: blocks spanning several rows do not size rows, their content fits into what the
     // single-row blocks leave. Spread their height over the rows if layouts need it.
     static autoRowHeights(layout: ClockLayout, blockHeights: Record<number, number>): number[]
     {
         return Array.from({ length: layout.rows }, (_, row) =>
         {
-            const override = layout.rowHeightOverrides?.[row];
-            if (override !== null && override !== undefined)
-            {
-                return override;
-            }
+            const minimum = layout.rowHeightOverrides?.[row] ?? null;
             const heights = layout.blocks
                 .filter((block) => block.y === row && block.h === 1 && blockHeights[block.id] !== undefined)
                 .map((block) => blockHeights[block.id]);
-            return heights.length > 0 ? Math.max(...heights) : CELL_HEIGHT;
+            if (heights.length === 0)
+            {
+                return minimum ?? CELL_HEIGHT;
+            }
+            return Math.max(minimum ?? 0, ...heights);
         });
+    }
+
+    // Room between a block's edges and its content, in px at scale 1. Only a block with its own
+    // background keeps an edge by default; without one, space between blocks is the gaps.
+    static paddingOf(block: LayoutBlock): { x: number; y: number }
+    {
+        const fallback = block.background ? BLOCK_DEFAULTS : { paddingX: 0, paddingY: 0 };
+        return { x: block.paddingX ?? fallback.paddingX, y: block.paddingY ?? fallback.paddingY };
     }
 
     rowHeightOverride(row: number): number | null

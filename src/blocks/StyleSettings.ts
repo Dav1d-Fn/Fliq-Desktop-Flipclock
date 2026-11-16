@@ -21,7 +21,10 @@ export type StyleSetting =
     | "secondRingColor"
     | "labelSize"
     | "progressColors"
-    | "barShape";
+    | "barShape"
+    // Room between the block's own background and its content; without a background, space
+    // between blocks is only the gaps, so there is no padding to set.
+    | "padding";
 
 const TEXT_SETTINGS: StyleSetting[] = ["align", "font", "color", "letterSpacing", "textSize"];
 const LIT_SETTINGS: StyleSetting[] = ["align", "size", "glowColor"];
@@ -108,13 +111,17 @@ function itemSettings(item: GroupItem, block: LayoutBlock): StyleSetting[]
 }
 
 // The settings that change something a block shows; for a group, those of any member. The
-// size slider is "textSize" as soon as one member is text.
+// size slider is "textSize" as soon as one member is text. Padding only with an own background.
 export function settingsOf(block: LayoutBlock): Set<StyleSetting>
 {
     const settings = new Set(LayoutGrid.itemsOf(block).flatMap((item) => itemSettings(item, block)));
     if (settings.has("textSize"))
     {
         settings.delete("size");
+    }
+    if (block.background)
+    {
+        settings.add("padding");
     }
     return settings;
 }

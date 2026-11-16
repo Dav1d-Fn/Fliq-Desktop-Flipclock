@@ -21,7 +21,7 @@ interface TrackPopoverProps
     children: ReactElement;
 }
 
-// Settings of one column (width, space after it) or row (height, alignment, space after it),
+// Settings of one column (width, space after it) or row (minimum height, alignment, space after it),
 // opened from its bar on the canvas.
 export function TrackPopover({ track, opened, layout, grid, onClose, onChange, children }: TrackPopoverProps)
 {
@@ -65,12 +65,14 @@ export function TrackPopover({ track, opened, layout, grid, onClose, onChange, c
                 </InspectorField>
             );
         }
-        const overridden = grid.rowHeightOverride(track.index) !== null;
+        // The minimum where one is set (the row may be higher), else the height it has now.
+        const minimum = grid.rowHeightOverride(track.index);
+        const overridden = minimum !== null;
         return (
             <InspectorField label={text.height}>
                 <SliderControl
                     label={text.trackSize("row", number)}
-                    value={Math.round(grid.trackSize(track))}
+                    value={Math.round(minimum ?? grid.trackSize(track))}
                     onChange={(value) => onChange((current) => new LayoutGrid(current).withRowHeight(track.index, value))}
                     {...SLIDER_CONFIGS.ROW_HEIGHT}
                 />

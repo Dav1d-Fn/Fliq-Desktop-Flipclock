@@ -47,16 +47,12 @@ export function ClockInspector()
                 <InspectorField label={text.cornerRounding}>
                     <SliderControl label={text.cornerRounding} value={cornerRadius} onChange={setCornerRadius} {...SLIDER_CONFIGS.CORNER_RADIUS} />
                 </InspectorField>
-
-                <InspectorField label={text.padding}>
-                    <SliderControl label={text.padding} value={padding} onChange={setPadding} {...SLIDER_CONFIGS.PADDING} />
-                </InspectorField>
             </InspectorSection>
 
             <InspectorSection
                 id="clock-grid"
                 title={text.sectionGrid}
-                summary={text.gridSummary(grid.defaultColumnWidth(), grid.defaultGap("column"), grid.defaultGap("row"))}
+                summary={text.gridSummary(grid.defaultColumnWidth())}
                 defaultOpen={false}
             >
                 <InspectorField label={text.columnWidth} help={text.rowHeightNote}>
@@ -66,6 +62,18 @@ export function ClockInspector()
                         onChange={(columnWidth) => setLayout((current) => ({ ...current, columnWidth }))}
                         {...SLIDER_CONFIGS.COLUMN_WIDTH}
                     />
+                </InspectorField>
+            </InspectorSection>
+
+            {/* Every space between and around blocks; a block's own padding only exists with its own background. */}
+            <InspectorSection
+                id="clock-spacing"
+                title={text.sectionSpacing}
+                summary={text.spacingSummary(padding, grid.defaultGap("column"), grid.defaultGap("row"))}
+                defaultOpen={false}
+            >
+                <InspectorField label={text.padding} help={text.paddingNote}>
+                    <SliderControl label={text.padding} value={padding} onChange={setPadding} {...SLIDER_CONFIGS.PADDING} />
                 </InspectorField>
 
                 <InspectorField label={text.columnSpace} help={text.gapNote}>

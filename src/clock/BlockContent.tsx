@@ -10,6 +10,7 @@ import { CalendarSegment } from "./CalendarSegment";
 import { ClockFace } from "./faces/ClockFace";
 import { progressShare } from "./ProgressShare";
 import { StyledText } from "./StyledText";
+import { InkBounds } from "./InkBounds";
 import { maxSizeShare } from "./SizeLimit";
 import { TimeCharacters } from "./TimeCharacters";
 import type { CalendarLayout } from "../calendar/CalendarTypes";
@@ -38,11 +39,6 @@ interface BlockContentProps
 
 // Letter spacing comes from flipclockstyles.css, the same for text runs and time characters.
 const SEGMENT_STYLE: CSSProperties = { whiteSpace: "pre", display: "inline-block", unicodeBidi: "plaintext" };
-
-// Share of the block height the content may fill. Flip cards and faces fill the block; plain text stays
-// smaller, its line box has room above and below the letters anyway.
-const FLIP_HEIGHT_SHARE = 1;
-const TEXT_HEIGHT_SHARE = 0.62;
 
 const MIN_FONT_SIZE = 4;
 const FIT_TOLERANCE = 0.01;
@@ -158,13 +154,9 @@ export function BlockContent({ segments, justify, alignItems, sizeShare, heightF
         {
             return;
         }
-        const heightShare = template.fillsHeight() ? FLIP_HEIGHT_SHARE : TEXT_HEIGHT_SHARE;
+        // Flip cards and faces are as high as they are drawn; plain text is trimmed to its glyphs.
+        const trimsText = !template.fillsHeight();
         let fontSize = 20;
-
-        // Ratio that makes a measured content size fill the given share of the room's height
-        // (and all of its width).
-        const fill = (natural: DOMRect, available: DOMRect, share: number) =>
-            Math.min(available.width / natural.width, available.height * share / natural.height);
 
         // The font size comes from the content without letter spacing (times the block's text
         // size); the spacing then uses the free room and shrinks the font only when the spaced
@@ -180,23 +172,33 @@ export function BlockContent({ segments, justify, alignItems, sizeShare, heightF
             {
                 return;
             }
+            // Negative margins pull the room no glyph reaches out of the layout, so the content
+            // is placed (row alignment) and sized by its drawn glyphs. In em: they scale with the
+            // font size and stay right while it changes.
+            const trim = trimsText ? InkBounds.trim(content) : { top: 0, bottom: 0 };
+            content.style.marginTop = `${-trim.top / fontSize}em`;
+            content.style.marginBottom = `${-trim.bottom / fontSize}em`;
+            const height = unspaced.height - trim.top - trim.bottom;
+            if (height <= 0)
+            {
+                return;
+            }
             // Height at which neither the height nor the width limits the fit (letter spacing
             // only widens), per px of width. Font size cancels out, so this stays put.
             const maxShare = maxSizeShare({
                 spacedWidth: spaced.width,
                 unspacedWidth: unspaced.width,
-                unspacedHeight: unspaced.height,
+                height,
                 areaWidth: available.width,
                 areaHeight: available.height,
-                heightShare,
                 heightFollows,
             });
-            onMeasure(unspaced.height / heightShare / spaced.width, maxShare);
+            onMeasure(height / spaced.width, maxShare);
             // The text size scales the width fit only: the row height already follows it (see
             // ClockBlock), scaling the height fit too would shrink the content twice.
             // Where the height limits (row set by hand, block over several rows), the text size
             // only shrinks below maxShare; the inspector's slider ends there.
-            const ratio = Math.min(sizeShare * available.width / spaced.width, fill(unspaced, available, heightShare));
+            const ratio = Math.min(sizeShare * available.width / spaced.width, available.width / unspaced.width, available.height / height);
             if (Math.abs(ratio - 1) < FIT_TOLERANCE)
             {
                 return;
