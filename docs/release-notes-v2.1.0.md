@@ -20,6 +20,8 @@ What's New:
 
 🌍 English & German: The settings window now speaks both.
 
+🎛️ tuxhub: Read and change every Fliq setting, including the whole block layout, live over the socket — layouts are checked before they are applied, and calendar links never leave Fliq. Thanks to @SirSnolte!
+
 ⬆️ Upgrading from 2.0: Nothing to do. Fliq converts your layout and saved layouts once on the first start. Row heights and single gaps between specific rows are replaced by the new spacing model, so rows may sit a little tighter — give them air with the block padding if needed.
 
 📦 Quick Install (Fedora):
