@@ -29,15 +29,18 @@ gtk-layer-shell, X11 fallback). macOS is not shipped. Meant to grow into a widge
     for several blocks shift/ctrl-clicked on the canvas). Inspector settings sit in collapsible
     `InspectorSection`s (open/closed kept in localStorage `inspectorSections`, summary shown
     while closed); long explanations go into `InspectorField`'s `help` tooltip. Column and row bars (and the gaps after
-    them) open `TrackPopover` at the track: width or height (rows: auto unless
-    `rowHeightOverrides` is set), row alignment, gap after it. `pages/` the other pages,
+    them) open `TrackPopover` at the track: width or minimum height (rows: as high as their
+    highest block, `rowHeightOverrides` is only a minimum), row alignment, gap after it. Space
+    between blocks is only the gaps; block padding is shown (and unset defaults to 8/4) only
+    with an own background, offset sits under "Advanced". `pages/` the other pages,
     `controls/` and `layout/` shared pieces. `savedLayouts/`: `LayoutSwitcher` (header of the Layout
     page: load, save, save as new, discard) and the Clock › Saved layouts page; both through
     `useLayoutLibrary` over `SAVED_LAYOUTS`/`ACTIVE_LAYOUT_ID` (logic in `src/layout/LayoutLibrary`,
     tested). A saved layout is the `ClockLayout` only, not the whole-clock settings.
 - `src/layout/` — `ClockLayout` (block and grid shapes, `LayoutGrid`: fits, free spot, snap
-  targets, grouping; pure and tested), `LayoutMigration` (one-time move from the old two
-  template rows).
+  targets, grouping; pure and tested), `LayoutMigration` (one-time moves, from the old two
+  template rows on), `HiddenSpaceMigration` (old hidden text air and background-less padding
+  turned into text size and row minimum heights).
 - Groups: a block of kind `group` with `items` (members: kind and content fields only —
   display, custom format, text, weather icon) and `itemGap`. Every other field (text size,
   spacing, padding, offset, font, color, background, cards) is the group's look, shared by
@@ -62,7 +65,8 @@ gtk-layer-shell, X11 fallback). macOS is not shipped. Meant to grow into a widge
 - `src/clock/` — `GridClock` (container + blocks; used by clock, ghost, editor and the saved
   layout thumbnails, which wrap it in `ClockPreviewContext`: own block heights, frozen, no timers), `ClockBlock`
   (one block's box and colors; remounts its content when its segments or the language change),
-  `BlockContent` (own Tick.js root and timer per block, font size fitted to the block).
+  `BlockContent` (own Tick.js root and timer per block, font size fitted to the block; plain
+  text is trimmed to its drawn glyphs by `InkBounds`, so padding 0 means touching the edge).
   `SizeLimit` gives the text size above which the content stops growing (unspaced width,
   or the room's height when the row does not follow the block); the inspector's size slider
   ends there (`BLOCK_SIZE_LIMITS`), and a larger stored value draws (and sizes the row) like it.

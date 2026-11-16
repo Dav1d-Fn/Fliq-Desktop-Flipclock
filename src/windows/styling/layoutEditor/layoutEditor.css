@@ -1179,3 +1179,19 @@
   gap: 6px;
   padding: 4px 8px 8px;
 }
+
+/* "Advanced" inside a section: fine-tuning that stays folded away until needed. */
+.inspector-advanced {
+  margin-top: 10px;
+}
+
+.inspector-advanced > summary {
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--fliq-text-muted);
+  user-select: none;
+}
+
+.inspector-advanced[open] > summary {
+  margin-bottom: 8px;
+}

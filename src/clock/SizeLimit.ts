@@ -5,14 +5,13 @@ export interface FitMeasure
     // The content with and without its letter spacing.
     spacedWidth: number;
     unspacedWidth: number;
-    unspacedHeight: number;
+    // Height of the drawn content (plain text: its glyphs, see InkBounds).
+    height: number;
     // The room inside the block's padding.
     areaWidth: number;
     areaHeight: number;
-    // Share of the room's height the content may fill (plain text stays lower than flip cards).
-    heightShare: number;
-    // The block's row grows with its content (one row high, row height automatic): then the
-    // room's height is no limit, it follows the text size.
+    // The block's row grows with its content (one row high; a row's height setting is only its
+    // minimum): then the room's height is no limit, it follows the text size.
     heightFollows: boolean;
 }
 
@@ -26,7 +25,7 @@ export function maxSizeShare(measure: FitMeasure): number
     let limit = measure.areaWidth / measure.unspacedWidth;
     if (!measure.heightFollows)
     {
-        limit = Math.min(limit, measure.areaHeight * measure.heightShare / measure.unspacedHeight);
+        limit = Math.min(limit, measure.areaHeight / measure.height);
     }
     return limit / textSizeFit;
 }

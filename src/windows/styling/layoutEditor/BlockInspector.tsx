@@ -120,7 +120,8 @@ export function BlockInspector({ block, onChange, onRemove, onUngroup, openMembe
         lookSummary = <><ColorDot color={block.backgroundColor ?? BLOCK_DEFAULTS.backgroundColor} />{block.backgroundRadius ?? BLOCK_DEFAULTS.backgroundRadius} px</>;
     }
     const offset = block.offsetX || block.offsetY ? text.offsetSummary(block.offsetX ?? 0, block.offsetY ?? 0) : undefined;
-    const spacingSummary = joined([text.paddingSummary(block.paddingX ?? BLOCK_DEFAULTS.paddingX, block.paddingY ?? BLOCK_DEFAULTS.paddingY), offset]);
+    const padding = LayoutGrid.paddingOf(block);
+    const spacingSummary = joined([settings.has("padding") && text.paddingSummary(padding.x, padding.y), offset]);
 
     return (
         <div className="inspector-body">
@@ -266,52 +267,60 @@ export function BlockInspector({ block, onChange, onRemove, onUngroup, openMembe
                     </InspectorField>
                 )}
 
-                <InspectorField label={text.padding}>
-                    <SliderControl
-                        label={text.horizontalPadding}
-                        value={block.paddingX ?? BLOCK_DEFAULTS.paddingX}
-                        onChange={(paddingX) => onChange({ paddingX })}
-                        min={0}
-                        max={24}
-                        marks={[]}
-                        unit="px ↔"
-                    />
-                    <SliderControl
-                        label={text.verticalPadding}
-                        value={block.paddingY ?? BLOCK_DEFAULTS.paddingY}
-                        onChange={(paddingY) => onChange({ paddingY })}
-                        min={0}
-                        max={24}
-                        marks={[]}
-                        unit="px ↕"
-                    />
-                </InspectorField>
+                {settings.has("padding")
+                    ? (
+                        <InspectorField label={text.padding} help={text.paddingNote}>
+                            <SliderControl
+                                label={text.horizontalPadding}
+                                value={padding.x}
+                                onChange={(paddingX) => onChange({ paddingX })}
+                                min={0}
+                                max={24}
+                                marks={[]}
+                                unit="px ↔"
+                            />
+                            <SliderControl
+                                label={text.verticalPadding}
+                                value={padding.y}
+                                onChange={(paddingY) => onChange({ paddingY })}
+                                min={0}
+                                max={24}
+                                marks={[]}
+                                unit="px ↕"
+                            />
+                        </InspectorField>
+                    )
+                    : <p className="inspector-note">{text.gapsNote}</p>}
 
-                <InspectorField label={text.offset}>
-                    <SliderControl
-                        label={text.horizontalOffset}
-                        value={block.offsetX ?? 0}
-                        onChange={(offsetX) => onChange({ offsetX })}
-                        min={-64}
-                        max={64}
-                        marks={[]}
-                        unit="px →"
-                    />
-                    <SliderControl
-                        label={text.verticalOffset}
-                        value={block.offsetY ?? 0}
-                        onChange={(offsetY) => onChange({ offsetY })}
-                        min={-64}
-                        max={64}
-                        marks={[]}
-                        unit="px ↓"
-                    />
-                    {(block.offsetX || block.offsetY) ? (
-                        <Button variant="subtle" size="compact-xs" onClick={() => onChange({ offsetX: undefined, offsetY: undefined })}>
-                            {text.resetOffset}
-                        </Button>
-                    ) : null}
-                </InspectorField>
+                {/* Open from the start while an offset is set, so it is never hidden. */}
+                <details className="inspector-advanced" open={Boolean(offset) || undefined}>
+                    <summary>{text.advanced}</summary>
+                    <InspectorField label={text.offset} help={text.offsetNote}>
+                        <SliderControl
+                            label={text.horizontalOffset}
+                            value={block.offsetX ?? 0}
+                            onChange={(offsetX) => onChange({ offsetX })}
+                            min={-64}
+                            max={64}
+                            marks={[]}
+                            unit="px →"
+                        />
+                        <SliderControl
+                            label={text.verticalOffset}
+                            value={block.offsetY ?? 0}
+                            onChange={(offsetY) => onChange({ offsetY })}
+                            min={-64}
+                            max={64}
+                            marks={[]}
+                            unit="px ↓"
+                        />
+                        {offset ? (
+                            <Button variant="subtle" size="compact-xs" onClick={() => onChange({ offsetX: undefined, offsetY: undefined })}>
+                                {text.resetOffset}
+                            </Button>
+                        ) : null}
+                    </InspectorField>
+                </details>
             </InspectorSection>
 
             {block.kind === "group" && (

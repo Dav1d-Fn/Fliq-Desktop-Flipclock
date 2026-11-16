@@ -2,7 +2,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { settingsOf, STYLE_COLOR_FIELDS, withClockStyle, withTextStyle } from "../src/blocks/StyleSettings.ts";
-import type { LayoutBlock } from "../src/layout/ClockLayout.ts";
+import { LayoutGrid, type LayoutBlock } from "../src/layout/ClockLayout.ts";
 
 function clock(extra: Partial<LayoutBlock>): LayoutBlock
 {
@@ -84,4 +84,14 @@ test("picking a text style: a clock goes back to digits, a group's members share
     assert.equal(patch.iconStyle, "flat", "LCD suggests flat icons");
     assert.equal(withTextStyle({ ...group, iconStyle: "colored" }, "segment").iconStyle, undefined, "a chosen icon style stays");
     assert.equal(withTextStyle(group, "nixie").iconStyle, undefined);
+});
+
+test("padding is only a setting with an own background, where it keeps the defaults", () =>
+{
+    assert.equal(settingsOf(clock({ paddingX: 6 })).has("padding"), false);
+    assert.equal(settingsOf(clock({ background: true })).has("padding"), true);
+    assert.deepEqual(LayoutGrid.paddingOf(clock({})), { x: 0, y: 0 });
+    assert.deepEqual(LayoutGrid.paddingOf(clock({ background: true })), { x: 8, y: 4 });
+    // A value stored before the cleanup keeps working without a background.
+    assert.deepEqual(LayoutGrid.paddingOf(clock({ paddingY: 4 })), { x: 0, y: 4 });
 });

@@ -1,7 +1,7 @@
 import { CSSProperties, useEffect, useMemo, useState } from "react";
 import { useSetAtom } from "jotai";
 import { blockDefinition } from "../blocks/BlockRegistry";
-import { BLOCK_DEFAULTS, isProgressBar, type LayoutBlock, type PixelRect, type RowAlign } from "../layout/ClockLayout";
+import { BLOCK_DEFAULTS, isProgressBar, LayoutGrid, type LayoutBlock, type PixelRect, type RowAlign } from "../layout/ClockLayout";
 import { BlockContent } from "./BlockContent";
 import { useClockPreview } from "./ClockPreview";
 import { BLOCK_SIZE_LIMITS } from "./useLayoutGrid";
@@ -13,7 +13,7 @@ interface ClockBlockProps
     rect: PixelRect;
     scale: number;
     rowAlign: RowAlign;
-    // The block's row grows with its content: one row high, row height automatic.
+    // The block's row grows with its content: one row high (a row's height is only a minimum).
     heightFollows: boolean;
     language: string;
     // Extra style from the editor (lift, transitions, animations).
@@ -56,8 +56,9 @@ export function ClockBlock({ block, rect, scale, rowAlign, heightFollows, langua
     const setBlockHeights = useSetAtom(preview.blockHeights);
     const setSizeLimits = useSetAtom(BLOCK_SIZE_LIMITS);
 
-    const padding = (block.paddingX ?? BLOCK_DEFAULTS.paddingX) * scale;
-    const verticalPadding = (block.paddingY ?? BLOCK_DEFAULTS.paddingY) * scale;
+    const blockPadding = LayoutGrid.paddingOf(block);
+    const padding = blockPadding.x * scale;
+    const verticalPadding = blockPadding.y * scale;
     const cardRadius = block.cardRadius ?? BLOCK_DEFAULTS.cardRadius;
     const sizeShare = (block.textSize ?? 100) / 100;
     // A stored text size above the limit draws like the limit, the row included.
