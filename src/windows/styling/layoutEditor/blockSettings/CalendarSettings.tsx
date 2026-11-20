@@ -6,6 +6,7 @@ import { CONTENT_LIMITS } from "../../../../layout/ClockLayout";
 import { ATOMS } from "../../../../settings/atoms";
 import type { BlockSettingsProps } from "../BlockEditors";
 import { InspectorField } from "../InspectorField";
+import { InspectorGroup } from "../InspectorGroup";
 
 // Evening switch hour a block starts with when it is turned on.
 const DEFAULT_EVENING_HOUR = 18;
@@ -134,27 +135,28 @@ export function CalendarSettings({ block, onChange }: BlockSettingsProps)
                 </div>
             </InspectorField>
 
-            <Switch
-                mt={16}
-                label={text.allDay}
-                checked={settings.allDay ?? CALENDAR_DEFAULTS.allDay}
-                onChange={(event) => change({ allDay: event.currentTarget.checked })}
-            />
-            {layout !== "week" && (
+            <InspectorGroup>
+                <Switch
+                    label={text.allDay}
+                    checked={settings.allDay ?? CALENDAR_DEFAULTS.allDay}
+                    onChange={(event) => change({ allDay: event.currentTarget.checked })}
+                />
+                {layout !== "week" && (
+                    <Switch
+                        mt={12}
+                        label={text.icons}
+                        description={text.iconsHelp}
+                        checked={settings.icons ?? CALENDAR_DEFAULTS.icons}
+                        onChange={(event) => change({ icons: event.currentTarget.checked })}
+                    />
+                )}
                 <Switch
                     mt={12}
-                    label={text.icons}
-                    description={text.iconsHelp}
-                    checked={settings.icons ?? CALENDAR_DEFAULTS.icons}
-                    onChange={(event) => change({ icons: event.currentTarget.checked })}
+                    label={text.colorDot}
+                    checked={settings.colorDot ?? CALENDAR_DEFAULTS.colorDot}
+                    onChange={(event) => change({ colorDot: event.currentTarget.checked })}
                 />
-            )}
-            <Switch
-                mt={12}
-                label={text.colorDot}
-                checked={settings.colorDot ?? CALENDAR_DEFAULTS.colorDot}
-                onChange={(event) => change({ colorDot: event.currentTarget.checked })}
-            />
+            </InspectorGroup>
 
             {layout !== "week" && (
                 <InspectorField label={text.emptyText} htmlFor="calendar-empty">

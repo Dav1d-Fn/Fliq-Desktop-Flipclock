@@ -65,9 +65,9 @@ test("values that are not a layout are refused", () =>
 
 test("the grid size has to stay inside the limits", () =>
 {
-    assert.ok(refused(layoutWith((layout) => (layout.columns = 9))));
+    assert.ok(refused(layoutWith((layout) => (layout.columns = GRID_LIMITS.maxColumns + 1))));
     assert.ok(refused(layoutWith((layout) => (layout.columns = 1))));
-    assert.ok(refused(layoutWith((layout) => (layout.rows = 5))));
+    assert.ok(refused(layoutWith((layout) => (layout.rows = GRID_LIMITS.maxRows + 1))));
     assert.ok(refused(layoutWith((layout) => (layout.rows = 0))));
     assert.ok(refused(layoutWith((layout) => (layout.columns = 4.5))));
     assert.ok(refused(layoutWith((layout) => (layout.rows = "2"))));
@@ -170,6 +170,9 @@ test("choices are checked against their lists", () =>
     assert.ok(refused(layoutWith((layout) => (layout.rowAlign = "middle"))));
     assert.ok(refused(layoutWith((layout) => (layout.blocks[0].clockStyle = "sundial"))));
     assert.ok(refused(layoutWith((layout) => (layout.blocks[0].textStyle = "braille"))));
+    assert.ok(refused(layoutWith((layout) => (layout.blocks[0].effect = "strobe"))));
+    assert.ok(refused(layoutWith((layout) => (layout.blocks[0].effectVariant = "diagonal"))));
+    assert.ok(refused(layoutWith((layout) => (layout.blocks[0].effectSpeed = 0))));
     assert.ok(refused(layoutWith((layout) => (layout.blocks[0].progressUnit = "week"))));
     assert.ok(refused(layoutWith((layout) => (layout.blocks[1].iconStyle = "3d"))));
     assert.ok(refused(layoutWith((layout) => (layout.blocks[1].calendar = { range: "year" }))));
@@ -289,6 +292,10 @@ function editorLayouts(): ClockLayout[]
         align: "left",
         iconStyle: "flat",
         flipUnit: "word",
+        effect: "warmup",
+        effectSpeed: 150,
+        effectStrength: 80,
+        effectVariant: "instant",
         font: "\"JetBrains Mono Variable\", monospace",
         color: "#fafafaff",
         glowColor: "#ff8800ff",

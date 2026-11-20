@@ -5,13 +5,14 @@ import type { BlockSettingsProps } from "../BlockEditors";
 import { ColorSwatches } from "../ColorSwatches";
 import { CARD_SWATCHES } from "../EditorSwatches";
 import { InspectorField } from "../InspectorField";
+import { InspectorGroup } from "../InspectorGroup";
 
 export function FlipCardSettings({ block, onChange }: BlockSettingsProps)
 {
     const text = useStrings().blockInspector;
 
     return (
-        <>
+        <InspectorGroup>
             <InspectorField label={text.cardColor}>
                 <ColorSwatches
                     label={text.cardColor}
@@ -31,6 +32,6 @@ export function FlipCardSettings({ block, onChange }: BlockSettingsProps)
                     unit="%"
                 />
             </InspectorField>
-        </>
+        </InspectorGroup>
     );
 }

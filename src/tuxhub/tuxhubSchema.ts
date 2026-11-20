@@ -60,6 +60,17 @@ const SECTIONS: { id: string; label: Text; fields: FieldDef[] }[] = [
                 help: { en: "Language of the settings window and the right-click menu.", de: "Sprache des Einstellungsfensters und des Rechtsklick-Menüs." },
                 options: UI_LANGUAGE_OPTIONS.map((language) => ({ value: language.value, label: same(language.label) })),
             },
+            {
+                key: "settingsColorScheme",
+                type: "select",
+                label: { en: "Settings theme", de: "Design der Einstellungen" },
+                help: { en: "Light or dark settings window. The clock stays as it is.", de: "Helles oder dunkles Einstellungsfenster. Die Uhr bleibt, wie sie ist." },
+                options: [
+                    { value: "light", label: { en: "Light", de: "Hell" } },
+                    { value: "dark", label: { en: "Dark", de: "Dunkel" } },
+                    { value: "auto", label: same("System") },
+                ],
+            },
             number("clockScale", { en: "Size", de: "Größe" }, SLIDER_CONFIGS.SCALE),
             { key: "boxBackgroundColor", type: "color", label: { en: "Background color", de: "Hintergrundfarbe" } },
             number("clockCornerRadius", { en: "Corner rounding", de: "Eckenrundung" }, SLIDER_CONFIGS.CORNER_RADIUS),

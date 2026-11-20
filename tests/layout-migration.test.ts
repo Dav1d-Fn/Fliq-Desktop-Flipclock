@@ -101,6 +101,28 @@ test("grid: shrinking cuts blocks back and moves the ones left outside", () =>
     assert.equal(new LayoutGrid(layout).resized(4, 1), null);
 });
 
+test("grid: one row less drops an empty row first, else the last row with its blocks", () =>
+{
+    const layout: ClockLayout = {
+        columns: 4,
+        rows: 3,
+        blocks: [
+            { id: 1, kind: "clock", x: 0, y: 0, w: 2, h: 3, display: "HH:mm" },
+            { id: 2, kind: "date", x: 2, y: 0, w: 2, h: 1, display: "date" },
+            { id: 3, kind: "text", x: 2, y: 2, w: 2, h: 1, display: "text" },
+        ],
+    };
+    // The tall clock covers every row, so none is empty: the last goes, with block 3.
+    const lastRowGone = new LayoutGrid(layout).withOneRowLess()!;
+    assert.equal(lastRowGone.rows, 2);
+    assert.deepEqual(lastRowGone.blocks.map((block) => [block.id, block.y, block.h]), [[1, 0, 2], [2, 0, 1]]);
+    // A one-row clock leaves row 1 empty: it goes, and block 3 moves up.
+    const shortClock = { ...layout, blocks: [{ ...layout.blocks[0], h: 1 }, layout.blocks[1], layout.blocks[2]] };
+    const emptyRowGone = new LayoutGrid(shortClock).withOneRowLess()!;
+    assert.deepEqual(emptyRowGone.blocks.map((block) => [block.id, block.y]), [[1, 0], [2, 0], [3, 1]]);
+    assert.equal(new LayoutGrid({ ...layout, rows: 1, blocks: [] }).withOneRowLess(), null);
+});
+
 test("grid: one gap per axis moves cells, size and snapping; missing gaps use 2 px", () =>
 {
     const layout: ClockLayout = {

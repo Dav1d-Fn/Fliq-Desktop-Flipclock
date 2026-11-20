@@ -1,10 +1,15 @@
 import { CSSProperties, MouseEvent, PointerEvent, useEffect, useRef, useState } from "react";
 import { useAtomValue } from "jotai";
+import { IconX } from "@tabler/icons-react";
+import { blockDefinition } from "../../../blocks/BlockRegistry";
 import GridClock from "../../../clock/GridClock";
 import { BLOCK_HEIGHTS, useLayoutGrid } from "../../../clock/useLayoutGrid";
-import { LayoutGrid, type CellRect, type ClockLayout, type DropZone, type LayoutBlock, type PixelRect } from "../../../layout/ClockLayout";
+import { GRID_LIMITS, LayoutGrid, type BlockKind, type CellRect, type ClockLayout, type DropZone, type LayoutBlock, type PixelRect } from "../../../layout/ClockLayout";
 import { useStrings } from "../../../i18n/useStrings";
 import { ATOMS } from "../../../settings/atoms";
+import { BlockPalette } from "./BlockPalette";
+import { BLOCK_EDITORS } from "./BlockEditors";
+import { GridStepper } from "./GridStepper";
 import { MemberMenu } from "./MemberMenu";
 import { SLIDER_CONFIGS } from "../../../settings/options";
 
@@ -24,6 +29,32 @@ interface Drag
     // Where the pointer grabbed the block, in px at scale 1 from its top left corner.
     grabX: number;
     grabY: number;
+    // A moved block whose pointer left the clock: no target on the grid, the remove target
+    // shows (and the pointer is over it).
+    outside: boolean;
+    overTrash: boolean;
+}
+
+// A block kind pressed in the palette: a drag onto the clock once the pointer travelled.
+interface PaletteDrag
+{
+    kind: BlockKind;
+    startX: number;
+    startY: number;
+    clientX: number;
+    clientY: number;
+    moved: boolean;
+    // Pointer on the grid in px at scale 1; null outside the clock.
+    point: { x: number; y: number } | null;
+}
+
+// Where a move, resize or new block lands: its cells, and the layout dropping there gives (null
+// while the cells are taken). `makesRoom`: blocks in the way shrink for it.
+interface Landing
+{
+    rect: CellRect;
+    layout: ClockLayout | null;
+    makesRoom: boolean;
 }
 
 // The group member a right-click opened the menu for; x/y in px inside the canvas.
@@ -57,10 +88,17 @@ interface LayoutCanvasProps
     toast: string | null;
     // `additive`: shift/ctrl-click, adds the block to the selection or takes it out.
     onSelect: (blockId: number | null, additive?: boolean) => void;
-    onPlace: (blockId: number, rect: CellRect) => void;
+    // A palette button clicked: the kind goes on the next free spot.
+    onAddKind: (kind: BlockKind) => void;
+    // A palette kind dropped onto the clock: the layout with it (`blockId`) in place.
+    onAddBlock: (layout: ClockLayout, blockId: number) => void;
+    // A block dropped onto the remove target below the clock.
+    onRemove: (blockId: number) => void;
+    onResizeGrid: (columns: number, rows: number) => void;
     // A block dropped onto another: they become a group, or it joins the target group.
     onMerge: (targetId: number, droppedId: number, before: boolean) => void;
-    // A block dropped near another's edge: it slides in there, the line makes room.
+    // A block dropped near another's edge (it slides in there, the line makes room) or on free
+    // cells, or moved or resized where neighbours shrink for it.
     onInsert: (layout: ClockLayout) => void;
     // A column's width dragged on its edge, or reset with a double-click.
     onChange: (update: (current: ClockLayout) => ClockLayout) => void;
@@ -72,8 +110,18 @@ interface LayoutCanvasProps
 
 const SPRING = "cubic-bezier(.34,1.45,.64,1)";
 const CLICK_TOLERANCE = 4;
-// Room kept free around the clock inside the canvas, in px.
-const CANVAS_MARGIN = 48;
+// Room kept free around the clock inside the canvas, in px: the row stepper on the right and
+// the column stepper above need it, the other sides mirror them so the clock stays centered.
+const CANVAS_MARGIN = 120;
+// Space between the clock's edge (above: the column grips) and its row and column steppers, in px.
+const STEPPER_GAP = 12;
+// The round remove target at the bottom of the canvas: its size and distance to the bottom, and
+// how far around it a drop still counts, in px.
+const TRASH_SIZE = 56;
+const TRASH_BOTTOM = 18;
+const TRASH_REACH = 14;
+// Sizes a new block from the palette tries on the cells it is dropped on, after its own.
+const SMALLER_SIZES = [{ w: 2, h: 1 }, { w: 1, h: 1 }];
 // Smallest size a block shrinks to while its edge is pulled, in px at scale 1.
 const MIN_LIVE_WIDTH = 40;
 const MIN_LIVE_HEIGHT = 36;
@@ -97,10 +145,14 @@ interface ColumnDrag
 // snap ghost, one hit box per block with its resize handles).
 export function LayoutCanvas(props: LayoutCanvasProps)
 {
-    const { layout, editing, selectedIds, poppingId, removingIds, shaking, toast, onSelect, onPlace, onMerge, onInsert, onChange, onMoveMember, onDetachMember, onOpenMember } = props;
+    const { layout, editing, selectedIds, poppingId, removingIds, shaking, toast, onSelect, onAddKind, onAddBlock, onRemove, onResizeGrid, onMerge, onInsert, onChange, onMoveMember, onDetachMember, onOpenMember } = props;
     const padding = useAtomValue(ATOMS.CLOCK_PADDING);
     const strings = useStrings();
     const stageRef = useRef<HTMLDivElement>(null);
+    const layerRef = useRef<HTMLDivElement>(null);
+    const [paletteDrag, setPaletteDrag] = useState<PaletteDrag | null>(null);
+    // Set when a palette press turned into a drag, so the click that may follow adds nothing.
+    const paletteDragged = useRef(false);
     const [scale, setScale] = useState(1);
     const [drag, setDrag] = useState<Drag | null>(null);
     const [columnDrag, setColumnDrag] = useState<ColumnDrag | null>(null);
@@ -193,6 +245,84 @@ export function LayoutCanvas(props: LayoutCanvasProps)
 
     const draggedBlock = drag ? layout.blocks.find((block) => block.id === drag.blockId) : undefined;
 
+    // The pointer on the grid in px at scale 1, or null while it is outside the clock box.
+    function gridPoint(clientX: number, clientY: number): { x: number; y: number } | null
+    {
+        const layer = layerRef.current?.getBoundingClientRect();
+        if (!layer)
+        {
+            return null;
+        }
+        const edge = padding * scale;
+        const inside = clientX >= layer.left - edge && clientX <= layer.right + edge && clientY >= layer.top - edge && clientY <= layer.bottom + edge;
+        return inside ? { x: (clientX - layer.left) / scale, y: (clientY - layer.top) / scale } : null;
+    }
+
+    // True when the pointer is on the remove target (or close to it).
+    function overTrash(clientX: number, clientY: number): boolean
+    {
+        const stage = stageRef.current?.getBoundingClientRect();
+        if (!stage)
+        {
+            return false;
+        }
+        const centerX = stage.left + stage.width / 2;
+        const centerY = stage.bottom - TRASH_BOTTOM - TRASH_SIZE / 2;
+        return Math.hypot(clientX - centerX, clientY - centerY) <= TRASH_SIZE / 2 + TRASH_REACH;
+    }
+
+    // Cells for `rect`, with the blocks in the way shrunk when they can give way.
+    function landingAt(rect: CellRect, ignoredId: number | null): Landing
+    {
+        const room = grid.withRoomFor(rect, ignoredId);
+        return { rect, layout: room, makesRoom: room !== null && !grid.fits(rect, ignoredId) };
+    }
+
+    // A moved block on free cells (or where neighbours shrink), or a resized one. None while a
+    // moved block hovers another (`dropTarget` decides then) or is outside the clock.
+    function blockLanding(current: Drag | null, dragged: LayoutBlock | undefined): Landing | null
+    {
+        if (!current || !dragged || !current.moved || current.outside)
+        {
+            return null;
+        }
+        const landing = landingAt(target(dragged, current), dragged.id);
+        const placed = landing.layout && {
+            ...landing.layout,
+            blocks: landing.layout.blocks.map((block) => (block.id === dragged.id ? { ...block, ...landing.rect } : block)),
+        };
+        return { ...landing, layout: placed };
+    }
+
+    // A palette kind over the clock, centered on the pointer: the first of its own size, 2 x 1
+    // and 1 x 1 that finds free cells there; failing that, the first its neighbours can shrink for.
+    function paletteLanding(current: PaletteDrag | null): Landing | null
+    {
+        if (!current?.moved || !current.point)
+        {
+            return null;
+        }
+        const point = current.point;
+        const definition = blockDefinition(current.kind);
+        const sizes = [definition.defaultSize, ...SMALLER_SIZES].filter((size) => size.w <= layout.columns && size.h <= layout.rows);
+        const candidates = sizes.map((size) =>
+        {
+            const block: LayoutBlock = { id: grid.nextBlockId(), kind: current.kind, ...definition.defaults, x: 0, y: 0, ...size };
+            const extent = grid.pixelRect(block, 1);
+            const rect = grid.moveTarget(block, point.x - extent.width / 2, point.y - extent.height / 2);
+            return { block: { ...block, ...rect }, landing: landingAt(rect, null) };
+        });
+        const chosen = candidates.find((candidate) => candidate.landing.layout && !candidate.landing.makesRoom)
+            ?? candidates.find((candidate) => candidate.landing.layout)
+            ?? candidates[0];
+        if (!chosen)
+        {
+            return null;
+        }
+        const { block, landing } = chosen;
+        return { ...landing, layout: landing.layout && { ...landing.layout, blocks: [...landing.layout.blocks, block] } };
+    }
+
     // The block under the pointer while one is moved, if any, and what dropping there does.
     function dropTarget(current: Drag | null): DropTarget | null
     {
@@ -234,10 +364,12 @@ export function LayoutCanvas(props: LayoutCanvasProps)
 
     const drop = dropTarget(drag);
     const merge = drop?.zone === "group" ? drop : null;
-    // While a block hovers near another's edge, the others already stand where they would go
-    // (and as wide, when the line had to shrink), drawn on the grid of that layout.
-    const preview = drop?.inserted ? new Map(drop.inserted.blocks.map((block) => [block.id, block])) : null;
-    const previewGrid = drop?.inserted ? new LayoutGrid(drop.inserted, LayoutGrid.autoRowHeights(drop.inserted, blockHeights)) : grid;
+    const landing = drop ? null : blockLanding(drag, draggedBlock) ?? paletteLanding(paletteDrag);
+    // While a block hovers near another's edge, or neighbours shrink to make room, the others
+    // already stand where they would go (and as wide), drawn on the grid of that layout.
+    const previewLayout = drop?.inserted ?? (landing?.makesRoom ? landing.layout : null);
+    const preview = previewLayout ? new Map(previewLayout.blocks.map((block) => [block.id, block])) : null;
+    const previewGrid = previewLayout ? new LayoutGrid(previewLayout, LayoutGrid.autoRowHeights(previewLayout, blockHeights)) : grid;
 
     function target(block: LayoutBlock, current: Drag): CellRect
     {
@@ -297,7 +429,7 @@ export function LayoutCanvas(props: LayoutCanvasProps)
             // Over a merge target the dragged block goes below the editor layer (z-index 5),
             // so the "Drop to group" hint shows on top.
             zIndex: isLive(block) ? (merge ? 4 : 10) : selectedIds.includes(block.id) ? 3 : 2,
-            opacity: isLive(block) && merge ? 0.6 : 1,
+            opacity: isLive(block) && (merge || drag?.overTrash) ? 0.6 : 1,
         };
     }
 
@@ -336,6 +468,8 @@ export function LayoutCanvas(props: LayoutCanvasProps)
             moved: false,
             grabX: (event.clientX - grabbed.left) / scale,
             grabY: (event.clientY - grabbed.top) / scale,
+            outside: false,
+            overTrash: false,
         });
     }
 
@@ -348,12 +482,18 @@ export function LayoutCanvas(props: LayoutCanvasProps)
         const deltaX = (event.clientX - drag.startX) / scale;
         const deltaY = (event.clientY - drag.startY) / scale;
         const moved = drag.moved || Math.abs(deltaX) + Math.abs(deltaY) > CLICK_TOLERANCE;
-        setDrag({ ...drag, deltaX, deltaY, moved });
+        const outside = moved && drag.mode === "move" && gridPoint(event.clientX, event.clientY) === null;
+        setDrag({ ...drag, deltaX, deltaY, moved, outside, overTrash: outside && overTrash(event.clientX, event.clientY) });
     }
 
+    // Dropped outside the clock: removed on the remove target, back to its cells anywhere else.
     function endDrag()
     {
-        if (merge && draggedBlock)
+        if (drag?.overTrash && draggedBlock)
+        {
+            onRemove(draggedBlock.id);
+        }
+        else if (merge && draggedBlock)
         {
             onMerge(merge.block.id, draggedBlock.id, merge.before);
         }
@@ -361,24 +501,57 @@ export function LayoutCanvas(props: LayoutCanvasProps)
         {
             onInsert(drop.inserted);
         }
-        else if (drag?.moved && draggedBlock)
+        else if (landing?.layout)
         {
-            const rect = target(draggedBlock, drag);
-            if (grid.fits(rect, draggedBlock.id))
-            {
-                onPlace(draggedBlock.id, rect);
-            }
+            onInsert(landing.layout);
         }
         setDrag(null);
     }
 
+    function pressPalette(kind: BlockKind, event: PointerEvent<HTMLButtonElement>)
+    {
+        paletteDragged.current = false;
+        if (event.button !== 0)
+        {
+            return;
+        }
+        event.currentTarget.setPointerCapture(event.pointerId);
+        setPaletteDrag({ kind, startX: event.clientX, startY: event.clientY, clientX: event.clientX, clientY: event.clientY, moved: false, point: null });
+    }
+
+    function movePalette(event: PointerEvent<HTMLButtonElement>)
+    {
+        if (!paletteDrag)
+        {
+            return;
+        }
+        const travel = Math.abs(event.clientX - paletteDrag.startX) + Math.abs(event.clientY - paletteDrag.startY);
+        const moved = paletteDrag.moved || travel > CLICK_TOLERANCE;
+        paletteDragged.current = moved;
+        setPaletteDrag({ ...paletteDrag, clientX: event.clientX, clientY: event.clientY, moved, point: gridPoint(event.clientX, event.clientY) });
+    }
+
+    function endPalette()
+    {
+        if (landing?.layout && paletteDrag)
+        {
+            onAddBlock(landing.layout, grid.nextBlockId());
+        }
+        setPaletteDrag(null);
+    }
+
+    function clickPalette(kind: BlockKind)
+    {
+        if (!paletteDragged.current)
+        {
+            onAddKind(kind);
+        }
+        paletteDragged.current = false;
+    }
+
     function renderGhost()
     {
-        if (!drag?.moved || !draggedBlock)
-        {
-            return null;
-        }
-        if (merge)
+        if (merge && draggedBlock)
         {
             return (
                 <div className="snap-ghost merge" style={{ ...grid.pixelRect(merge.block, scale), borderRadius: 10 * scale }}>
@@ -386,23 +559,29 @@ export function LayoutCanvas(props: LayoutCanvasProps)
                 </div>
             );
         }
-        if (preview)
+        if (drop?.inserted && draggedBlock)
         {
             return (
-                <div className="snap-ghost" style={{ ...previewGrid.pixelRect(preview.get(draggedBlock.id)!, scale), borderRadius: 10 * scale }}>
-                    <span>{drop?.zone === "above" || drop?.zone === "below" ? strings.canvas.dropToNewRow : strings.canvas.dropToSlideIn}</span>
+                <div className="snap-ghost" style={{ ...previewGrid.pixelRect(preview?.get(draggedBlock.id) ?? draggedBlock, scale), borderRadius: 10 * scale }}>
+                    <span>{drop.zone === "above" || drop.zone === "below" ? strings.canvas.dropToNewRow : strings.canvas.dropToSlideIn}</span>
                 </div>
             );
         }
-        const rect = target(draggedBlock, drag);
-        const valid = grid.fits(rect, draggedBlock.id);
-        let label = strings.canvas.occupied;
-        if (valid)
+        if (!landing)
         {
-            label = drag.mode === "move" ? strings.canvas.dropHere : `${rect.w} × ${rect.h}`;
+            return null;
+        }
+        let label = strings.canvas.occupied;
+        if (landing.makesRoom)
+        {
+            label = strings.canvas.dropToMakeRoom;
+        }
+        else if (landing.layout)
+        {
+            label = drag?.mode === "move" || paletteDrag ? strings.canvas.dropHere : `${landing.rect.w} × ${landing.rect.h}`;
         }
         return (
-            <div className={valid ? "snap-ghost" : "snap-ghost occupied"} style={{ ...grid.pixelRect(rect, scale), borderRadius: 10 * scale }}>
+            <div className={landing.layout ? "snap-ghost" : "snap-ghost occupied"} style={{ ...previewGrid.pixelRect(landing.rect, scale), borderRadius: 10 * scale }}>
                 <span>{label}</span>
             </div>
         );
@@ -487,6 +666,7 @@ export function LayoutCanvas(props: LayoutCanvasProps)
 
     const overlay = (
         <div
+            ref={layerRef}
             className="editor-layer"
             style={{ pointerEvents: editing ? "auto" : "none" }}
             onPointerDown={() => editing && onSelect(null)}
@@ -522,39 +702,91 @@ export function LayoutCanvas(props: LayoutCanvasProps)
         </div>
     );
 
+    // The clock box on the canvas, for the steppers at its edges.
+    const clockWidth = (gridSize.width + 2 * padding) * scale;
+    const clockHeight = (gridSize.height + 2 * padding) * scale;
+    const dragging = drag?.moved || paletteDrag?.moved;
+    const PaletteIcon = paletteDrag?.moved ? BLOCK_EDITORS[paletteDrag.kind].icon : null;
+
     return (
-        <div className="layout-canvas" ref={stageRef}>
-            <GridClock
-                layout={layout}
-                scale={scale}
-                blockRect={blockRect}
-                blockStyle={blockStyle}
-                underlay={renderCells()}
-                overlay={overlay}
-                style={{
-                    boxShadow: "0 18px 40px rgba(16,24,40,0.18)",
-                    animation: shaking ? "fliq-shake .42s ease-in-out" : "none",
-                    transition: "background .3s, border-radius .25s, padding .3s",
-                }}
-            />
-            {memberHighlight && <div className="member-highlight" style={memberHighlight} />}
-            {menuOpen && memberTarget && (
-                <MemberMenu
-                    x={memberTarget.x}
-                    y={memberTarget.y}
-                    index={memberTarget.index}
-                    count={menuCount}
-                    onMove={(step) =>
-                    {
-                        onMoveMember(memberTarget.groupId, memberTarget.index, step);
-                        setMemberTarget({ ...memberTarget, index: memberTarget.index + step });
+        <>
+            <BlockPalette onAdd={clickPalette} onPress={pressPalette} onMove={movePalette} onRelease={endPalette} />
+            <div className="layout-canvas" ref={stageRef}>
+                <GridClock
+                    layout={layout}
+                    scale={scale}
+                    blockRect={blockRect}
+                    blockStyle={blockStyle}
+                    underlay={renderCells()}
+                    overlay={overlay}
+                    style={{
+                        boxShadow: "0 18px 40px rgba(16,24,40,0.18)",
+                        animation: shaking ? "fliq-shake .42s ease-in-out" : "none",
+                        transition: "background .3s, border-radius .25s, padding .3s",
                     }}
-                    onDetach={() => onDetachMember(memberTarget.groupId, memberTarget.index)}
-                    onSettings={() => onOpenMember(memberTarget.groupId, memberTarget.index)}
-                    onClose={() => setMemberTarget(null)}
                 />
+                {memberHighlight && <div className="member-highlight" style={memberHighlight} />}
+                {menuOpen && memberTarget && (
+                    <MemberMenu
+                        x={memberTarget.x}
+                        y={memberTarget.y}
+                        index={memberTarget.index}
+                        count={menuCount}
+                        onMove={(step) =>
+                        {
+                            onMoveMember(memberTarget.groupId, memberTarget.index, step);
+                            setMemberTarget({ ...memberTarget, index: memberTarget.index + step });
+                        }}
+                        onDetach={() => onDetachMember(memberTarget.groupId, memberTarget.index)}
+                        onSettings={() => onOpenMember(memberTarget.groupId, memberTarget.index)}
+                        onClose={() => setMemberTarget(null)}
+                    />
+                )}
+                {toast && <div className="canvas-toast" role="status">{toast}</div>}
+                {editing && !dragging && (
+                    <>
+                        <GridStepper
+                            vertical
+                            label={strings.addBar.rows}
+                            addLabel={strings.addBar.addRow}
+                            removeLabel={strings.addBar.removeRow}
+                            value={layout.rows}
+                            canRemove={layout.rows > GRID_LIMITS.minRows}
+                            canAdd={layout.rows < GRID_LIMITS.maxRows}
+                            style={{ left: `calc(50% + ${clockWidth / 2 + STEPPER_GAP}px)`, top: "50%", transform: "translateY(-50%)" }}
+                            onChange={(rows) => onResizeGrid(layout.columns, rows)}
+                        />
+                        {/* Above the column edge grips, which stick out of the clock's top. */}
+                        <GridStepper
+                            vertical={false}
+                            label={strings.addBar.columns}
+                            addLabel={strings.addBar.addColumn}
+                            removeLabel={strings.addBar.removeColumn}
+                            value={layout.columns}
+                            canRemove={layout.columns > GRID_LIMITS.minColumns}
+                            canAdd={layout.columns < GRID_LIMITS.maxColumns}
+                            style={{ left: "50%", top: `calc(50% - ${clockHeight / 2 + COLUMN_EDGE_OUTSIDE + STEPPER_GAP}px)`, transform: "translate(-50%, -100%)" }}
+                            onChange={(columns) => onResizeGrid(columns, layout.rows)}
+                        />
+                    </>
+                )}
+                {drag?.outside && (
+                    <div
+                        className={`trash-target${drag.overTrash ? " active" : ""}`}
+                        style={{ width: TRASH_SIZE, height: TRASH_SIZE, bottom: TRASH_BOTTOM }}
+                        role="status"
+                        aria-label={strings.canvas.dropToRemove}
+                        title={strings.canvas.dropToRemove}
+                    >
+                        <IconX size={26} stroke={2.6} />
+                    </div>
+                )}
+            </div>
+            {PaletteIcon && paletteDrag && (
+                <div className="palette-drag-chip" style={{ left: paletteDrag.clientX, top: paletteDrag.clientY }}>
+                    <PaletteIcon size={18} stroke={1.8} color="var(--fliq-accent)" />
+                </div>
             )}
-            {toast && <div className="canvas-toast" role="status">{toast}</div>}
-        </div>
+        </>
     );
 }

@@ -1,4 +1,4 @@
-import { LayoutGrid, type ClockStyle, type GroupItem, type LayoutBlock, type TextStyle } from "../layout/ClockLayout.ts";
+import { LayoutGrid, type ClockStyle, type GroupItem, type LayoutBlock, type EffectVariant, type TextEffect, type TextStyle } from "../layout/ClockLayout.ts";
 
 // Look settings the block inspector can show. Each one is only shown when it changes
 // something the block shows (settingsOf).
@@ -12,6 +12,7 @@ export type StyleSetting =
     | "size"
     | "cards"
     | "flipUnit"
+    | "effect"
     | "glowColor"
     | "dialColor"
     | "handColor"
@@ -24,7 +25,42 @@ export type StyleSetting =
     | "barShape";
 
 const TEXT_SETTINGS: StyleSetting[] = ["align", "font", "color", "letterSpacing", "textSize"];
-const LIT_SETTINGS: StyleSetting[] = ["align", "size", "glowColor"];
+const LIT_SETTINGS: StyleSetting[] = ["align", "size", "glowColor", "effect"];
+
+// The animations each text style offers (faces.css), in the order the inspector lists them.
+// Flip and text have none: a pulsing font or card looked cheap rather than alive.
+export const TEXT_STYLE_EFFECTS: Record<TextStyle, TextEffect[]> = {
+    flip: [],
+    text: [],
+    segment: ["flicker", "ghost", "scan"],
+    dots: ["breathe", "sparkle", "scan"],
+    nixie: ["pulse", "flicker", "warmup"],
+};
+
+// The variants an effect offers per text style, the first being the original look (an unset
+// effectVariant). LCD flicker dims the whole display at once, so it has none.
+export const EFFECT_VARIANTS: Record<TextStyle, Partial<Record<TextEffect, EffectVariant[]>>> = {
+    flip: {},
+    text: {},
+    segment: {
+        ghost: ["apart", "together"],
+        scan: ["rightward", "leftward", "pingpong"],
+    },
+    dots: {
+        breathe: ["waveLeft", "waveRight", "together"],
+        sparkle: ["some", "few", "many"],
+        scan: ["rightward", "leftward", "pingpong"],
+    },
+    nixie: {
+        pulse: ["apart", "together"],
+        flicker: ["apart", "together"],
+        warmup: ["afterglow", "instant"],
+    },
+};
+
+// Range of the effect speed and strength sliders, in percent.
+export const EFFECT_SPEED_RANGE = { min: 25, max: 300 };
+export const EFFECT_STRENGTH_RANGE = { min: 10, max: 200 };
 
 // What each text style draws with: flip and text the font and color (flip also its cards);
 // the lit styles their glow color instead.
@@ -119,6 +155,25 @@ export function settingsOf(block: LayoutBlock): Set<StyleSetting>
     return settings;
 }
 
+// The effects a block's text style (a group: any member's) offers.
+export function effectsOf(block: LayoutBlock): TextEffect[]
+{
+    const styles = LayoutGrid.itemsOf(block).filter(drawsText).map((item) => itemTextStyle(item, block));
+    return [...new Set(styles.flatMap((style) => TEXT_STYLE_EFFECTS[style]))];
+}
+
+// The variants a block's effect offers (a group: any member's style).
+export function effectVariantsOf(block: LayoutBlock): EffectVariant[]
+{
+    const effect = block.effect;
+    if (effect === undefined)
+    {
+        return [];
+    }
+    const styles = LayoutGrid.itemsOf(block).filter(drawsText).map((item) => itemTextStyle(item, block));
+    return [...new Set(styles.flatMap((style) => EFFECT_VARIANTS[style][effect] ?? []))];
+}
+
 // Colors a text style or clock face draws with. Unset, each falls back to the style's own color (faces.css,
 // BLOCK_DEFAULTS) or the clock's text color, which is what the picker's previews show.
 export const STYLE_COLOR_FIELDS = [
@@ -170,6 +225,18 @@ export function withTextStyle(block: LayoutBlock, style: TextStyle): Partial<Lay
             delete shared.textStyle;
             return shared;
         });
+    }
+    // An effect the new style does not offer would only wait unseen for a later switch.
+    if (block.effect !== undefined && !TEXT_STYLE_EFFECTS[style].includes(block.effect))
+    {
+        patch.effect = undefined;
+    }
+    // Likewise a variant the kept effect does not offer in the new style.
+    const keptEffect = "effect" in patch ? undefined : block.effect;
+    const keptVariants = keptEffect === undefined ? [] : EFFECT_VARIANTS[style][keptEffect] ?? [];
+    if (block.effectVariant !== undefined && !keptVariants.includes(block.effectVariant))
+    {
+        patch.effectVariant = undefined;
     }
     const singleColored = style === "segment" || style === "dots";
     if (singleColored && block.iconStyle === undefined && LayoutGrid.itemsOf(block).some(showsIcons))

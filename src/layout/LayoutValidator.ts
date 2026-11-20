@@ -26,6 +26,8 @@ import {
     type ProgressShape,
     type ProgressUnit,
     type RowAlign,
+    type EffectVariant,
+    type TextEffect,
     type TextStyle,
 } from "./ClockLayout.ts";
 
@@ -50,6 +52,21 @@ const ALIGNMENTS: Record<BlockAlign, true> = { left: true, center: true, right: 
 const ROW_ALIGNMENTS: Record<RowAlign, true> = { top: true, center: true, bottom: true };
 const TEXT_STYLES: Record<TextStyle, true> = { flip: true, text: true, segment: true, dots: true, nixie: true };
 const CLOCK_STYLES: Record<ClockStyle, true> = { digital: true, analogMinimal: true, analogClassic: true, analogFine: true, rings: true, progress: true };
+const TEXT_EFFECTS: Record<TextEffect, true> = { breathe: true, sparkle: true, scan: true, flicker: true, ghost: true, pulse: true, warmup: true };
+const EFFECT_VARIANTS: Record<EffectVariant, true> = {
+    waveLeft: true,
+    waveRight: true,
+    together: true,
+    apart: true,
+    some: true,
+    few: true,
+    many: true,
+    rightward: true,
+    leftward: true,
+    pingpong: true,
+    afterglow: true,
+    instant: true,
+};
 const FLIP_UNITS: Record<FlipUnit, true> = { character: true, word: true };
 const PROGRESS_SHAPES: Record<ProgressShape, true> = { bar: true, ring: true, dots: true };
 const PROGRESS_UNITS: Record<ProgressUnit, true> = { minute: true, hour: true, day: true };
@@ -270,6 +287,10 @@ const BLOCK_RULES: Record<keyof LayoutBlock, Rule> = {
     iconStyle: oneOf(ICON_STYLES),
     textStyle: oneOf(TEXT_STYLES),
     flipUnit: oneOf(FLIP_UNITS),
+    effect: oneOf(TEXT_EFFECTS),
+    effectSpeed: numberIn({ min: 10, max: 1000 }),
+    effectStrength: numberIn({ min: 0, max: 500 }),
+    effectVariant: oneOf(EFFECT_VARIANTS),
     font,
     labelSize: numberIn({ min: 0, max: 500 }),
     cardRadius: numberIn({ min: 0, max: 100 }),

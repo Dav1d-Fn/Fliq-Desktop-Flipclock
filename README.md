@@ -74,10 +74,12 @@ you arrange like widgets on a phone home screen.
 Right-click the clock and pick **Settings** to open them. The **Layout** page shows the real
 clock on a grid:
 
-- **Blocks:** Flip Time, Time, Date, Weather and Text. Click a tile to add one; it lands on the
-  first free spot.
-- **Drag & drop** blocks to move them, pull the green handles to resize them.
-- **More room:** add or remove columns (up to 8) and rows (up to 4).
+- **Blocks:** Flip Time, Time, Date, Weather, Text and Calendar. Click a tile in the palette
+  above the clock to add one on the first free spot, or drag it right where you want it.
+- **Drag & drop** blocks to move them, pull the green handles to resize them. Blocks in the way
+  shrink to make room; drag a block out onto the red target to remove it.
+- **More room:** add or remove columns and rows (up to 24 each) with the − / + steppers at
+  the clock's edges.
 
 <div align="center">
   <img src="docs/media/add-block.gif" alt="Adding a row and a weather block, dragging it aside, adding a date block" width="710">
@@ -103,6 +105,8 @@ Select a block and the inspector on the right shows what it can do:
 - **Own background** with its own color and rounding
 - **Letter spacing**, **text size** and padding
 - **Offset** to nudge a block freely, off the grid
+- **Animated effects** for Dot Matrix, LCD and Nixie blocks (breathing, flicker, scan lines,
+  glow), each with speed, strength and variants
 
 The **Whole clock** tab holds what all blocks share: size on the desktop, background, corner
 rounding, padding, column width, row height and the space between columns and rows.
@@ -152,6 +156,7 @@ its own and changes apply right away.
 - Hide from taskbar
 - Always-on-top toggle
 - Reset all settings
+- Light, dark or system theme for the settings window
 
 Coming from an older version with template tags (`$FLIPTIME(HH:mm)` …)? Your two rows are turned
 into blocks automatically on the first start.

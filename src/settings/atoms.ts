@@ -7,7 +7,7 @@ import type { CalendarFeed, CalendarSource } from "../calendar/CalendarTypes";
 import type { SunDays, WeatherReport } from "../weather/WeatherTypes";
 import type { WeatherPlace } from "../weather/WeatherPlace";
 import { systemDateLanguage, systemUiLanguage } from "../i18n/UiLanguage";
-import type { UiLanguage } from "./options";
+import type { SettingsColorScheme, UiLanguage } from "./options";
 
 // Before any atom reads storage: turns the old two-row settings into a grid layout, once.
 new LayoutMigration(localStorage).run();
@@ -17,6 +17,8 @@ new LayoutMigration(localStorage).run();
 export const ATOMS = {
     // Settings window and right-click menu. Until chosen, the system language.
     UI_LANGUAGE: atomWithStorage<UiLanguage>("uiLanguage", systemUiLanguage()),
+    // Light or dark settings window, or the system's choice.
+    SETTINGS_COLOR_SCHEME: atomWithStorage<SettingsColorScheme>("settingsColorScheme", "light"),
     // Dates and weather. Until chosen, the system language if dates can be shown in it.
     LANGUAGE: atomWithStorage("lang", systemDateLanguage()),
     // Data › Time: hours of every time block without a custom format. Same keys as

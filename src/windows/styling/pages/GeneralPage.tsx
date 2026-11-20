@@ -1,8 +1,8 @@
-import { Button, Select } from "@mantine/core";
+import { Button, SegmentedControl, Select } from "@mantine/core";
 import { useAtom, useSetAtom } from "jotai";
 import { useStrings } from "../../../i18n/useStrings";
 import { ATOMS } from "../../../settings/atoms";
-import { UI_LANGUAGE_OPTIONS, type UiLanguage } from "../../../settings/options";
+import { SETTINGS_COLOR_SCHEMES, UI_LANGUAGE_OPTIONS, type SettingsColorScheme, type UiLanguage } from "../../../settings/options";
 import { SettingsReset } from "../../../settings/SettingsReset";
 import { SettingRow } from "../controls/SettingRow";
 import { SettingsCard } from "../controls/SettingsCard";
@@ -25,6 +25,8 @@ export function GeneralPage()
     const strings = useStrings();
     const [uiLanguage, setUiLanguage] = useAtom(ATOMS.UI_LANGUAGE);
     const setDateLanguage = useSetAtom(ATOMS.LANGUAGE);
+    const [colorScheme, setColorScheme] = useAtom(ATOMS.SETTINGS_COLOR_SCHEME);
+    const colorSchemeSegments = SETTINGS_COLOR_SCHEMES.map((scheme) => ({ value: scheme, label: strings.general.colorSchemes[scheme] }));
 
     // The clock's dates follow the new language; another date language can still be picked
     // under Data › Time afterwards.
@@ -51,6 +53,17 @@ export function GeneralPage()
                         data={UI_LANGUAGE_OPTIONS}
                         allowDeselect={false}
                         w={200}
+                    />
+                </SettingRow>
+            </SettingsCard>
+
+            <SettingsCard title={strings.general.appearanceCard}>
+                <SettingRow label={strings.general.colorSchemeLabel} description={strings.general.colorSchemeDescription}>
+                    <SegmentedControl
+                        aria-label={strings.general.colorSchemeLabel}
+                        value={colorScheme}
+                        onChange={(value) => setColorScheme(value as SettingsColorScheme)}
+                        data={colorSchemeSegments}
                     />
                 </SettingRow>
             </SettingsCard>

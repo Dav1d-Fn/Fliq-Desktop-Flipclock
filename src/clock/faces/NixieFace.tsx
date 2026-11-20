@@ -1,3 +1,5 @@
+import type { CSSProperties } from "react";
+
 interface NixieFaceProps
 {
     text: string;
@@ -26,8 +28,10 @@ export function NixieFace({ text, member }: NixieFaceProps)
                 {
                     return <span key={characterIndex} className="nixie-glyph face-lit">{character}</span>;
                 }
+                // Position for the effects in faces.css: each tube pulses and flickers on its own.
+                const effectStyle = { "--column": characterIndex } as CSSProperties;
                 return (
-                    <span key={characterIndex} className="nixie-tube">
+                    <span key={characterIndex} className="nixie-tube" style={effectStyle}>
                         {TUBE_DIGITS.map((digit) => (
                             <span key={digit} className={digit === character ? "nixie-digit face-lit" : "nixie-digit"}>{digit}</span>
                         ))}

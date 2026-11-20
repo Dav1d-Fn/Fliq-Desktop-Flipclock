@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import { SEGMENT_DOTS, segmentGlyphs, segmentText, SEVEN_SEGMENT_GLYPHS } from "./SegmentGlyphs";
 
 interface SegmentFaceProps
@@ -77,6 +78,8 @@ export function SegmentFace({ text, blinkOff = false, member }: SegmentFaceProps
     const parts = shown.split("").map((character, characterIndex) =>
     {
         const left = x;
+        // Position for the effects in faces.css (the scan's sweep, the ghosts' scattered start).
+        const effectStyle = { "--column": characterIndex } as CSSProperties;
         if (SEGMENT_DOTS.includes(character))
         {
             x += NARROW_WIDTH;
@@ -84,14 +87,14 @@ export function SegmentFace({ text, blinkOff = false, member }: SegmentFaceProps
             if (character === ":")
             {
                 return (
-                    <g key={characterIndex} className={blinkOff ? "face-unlit" : "face-lit"}>
+                    <g key={characterIndex} className={blinkOff ? "face-unlit" : "face-lit"} style={effectStyle}>
                         <circle cx={middle} cy={32} r={5.5} />
                         <circle cx={middle - 4} cy={70} r={5.5} />
                     </g>
                 );
             }
             return (
-                <g key={characterIndex} className="face-lit">
+                <g key={characterIndex} className="face-lit" style={effectStyle}>
                     <circle cx={middle - 6} cy={91} r={5.5} />
                     {character === "," && <polygon points={diagonal(middle - 4, 94, middle - 10, 106, 2.5)} />}
                 </g>
@@ -105,7 +108,7 @@ export function SegmentFace({ text, blinkOff = false, member }: SegmentFaceProps
         x += DIGIT_WIDTH;
         const lit = glyphs[character] ?? [];
         return (
-            <g key={characterIndex} transform={`translate(${left + 8} 0) skewX(-6)`}>
+            <g key={characterIndex} transform={`translate(${left + 8} 0) skewX(-6)`} style={effectStyle}>
                 {Object.entries(shapes).map(([name, points]) => (
                     <polygon key={name} className={lit.includes(name) ? "face-lit" : "face-unlit"} points={points} />
                 ))}
@@ -114,7 +117,7 @@ export function SegmentFace({ text, blinkOff = false, member }: SegmentFaceProps
     });
 
     return (
-        <svg className="clock-face face-segment" data-member={member} viewBox={`0 0 ${x} ${HEIGHT}`} style={{ width: `${x / HEIGHT}em` }}>
+        <svg className="clock-face face-segment" data-member={member} viewBox={`0 0 ${x} ${HEIGHT}`} style={{ width: `${x / HEIGHT}em`, "--columns": shown.length } as CSSProperties}>
             {parts}
         </svg>
     );

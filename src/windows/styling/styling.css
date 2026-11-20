@@ -15,6 +15,54 @@
   --fliq-nav-active-text: #13652b;
   --fliq-link: #1a7f37;
   --fliq-badge-bg: #e8f6ec;
+  --fliq-surface: #ffffff;
+  --fliq-hover: #eceef2;
+  --fliq-canvas-dot: #d3d7de;
+  --fliq-accent-border: #b9e2c4;
+  --fliq-danger-border: #f3c7c3;
+  --fliq-warning-text: #b45309;
+  --fliq-canvas-bg: #eef0f3;
+  --fliq-dashed-line: #9aa1ad;
+}
+
+/* Dark scheme, layered like a modern dark UI: near-black base, surfaces a few steps lighter,
+   neutral greys without a tint. Lines are translucent white, so they stay equally faint on every
+   surface. The accent is unchanged. */
+:root[data-mantine-color-scheme="dark"] {
+  --fliq-text: #ededed;
+  --fliq-text-muted: #8f8f8f;
+  --fliq-text-soft: #bdbdbd;
+  --fliq-border: rgba(255, 255, 255, 0.07);
+  --fliq-border-strong: rgba(255, 255, 255, 0.1);
+  --fliq-divider: rgba(255, 255, 255, 0.05);
+  --fliq-sidebar-bg: #0f0f0f;
+  --fliq-page-bg: #0c0c0c;
+  --fliq-canvas-bg: #111111;
+  --fliq-chip-bg: rgba(255, 255, 255, 0.06);
+  --fliq-nav-active-bg: rgba(47, 168, 79, 0.13);
+  --fliq-nav-active-text: #6ac384;
+  --fliq-link: #46b566;
+  --fliq-badge-bg: rgba(47, 168, 79, 0.16);
+  --fliq-surface: #141414;
+  --fliq-hover: rgba(255, 255, 255, 0.05);
+  --fliq-canvas-dot: rgba(255, 255, 255, 0.08);
+  --fliq-accent-border: rgba(47, 168, 79, 0.45);
+  --fliq-danger-border: rgba(255, 107, 107, 0.3);
+  --fliq-warning-text: #f5a524;
+  --fliq-dashed-line: rgba(255, 255, 255, 0.28);
+  /* Mantine's buttons, popovers and inputs draw their lines with the same faint white. */
+  --mantine-color-default-border: rgba(255, 255, 255, 0.1);
+  --mantine-color-default-hover: #202020;
+  /* Red text on default buttons ("Reset", "Remove") needs a lighter shade on dark grey. */
+  --mantine-color-red-8: #ff6b6b;
+  color-scheme: dark;
+}
+
+/* Mantine rings its dark slider thumbs in white; the light scheme's look (accent ring, pale
+   middle) reads as a handle instead of a white outline. */
+:root[data-mantine-color-scheme="dark"] .mantine-Slider-thumb {
+  border-color: var(--fliq-accent);
+  background-color: var(--fliq-text);
 }
 
 html,
@@ -29,12 +77,68 @@ body {
   color: var(--fliq-text);
 }
 
-/* Layout: sidebar left, scrolling page right. */
+/* Layout: own title bar on top, below it the sidebar left and the scrolling page right. */
+
+.styling-frame {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
 
 .styling-window {
   display: flex;
-  height: 100%;
+  flex: 1;
+  min-height: 0;
   overflow: hidden;
+}
+
+/* Title bar: drags the window, buttons on the right like the system's. */
+
+.title-bar {
+  display: flex;
+  align-items: center;
+  flex: none;
+  height: 36px;
+  padding-left: 14px;
+  background: var(--fliq-sidebar-bg);
+  border-bottom: 1px solid var(--fliq-border);
+  user-select: none;
+}
+
+.title-bar-title {
+  flex: 1;
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--fliq-text-muted);
+}
+
+.title-bar-buttons {
+  display: flex;
+  align-self: stretch;
+}
+
+.title-bar-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  border: 0;
+  background: transparent;
+  color: var(--fliq-text-soft);
+  cursor: pointer;
+}
+
+.title-bar-button:hover {
+  background: var(--fliq-hover);
+  color: var(--fliq-text);
+}
+
+.title-bar-button.close:hover {
+  background: #e5484d;
+  color: #ffffff;
 }
 
 .styling-sidebar {
@@ -115,7 +219,7 @@ body {
 }
 
 .nav-item:hover {
-  background: #eceef2;
+  background: var(--fliq-hover);
 }
 
 .nav-item[aria-current="page"] {
@@ -190,7 +294,7 @@ body {
 }
 
 .settings-card {
-  background: #ffffff;
+  background: var(--fliq-surface);
   border: 1px solid var(--fliq-border);
   border-radius: 12px;
   overflow: hidden;
@@ -317,7 +421,7 @@ body {
   overflow: hidden;
   border: 1px solid var(--fliq-border);
   border-radius: 14px;
-  background: #ffffff;
+  background: var(--fliq-surface);
 }
 
 .saved-layout-card.active {
@@ -332,7 +436,7 @@ body {
   height: 150px;
   padding: 16px;
   box-sizing: border-box;
-  background: var(--fliq-divider);
+  background: var(--fliq-canvas-bg);
 }
 
 .saved-layout-preview .layout-thumbnail,
