@@ -8,6 +8,11 @@ export const UI_LANGUAGE_OPTIONS: { value: UiLanguage; label: string }[] = [
     { value: "de", label: "Deutsch" },
 ];
 
+// Look of the settings window; "auto" follows the system. The clock is not affected.
+export type SettingsColorScheme = "light" | "dark" | "auto";
+
+export const SETTINGS_COLOR_SCHEMES: SettingsColorScheme[] = ["light", "dark", "auto"];
+
 export const LOCALE_OPTIONS: { code: string; name: string }[] = [
     { code: "en", name: "English" },
     { code: "de", name: "Deutsch" },

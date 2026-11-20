@@ -3,12 +3,11 @@ import { ActionIcon, SegmentedControl, Tooltip } from "@mantine/core";
 import { IconArrowBackUp, IconArrowForwardUp, IconHelpCircle } from "@tabler/icons-react";
 import { useAtom } from "jotai";
 import { blockDefinition } from "../../../blocks/BlockRegistry";
-import { LayoutGrid, type BlockKind, type CellRect, type LayoutBlock } from "../../../layout/ClockLayout";
+import { LayoutGrid, type BlockKind, type ClockLayout, type LayoutBlock } from "../../../layout/ClockLayout";
 import { useStrings } from "../../../i18n/useStrings";
 import { ATOMS } from "../../../settings/atoms";
 import { LayoutSwitcher } from "../savedLayouts/LayoutSwitcher";
 import type { PageProps } from "../SettingsPages";
-import { AddBlockBar } from "./AddBlockBar";
 import { BlockInspector } from "./BlockInspector";
 import { ClockInspector } from "./ClockInspector";
 import { LayoutCanvas } from "./LayoutCanvas";
@@ -26,8 +25,8 @@ const REMOVE_DURATION = 200;
 const SHAKE_DURATION = 450;
 const TOAST_DURATION = 2400;
 
-// Clock › Layout: the block editor. Canvas with the real clock in the middle, palette below,
-// inspector on the right. Every change is written to the layout setting right away, so the
+// Clock › Layout: the block editor. Canvas with the real clock in the middle (palette above it,
+// column and row steppers at the clock's edges), inspector on the right. Every change is written to the layout setting right away, so the
 // clock on the desktop follows live; only a drag in progress stays local to the canvas.
 export function LayoutPage({ onNavigate }: PageProps)
 {
@@ -116,25 +115,51 @@ export function LayoutPage({ onNavigate }: PageProps)
             return;
         }
         const block: LayoutBlock = { id: grid.nextBlockId(), kind, ...definition.defaults, ...spot };
-        setLayout({ ...layout, blocks: [...layout.blocks, block] });
+        placeNewBlock({ ...layout, blocks: [...layout.blocks, block] }, block.id);
+    }
+
+    // A new block in the layout (from a palette click or a drop onto the canvas): selected, popping.
+    function placeNewBlock(next: ClockLayout, blockId: number)
+    {
+        setLayout(next);
         setMode("edit");
-        select(block.id);
-        setPoppingId(block.id);
+        select(blockId);
+        setPoppingId(blockId);
         later(() => setPoppingId(null), POP_DURATION);
     }
 
-    // Smaller grids cut blocks back or move them; refused when a block would find no room.
+    // Fewer columns cut blocks back or move them, refused when a block would find no room.
+    // One row less drops an empty row, else the last one with its blocks (undo brings them back).
     function resizeGrid(columns: number, rows: number)
     {
+        if (columns === layout.columns && rows === layout.rows - 1)
+        {
+            removeRow();
+            return;
+        }
         const resized = new LayoutGrid(layout).resized(columns, rows);
         if (!resized)
         {
-            complain(columns < layout.columns
-                ? text.noRoomColumn
-                : text.noRoomRow);
+            complain(text.noRoomColumn);
             return;
         }
         setLayout(resized);
+    }
+
+    function removeRow()
+    {
+        const smaller = new LayoutGrid(layout).withOneRowLess();
+        if (!smaller)
+        {
+            return;
+        }
+        setLayout(smaller);
+        const removedCount = layout.blocks.length - smaller.blocks.length;
+        if (removedCount > 0)
+        {
+            setToast(text.rowRemovedWithBlocks(removedCount));
+            later(() => setToast(null), TOAST_DURATION);
+        }
     }
 
     // Delete / Backspace remove the selected block, unless the key is meant for a text field.
@@ -161,15 +186,23 @@ export function LayoutPage({ onNavigate }: PageProps)
         return () => window.removeEventListener("keydown", onKeyDown);
     });
 
-    function removeBlocks(blockIds: number[])
+    // `animated`: fade out on their cells first; a block dropped on the remove target goes at once,
+    // it would fly back to its cells otherwise.
+    function removeBlocks(blockIds: number[], animated = true)
     {
-        setRemovingIds(blockIds);
-        later(() =>
+        const remove = () =>
         {
             setLayout((current) => ({ ...current, blocks: current.blocks.filter((block) => !blockIds.includes(block.id)) }));
             setRemovingIds([]);
             setSelectedIds([]);
-        }, REMOVE_DURATION);
+        };
+        if (!animated)
+        {
+            remove();
+            return;
+        }
+        setRemovingIds(blockIds);
+        later(remove, REMOVE_DURATION);
     }
 
     function group()
@@ -288,19 +321,16 @@ export function LayoutPage({ onNavigate }: PageProps)
                     shaking={shaking}
                     toast={toast}
                     onSelect={select}
-                    onPlace={(blockId: number, rect: CellRect) => updateBlock(blockId, rect)}
+                    onAddKind={addBlock}
+                    onAddBlock={placeNewBlock}
+                    onRemove={(blockId) => removeBlocks([blockId], false)}
+                    onResizeGrid={resizeGrid}
                     onMerge={merge}
                     onInsert={setLayout}
                     onChange={setLayout}
                     onMoveMember={moveMember}
                     onDetachMember={detachMember}
                     onOpenMember={openMemberSettings}
-                />
-
-                <AddBlockBar
-                    layout={layout}
-                    onAdd={addBlock}
-                    onResizeGrid={resizeGrid}
                 />
             </main>
 

@@ -18,6 +18,26 @@ export type TextStyle = "flip" | "text" | "segment" | "dots" | "nixie";
 // (see LayoutMigration.withTextStyles).
 export type ClockStyle = "digital" | "analogMinimal" | "analogClassic" | "analogFine" | "rings" | "progress";
 
+// Optional animation of a lit text style, drawn by faces.css (unset: none, the still look).
+// Which style offers which: TEXT_STYLE_EFFECTS in StyleSettings.
+export type TextEffect = "breathe" | "sparkle" | "scan" | "flicker" | "ghost" | "pulse" | "warmup";
+
+// How an effect plays, where it offers a choice (EFFECT_VARIANTS in StyleSettings; unset: the
+// first listed there, the original look).
+export type EffectVariant =
+    | "waveLeft"
+    | "waveRight"
+    | "together"
+    | "apart"
+    | "some"
+    | "few"
+    | "many"
+    | "rightward"
+    | "leftward"
+    | "pingpong"
+    | "afterglow"
+    | "instant";
+
 // Flip style: one card per letter or digit, or one per word (runs between spaces and commas).
 export type FlipUnit = "character" | "word";
 
@@ -102,6 +122,12 @@ export interface LayoutBlock extends ProgressFields
     // How characters are drawn ("text" when unset); flip: cards per character or per word.
     textStyle?: TextStyle;
     flipUnit?: FlipUnit;
+    // Animation of the lit styles; one the current text style does not offer draws nothing.
+    effect?: TextEffect;
+    // The effect's tempo and depth in percent (unset: 100) and its variant.
+    effectSpeed?: number;
+    effectStrength?: number;
+    effectVariant?: EffectVariant;
     font?: string;
     color?: string;
     // Text styles other than flip and text, and the clock faces; unset means the style's own color.
@@ -202,11 +228,13 @@ export const CELL_WIDTH = 64;
 export const CELL_HEIGHT = 56;
 export const CELL_GAP = 2;
 
+// The maxima are only a sanity bound for layouts coming from outside (tuxhub socket, a broken
+// settings file), not a design limit: the screen runs out long before them.
 export const GRID_LIMITS = {
     minColumns: 2,
-    maxColumns: 8,
+    maxColumns: 24,
     minRows: 1,
-    maxRows: 4,
+    maxRows: 24,
 };
 
 // Limits of what a block shows. The editor's fields and grouping keep to them, and
@@ -394,6 +422,33 @@ export class LayoutGrid
         return result;
     }
 
+    // The grid one row smaller (the canvas' row stepper). An empty row goes first, the lowest
+    // one; else the last row with the blocks that lie only in it, while blocks reaching into it
+    // from above get one row shorter. Null at the smallest grid.
+    withOneRowLess(): ClockLayout | null
+    {
+        const rows = this.layout.rows;
+        if (rows <= GRID_LIMITS.minRows)
+        {
+            return null;
+        }
+        for (let row = rows - 1; row >= 0; row--)
+        {
+            if (LayoutGrid.rowIsEmpty(this.layout, row))
+            {
+                return LayoutGrid.withoutRow(this.layout, row);
+            }
+        }
+        const lastRow = rows - 1;
+        return {
+            ...this.layout,
+            rows: lastRow,
+            blocks: this.layout.blocks
+                .filter((block) => block.y < lastRow)
+                .map((block) => (block.y + block.h > lastRow ? { ...block, h: lastRow - block.y } : block)),
+        };
+    }
+
     // The blocks with these ids sorted left to right, when they share their rows and touch side
     // by side without a hole, so they can become one group. Null otherwise (or fewer than two).
     groupable(blockIds: number[]): LayoutBlock[] | null
@@ -505,6 +560,57 @@ export class LayoutGrid
             return nearest[0];
         }
         return canGroup ? "group" : null;
+    }
+
+    // The layout with `rect` free for a block that is moved, resized or added there: every block
+    // in the way (except `ignoredId`, the block itself) shrinks back from it without moving,
+    // keeping its largest part beside the rect (left, right, above or below), never below 1 x 1.
+    // Unchanged when the rect is free already. Null when the rect leaves the grid or a block in
+    // the way cannot give up enough cells (it would have to vanish or split).
+    withRoomFor(rect: CellRect, ignoredId: number | null = null): ClockLayout | null
+    {
+        const { columns, rows } = this.layout;
+        if (rect.x < 0 || rect.y < 0 || rect.w < 1 || rect.h < 1 || rect.x + rect.w > columns || rect.y + rect.h > rows)
+        {
+            return null;
+        }
+        const blocks: LayoutBlock[] = [];
+        for (const block of this.layout.blocks)
+        {
+            if (block.id === ignoredId || !LayoutGrid.overlap(block, rect))
+            {
+                blocks.push(block);
+                continue;
+            }
+            const shrunk = LayoutGrid.shrunkAround(block, rect);
+            if (!shrunk)
+            {
+                return null;
+            }
+            blocks.push(shrunk);
+        }
+        return { ...this.layout, blocks };
+    }
+
+    // The block cut back to its largest part outside `rect` (the first of left, right, above,
+    // below on a tie), or null when no part of at least one cell is left beside it.
+    private static shrunkAround(block: LayoutBlock, rect: CellRect): LayoutBlock | null
+    {
+        const parts: CellRect[] = [
+            { x: block.x, y: block.y, w: rect.x - block.x, h: block.h },
+            { x: rect.x + rect.w, y: block.y, w: block.x + block.w - (rect.x + rect.w), h: block.h },
+            { x: block.x, y: block.y, w: block.w, h: rect.y - block.y },
+            { x: block.x, y: rect.y + rect.h, w: block.w, h: block.y + block.h - (rect.y + rect.h) },
+        ];
+        let best: CellRect | null = null;
+        for (const part of parts)
+        {
+            if (part.w >= 1 && part.h >= 1 && (!best || part.w * part.h > best.w * best.h))
+            {
+                best = part;
+            }
+        }
+        return best ? { ...block, ...best } : null;
     }
 
     // The layout with a block slid in before or after `target`, on the target's rows. The
@@ -644,13 +750,18 @@ export class LayoutGrid
         // Bottom up, so the indices still to check stay put.
         for (const row of [...rows].sort((a, b) => b - a))
         {
-            const empty = result.blocks.every((block) => row < block.y || row >= block.y + block.h);
-            if (empty && result.rows > GRID_LIMITS.minRows)
+            if (LayoutGrid.rowIsEmpty(result, row) && result.rows > GRID_LIMITS.minRows)
             {
                 result = LayoutGrid.withoutRow(result, row);
             }
         }
         return result;
+    }
+
+    // Whether no block covers this row.
+    private static rowIsEmpty(layout: ClockLayout, row: number): boolean
+    {
+        return layout.blocks.every((block) => row < block.y || row >= block.y + block.h);
     }
 
     // The layout without one empty row: the rows below move up.

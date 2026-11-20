@@ -48,8 +48,8 @@
   min-height: 220px;
   margin-top: 18px;
   border-radius: 16px;
-  background-color: var(--fliq-divider);
-  background-image: radial-gradient(#d3d7de 1px, transparent 1px);
+  background-color: var(--fliq-canvas-bg);
+  background-image: radial-gradient(var(--fliq-canvas-dot) 1px, transparent 1px);
   background-size: 18px 18px;
   display: flex;
   align-items: center;
@@ -179,7 +179,7 @@
   position: absolute;
   padding: 0;
   border-radius: 5px;
-  background: #ffffff;
+  background: var(--fliq-surface);
   border: 2px solid var(--fliq-accent);
   touch-action: none;
   animation: fliq-pop .3s cubic-bezier(.34,1.56,.64,1);
@@ -210,7 +210,7 @@
   height: 16px;
   border-radius: 8px;
   background: var(--fliq-accent);
-  border-color: #ffffff;
+  border-color: var(--fliq-surface);
   cursor: nwse-resize;
 }
 
@@ -240,7 +240,7 @@
   transform: translate(-50%, 0);
   z-index: 20;
   background: var(--fliq-text);
-  color: #ffffff;
+  color: var(--fliq-page-bg);
   font: 500 13px var(--mantine-font-family);
   padding: 10px 16px;
   border-radius: 99px;
@@ -248,75 +248,140 @@
   animation: fliq-toast-in .3s cubic-bezier(.34,1.56,.64,1);
 }
 
-/* Palette */
+/* Palette: above the canvas, top left. Press and drag a tile onto the clock, or click it. */
 
-.add-bar-head {
+.block-palette {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  margin-top: 16px;
   flex-wrap: wrap;
-}
-
-.add-bar-title {
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.grid-steppers {
-  display: flex;
-  align-items: center;
-  gap: 18px;
-}
-
-.grid-stepper {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--fliq-text-soft);
-}
-
-.grid-stepper-value {
-  min-width: 16px;
-  text-align: center;
-  font-weight: 600;
-}
-
-.block-tiles {
-  display: flex;
-  gap: 10px;
-  margin-top: 10px;
-  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 14px;
 }
 
 .block-tile {
-  width: 100px;
-  height: 78px;
   display: flex;
-  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: 7px;
+  gap: 6px;
+  height: 32px;
+  padding: 0 11px 0 9px;
   border: 1px solid var(--fliq-border);
-  background: #ffffff;
-  border-radius: 12px;
-  font: 500 13px var(--mantine-font-family);
+  background: var(--fliq-surface);
+  border-radius: 99px;
+  font: 500 12.5px var(--mantine-font-family);
   color: var(--fliq-text);
-  cursor: pointer;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
   transition: transform .18s cubic-bezier(.34,1.56,.64,1), box-shadow .18s, border-color .18s;
 }
 
 .block-tile:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 8px 18px rgba(16, 24, 40, 0.08);
-  border-color: #b9e2c4;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(16, 24, 40, 0.08);
+  border-color: var(--fliq-accent-border);
 }
 
 .block-tile:active {
-  transform: scale(.95);
+  cursor: grabbing;
+  transform: scale(.96);
+}
+
+.block-tile:focus-visible,
+.grid-stepper-button:focus-visible {
+  outline: 2px solid var(--fliq-accent);
+  outline-offset: 2px;
+}
+
+/* The palette kind following the pointer while dragged. */
+.palette-drag-chip {
+  position: fixed;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  /* Below right of the pointer, so the snap ghost's label stays readable. */
+  margin: 10px 0 0 10px;
+  border-radius: 50%;
+  background: var(--fliq-surface);
+  border: 1px solid var(--fliq-accent-border);
+  box-shadow: 0 8px 20px rgba(16, 24, 40, 0.18);
+  pointer-events: none;
+}
+
+/* Column stepper at the clock's right edge, row stepper at its bottom edge. */
+.grid-stepper {
+  position: absolute;
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--fliq-border);
+  background: color-mix(in srgb, var(--fliq-surface) 92%, transparent);
+  border-radius: 99px;
+  box-shadow: 0 4px 12px rgba(16, 24, 40, 0.08);
+  font: 600 12.5px var(--mantine-font-family);
+  color: var(--fliq-text-soft);
+}
+
+.grid-stepper.vertical {
+  flex-direction: column;
+}
+
+.grid-stepper-value {
+  min-width: 22px;
+  text-align: center;
+  line-height: 18px;
+}
+
+.grid-stepper-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: none;
+  color: var(--fliq-text-soft);
+  cursor: pointer;
+  transition: background .15s, color .15s;
+}
+
+.grid-stepper-button:hover:not(:disabled) {
+  background: var(--fliq-nav-active-bg);
+  color: var(--fliq-nav-active-text);
+}
+
+.grid-stepper-button:disabled {
+  opacity: .35;
+  cursor: default;
+}
+
+/* Remove target: shows at the bottom while a dragged block is outside the clock. */
+.trash-target {
+  position: absolute;
+  left: 50%;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: #e5484d;
+  color: #ffffff;
+  box-shadow: 0 8px 22px rgba(229, 72, 77, 0.35);
+  /* translate, not transform: the pop animation and the hover scale use transform. */
+  translate: -50% 0;
+  animation: fliq-pop .3s cubic-bezier(.34,1.56,.64,1);
+  transition: transform .15s, background .15s, box-shadow .15s;
+}
+
+.trash-target.active {
+  background: #c62a2f;
+  box-shadow: 0 0 0 8px rgba(229, 72, 77, 0.22), 0 10px 26px rgba(229, 72, 77, 0.45);
+  transform: scale(1.15);
 }
 
 /* Inspector */
@@ -346,7 +411,7 @@
 .inspector {
   width: clamp(310px, 30%, 520px);
   flex: none;
-  background: #ffffff;
+  background: var(--fliq-surface);
   padding: 26px 22px 22px;
   box-sizing: border-box;
   display: flex;
@@ -508,6 +573,30 @@
   margin-top: 2px;
 }
 
+/* InspectorGroup: a faint accent frame around settings that belong together. Mixed from the
+   theme's colors with transparent, so it fits light and dark backgrounds alike. */
+.inspector-group {
+  margin-top: 14px;
+  padding: 0 10px 12px 11px;
+  border-left: 3px solid color-mix(in srgb, var(--fliq-accent) 55%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--fliq-accent) 7%, transparent);
+}
+
+.inspector-group > .inspector-field:first-child .inspector-label {
+  margin-top: 0;
+  padding-top: 10px;
+}
+
+.inspector-group > .mantine-Switch-root:first-child {
+  margin-top: 0 !important;
+  padding-top: 12px;
+}
+
+.inspector-section-body > .inspector-group:first-child {
+  margin-top: 2px;
+}
+
 .color-dot {
   display: inline-block;
   vertical-align: -2px;
@@ -550,7 +639,7 @@
 .remove-block {
   margin-top: auto;
   flex: none;
-  border-color: #f3c7c3;
+  border-color: var(--fliq-danger-border);
 }
 
 .inspector-body > .remove-block,
@@ -630,7 +719,7 @@
 }
 
 .swatch.default {
-  border: 2px dashed #9aa1ad;
+  border: 2px dashed var(--fliq-dashed-line);
 }
 
 .swatch:hover {
@@ -642,7 +731,7 @@
 }
 
 .swatch[aria-pressed="true"] {
-  box-shadow: 0 0 0 2px #ffffff, 0 0 0 4px var(--fliq-accent);
+  box-shadow: 0 0 0 2px var(--fliq-surface), 0 0 0 4px var(--fliq-accent);
 }
 
 /* Size presets */
@@ -657,7 +746,7 @@
   height: 52px;
   border-radius: 10px;
   border: 1.5px solid var(--fliq-border-strong);
-  background: #ffffff;
+  background: var(--fliq-surface);
   cursor: pointer;
   display: flex;
   flex-direction: column;
@@ -701,7 +790,7 @@
   box-sizing: border-box;
   border: 1px solid var(--fliq-border-strong);
   border-radius: 10px;
-  background: #ffffff;
+  background: var(--fliq-surface);
 }
 
 .display-preview {
@@ -962,7 +1051,7 @@
   padding: 0 10px 0 7px;
   border: 1px solid var(--fliq-border-strong);
   border-radius: 10px;
-  background: #ffffff;
+  background: var(--fliq-surface);
   min-width: 0;
 }
 
@@ -990,7 +1079,7 @@
   align-items: center;
   gap: 5px;
   font-size: 11px;
-  color: #b45309;
+  color: var(--fliq-warning-text);
 }
 
 .layout-switcher-changes i {

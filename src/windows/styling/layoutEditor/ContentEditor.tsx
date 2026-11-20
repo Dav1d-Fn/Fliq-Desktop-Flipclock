@@ -11,6 +11,7 @@ import { WeatherFormatter } from "../../../weather/WeatherFormatter";
 import { BLOCK_EDITORS } from "./BlockEditors";
 import { DisplaySelect, type DisplayChoice } from "./DisplaySelect";
 import { InspectorField } from "./InspectorField";
+import { InspectorGroup } from "./InspectorGroup";
 
 interface ContentEditorProps
 {
@@ -58,34 +59,37 @@ export function ContentEditor({ block, onChange, inGroup = false }: ContentEdito
 
     return (
         <>
+            {/* The display and, for "custom", the format that makes it. */}
             {choices.length > 0 && (
-                <InspectorField label={text.display}>
-                    <DisplaySelect
-                        choices={choices}
-                        value={block.display}
-                        onChange={(display) => onChange({ display })}
-                        previewStyle={previewStyle}
-                    />
-                </InspectorField>
-            )}
+                <InspectorGroup>
+                    <InspectorField label={text.display}>
+                        <DisplaySelect
+                            choices={choices}
+                            value={block.display}
+                            onChange={(display) => onChange({ display })}
+                            previewStyle={previewStyle}
+                        />
+                    </InspectorField>
 
-            {block.display === "custom" && !hidesDisplay && (
-                <InspectorField label={text.yourFormat} htmlFor="custom-format">
-                    <TextInput
-                        id="custom-format"
-                        value={block.customFormat ?? ""}
-                        onChange={(event) => onChange({ customFormat: event.currentTarget.value })}
-                        placeholder="HH:mm"
-                        maxLength={CONTENT_LIMITS.textLength}
-                        spellCheck={false}
-                        styles={{ input: { fontFamily: "var(--mantine-font-family-monospace)", fontSize: 13 } }}
-                    />
-                    <div className="format-legend">
-                        <code>HH</code> {text.hour} · <code>mm</code> {text.minute} · <code>ss</code> {text.second} · <code>DD</code> {text.day} ·{" "}
-                        <code>MM</code> {text.month} · <code>ddd</code> {text.weekday} · <code>[text]</code> {text.literalText}.{" "}
-                        <a href="https://day.js.org/docs/en/display/format" target="_blank" rel="noreferrer">{text.allTokens}</a>
-                    </div>
-                </InspectorField>
+                    {block.display === "custom" && !hidesDisplay && (
+                        <InspectorField label={text.yourFormat} htmlFor="custom-format">
+                            <TextInput
+                                id="custom-format"
+                                value={block.customFormat ?? ""}
+                                onChange={(event) => onChange({ customFormat: event.currentTarget.value })}
+                                placeholder="HH:mm"
+                                maxLength={CONTENT_LIMITS.textLength}
+                                spellCheck={false}
+                                styles={{ input: { fontFamily: "var(--mantine-font-family-monospace)", fontSize: 13 } }}
+                            />
+                            <div className="format-legend">
+                                <code>HH</code> {text.hour} · <code>mm</code> {text.minute} · <code>ss</code> {text.second} · <code>DD</code> {text.day} ·{" "}
+                                <code>MM</code> {text.month} · <code>ddd</code> {text.weekday} · <code>[text]</code> {text.literalText}.{" "}
+                                <a href="https://day.js.org/docs/en/display/format" target="_blank" rel="noreferrer">{text.allTokens}</a>
+                            </div>
+                        </InspectorField>
+                    )}
+                </InspectorGroup>
             )}
 
             {ContentSettings && <ContentSettings block={block} onChange={onChange} inGroup={inGroup} />}

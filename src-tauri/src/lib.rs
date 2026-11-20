@@ -30,8 +30,12 @@ pub fn run(mode: overlay::OverlayMode, config: overlay::LinuxConfig) {
         // `with_denylist(ghost::LABELS)`: the plugin must not touch any ghost window. Restoring a
         // saved `VISIBLE` would be exactly the failure the ghosts are built against: a full-screen
         // overlay, visible without a drag.
+        //
+        // Without `DECORATIONS`: the settings window draws its own title bar, and a saved
+        // `decorations: true` from older versions would bring the system one back.
         .plugin(
             tauri_plugin_window_state::Builder::default()
+                .with_state_flags(tauri_plugin_window_state::StateFlags::all() - tauri_plugin_window_state::StateFlags::DECORATIONS)
                 .skip_initial_state("main")
                 .with_denylist(ghost_labels)
                 .build(),

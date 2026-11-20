@@ -134,6 +134,9 @@ export function ClockBlock({ block, rect, scale, rowAlign, heightFollows, langua
         ...(block.minuteRingColor && { "--minute-ring-color": block.minuteRingColor }),
         ...(block.secondRingColor && { "--second-ring-color": block.secondRingColor }),
         "--label-size": (block.labelSize ?? 100) / 100,
+        // Effect tempo and depth (faces.css); unset leaves the original 1.
+        ...(block.effectSpeed !== undefined && { "--effect-speed": block.effectSpeed / 100 }),
+        ...(block.effectStrength !== undefined && { "--effect-strength": block.effectStrength / 100 }),
         translate: `${(block.offsetX ?? 0) * scale}px ${(block.offsetY ?? 0) * scale}px`,
         // Progress colors (bar, ring, dots, also in groups) and the bar's size.
         "--bar-color": block.barColor ?? "var(--text-color)",
@@ -147,11 +150,18 @@ export function ClockBlock({ block, rect, scale, rowAlign, heightFollows, langua
         ...style,
     } as CSSProperties;
 
+    // The style's animation (faces.css); a frozen picture of a saved layout stands still.
+    let effectClass = block.effect && !preview.frozen ? ` effect-${block.effect}` : "";
+    if (effectClass && block.effectVariant)
+    {
+        effectClass += ` effect-variant-${block.effectVariant}`;
+    }
+
     // A new segment list or language means other Tick.js views: remount the content.
     const contentKey = `${segmentsKey}|${language}|${rebuildCount}`;
 
     return (
-        <div className="clock-block" data-block-id={block.id} style={blockStyle}>
+        <div className={`clock-block${effectClass}`} data-block-id={block.id} style={blockStyle}>
             <BlockContent
                 key={contentKey}
                 segments={stableSegments}

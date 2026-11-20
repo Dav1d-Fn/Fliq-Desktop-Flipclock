@@ -37,6 +37,8 @@ pub async fn open_stylingmenu_window(app: tauri::AppHandle) -> Result<(), String
         .min_inner_size(1000.0, 640.0)
         .resizable(true)
         .title("Fliq Settings")
+        // The settings draw their own title bar (TitleBar.tsx), matching the light or dark scheme.
+        .decorations(false)
         .build()
         .map(|_| ())
         .map_err(|e| e.to_string())

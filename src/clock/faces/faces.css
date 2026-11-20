@@ -123,3 +123,212 @@
 .face-progress .progress-dot { fill: var(--bar-color, var(--text-color, #ffffff)); }
 .face-progress.animated .progress-fill { transition: stroke-dashoffset 1s linear; }
 .face-progress.animated .progress-dot { transition: opacity 1s linear; }
+
+/* Effects: optional animations of the lit styles, switched on by an effect-<name> class on the
+   block (ClockBlock, never on frozen previews), with an effect-variant-<name> class for the
+   variants (EFFECT_VARIANTS in StyleSettings). The faces give each part a --column (and dots a
+   --phase) for staggering, the svg faces the --columns count for leftward scans. The block's
+   --effect-speed divides every duration and stagger, its --effect-strength scales how far
+   each keyframe dims (both 1 when unset: the original look; opacity clamps itself to 0..1).
+   Kept light for a clock that runs all day: mostly opacity, steps() where a slow change would
+   otherwise repaint every frame, and keyframes that hold still most of the cycle. Column-wise
+   dot effects run on the column groups and change fill-opacity, which lit and unlit dots
+   inherit, so a dot that lights up keeps the wave's phase. */
+@media (prefers-reduced-motion: no-preference) {
+   /* Dot matrix: a slow wave of dimming across the columns (to the left), or all at once. */
+   .effect-breathe .face-dots g {
+      animation: dots-breathe calc(6s / var(--effect-speed, 1)) steps(24) infinite;
+      animation-delay: calc(var(--column) * -0.125s / var(--effect-speed, 1));
+   }
+
+   .effect-breathe.effect-variant-waveRight .face-dots g {
+      animation-delay: calc(var(--column) * 0.125s / var(--effect-speed, 1));
+   }
+
+   .effect-breathe.effect-variant-together .face-dots g {
+      animation-delay: 0s;
+   }
+
+   /* Dot matrix: single dots now and then blink like a failing LED; fewer or more of them. */
+   .effect-sparkle .face-dots .dot-sparkle,
+   .effect-sparkle.effect-variant-many .face-dots .dot-sparkle-many {
+      animation: dots-sparkle calc(9s / var(--effect-speed, 1)) step-end infinite;
+      animation-delay: calc(var(--phase) * -0.53s / var(--effect-speed, 1));
+   }
+
+   .effect-sparkle.effect-variant-few .face-dots .dot-sparkle:not(.dot-sparkle-few) {
+      animation: none;
+   }
+
+   /* Dot matrix: a dim refresh line runs over the sign every few seconds. */
+   .effect-scan .face-dots g {
+      animation: dots-scan calc(7s / var(--effect-speed, 1)) step-end infinite;
+      animation-delay: calc(var(--column) * 0.04s / var(--effect-speed, 1));
+   }
+
+   .effect-scan.effect-variant-leftward .face-dots g {
+      animation-delay: calc((var(--columns) - 1 - var(--column)) * 0.04s / var(--effect-speed, 1));
+   }
+
+   /* Back and forth: the run back half a cycle later is a second animation, on opacity, since
+      one animation's dips keep the same distance in every column. */
+   .effect-scan.effect-variant-pingpong .face-dots g {
+      animation:
+         dots-scan calc(7s / var(--effect-speed, 1)) step-end infinite,
+         dots-scan-back calc(7s / var(--effect-speed, 1)) step-end infinite;
+      animation-delay:
+         calc(var(--column) * 0.04s / var(--effect-speed, 1)),
+         calc((3.5s + (var(--columns) - 1 - var(--column)) * 0.04s) / var(--effect-speed, 1));
+   }
+
+   /* LCD: the backlight dips now and then, like a loose contact. */
+   .effect-flicker .face-segment {
+      animation: segment-flicker calc(11s / var(--effect-speed, 1)) step-end infinite;
+   }
+
+   /* LCD: the unlit segments glow faintly and drift, like a cheap display's ghosting; each
+      character on its own or all together. */
+   .effect-ghost .face-segment .face-unlit {
+      opacity: calc(0.16 * var(--effect-strength, 1));
+      animation: segment-ghost calc(8s / var(--effect-speed, 1)) steps(16) infinite alternate;
+      animation-delay: calc(var(--column) * -1.7s / var(--effect-speed, 1));
+   }
+
+   .effect-ghost.effect-variant-together .face-segment .face-unlit {
+      animation-delay: 0s;
+   }
+
+   /* LCD: the characters refresh one after another, a faint dim running over the display. */
+   .effect-scan .face-segment g {
+      animation: segment-scan calc(6s / var(--effect-speed, 1)) step-end infinite;
+      animation-delay: calc(var(--column) * 0.08s / var(--effect-speed, 1));
+   }
+
+   .effect-scan.effect-variant-leftward .face-segment g {
+      animation-delay: calc((var(--columns) - 1 - var(--column)) * 0.08s / var(--effect-speed, 1));
+   }
+
+   .effect-scan.effect-variant-pingpong .face-segment g {
+      animation:
+         segment-scan calc(6s / var(--effect-speed, 1)) step-end infinite,
+         segment-scan-back calc(6s / var(--effect-speed, 1)) step-end infinite;
+      animation-delay:
+         calc(var(--column) * 0.08s / var(--effect-speed, 1)),
+         calc((3s + (var(--columns) - 1 - var(--column)) * 0.08s) / var(--effect-speed, 1));
+   }
+
+   /* The colon and decimal points blink with opacity: the run back skips them. */
+   .effect-scan.effect-variant-pingpong .face-segment g:is(.face-lit, .face-unlit) {
+      animation: segment-scan calc(6s / var(--effect-speed, 1)) step-end infinite;
+      animation-delay: calc(var(--column) * 0.08s / var(--effect-speed, 1));
+   }
+
+   /* Nixie: each tube's glow swells and settles on its own, or all in step. */
+   .effect-pulse .nixie-tube {
+      animation: nixie-pulse calc(5s / var(--effect-speed, 1)) steps(20) infinite alternate;
+      animation-delay: calc(var(--column) * -1.3s / var(--effect-speed, 1));
+   }
+
+   /* Nixie: now and then a tube stutters, like an aging one; together like a dip in the supply. */
+   .effect-flicker .nixie-tube {
+      animation: nixie-flicker calc(13s / var(--effect-speed, 1)) step-end infinite;
+      animation-delay: calc(var(--column) * -3.1s / var(--effect-speed, 1));
+   }
+
+   .effect-pulse.effect-variant-together .nixie-tube,
+   .effect-flicker.effect-variant-together .nixie-tube {
+      animation-delay: 0s;
+   }
+
+   /* Nixie: a new digit ignites from dim to full glow, the old one fades (or goes out at once). */
+   .effect-warmup .nixie-digit {
+      transition: opacity calc(0.4s / var(--effect-speed, 1)) ease-out;
+   }
+
+   .effect-warmup.effect-variant-instant .nixie-digit {
+      transition: none;
+   }
+
+   .effect-warmup .nixie-digit.face-lit {
+      animation: nixie-warmup calc(0.6s / var(--effect-speed, 1)) ease-out;
+   }
+}
+
+@keyframes dots-breathe {
+   0%, 100% { fill-opacity: 1; }
+   50% { fill-opacity: calc(1 - 0.5 * var(--effect-strength, 1)); }
+}
+
+@keyframes dots-sparkle {
+   0% { fill-opacity: 1; }
+   90% { fill-opacity: calc(1 - 0.8 * var(--effect-strength, 1)); }
+   91% { fill-opacity: 1; }
+   92% { fill-opacity: calc(1 - 0.65 * var(--effect-strength, 1)); }
+   93.5% { fill-opacity: 1; }
+}
+
+@keyframes dots-scan {
+   0% { fill-opacity: 1; }
+   1% { fill-opacity: calc(1 - 0.65 * var(--effect-strength, 1)); }
+   2% { fill-opacity: calc(1 - 0.4 * var(--effect-strength, 1)); }
+   3.5% { fill-opacity: calc(1 - 0.15 * var(--effect-strength, 1)); }
+   5% { fill-opacity: 1; }
+}
+
+@keyframes dots-scan-back {
+   0% { opacity: 1; }
+   1% { opacity: calc(1 - 0.65 * var(--effect-strength, 1)); }
+   2% { opacity: calc(1 - 0.4 * var(--effect-strength, 1)); }
+   3.5% { opacity: calc(1 - 0.15 * var(--effect-strength, 1)); }
+   5% { opacity: 1; }
+}
+
+@keyframes segment-flicker {
+   0% { opacity: 1; }
+   60% { opacity: calc(1 - 0.45 * var(--effect-strength, 1)); }
+   60.6% { opacity: 1; }
+   61.2% { opacity: calc(1 - 0.3 * var(--effect-strength, 1)); }
+   62.2% { opacity: 1; }
+   88% { opacity: calc(1 - 0.2 * var(--effect-strength, 1)); }
+   88.5% { opacity: 1; }
+}
+
+@keyframes segment-ghost {
+   from { opacity: calc(0.08 * var(--effect-strength, 1)); }
+   to { opacity: calc(0.22 * var(--effect-strength, 1)); }
+}
+
+/* fill-opacity, which the segments inherit: opacity would hold a dimmed colon lit. */
+@keyframes segment-scan {
+   0% { fill-opacity: 1; }
+   2% { fill-opacity: calc(1 - 0.45 * var(--effect-strength, 1)); }
+   4% { fill-opacity: calc(1 - 0.2 * var(--effect-strength, 1)); }
+   6% { fill-opacity: 1; }
+}
+
+/* The run back of the back-and-forth scan, on the characters' groups. */
+@keyframes segment-scan-back {
+   0% { opacity: 1; }
+   2% { opacity: calc(1 - 0.45 * var(--effect-strength, 1)); }
+   4% { opacity: calc(1 - 0.2 * var(--effect-strength, 1)); }
+   6% { opacity: 1; }
+}
+
+@keyframes nixie-pulse {
+   from { opacity: 1; }
+   to { opacity: calc(1 - 0.22 * var(--effect-strength, 1)); }
+}
+
+@keyframes nixie-flicker {
+   0% { opacity: 1; }
+   70% { opacity: calc(1 - 0.6 * var(--effect-strength, 1)); }
+   70.6% { opacity: calc(1 - 0.05 * var(--effect-strength, 1)); }
+   71.1% { opacity: calc(1 - 0.5 * var(--effect-strength, 1)); }
+   72% { opacity: calc(1 - 0.15 * var(--effect-strength, 1)); }
+   72.6% { opacity: 1; }
+}
+
+@keyframes nixie-warmup {
+   from { opacity: calc(1 - 0.85 * var(--effect-strength, 1)); text-shadow: none; }
+   to { opacity: 1; }
+}

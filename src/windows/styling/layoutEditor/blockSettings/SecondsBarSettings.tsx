@@ -7,6 +7,7 @@ import type { BlockSettingsProps } from "../BlockEditors";
 import { ColorSwatches } from "../ColorSwatches";
 import { BACKGROUND_SWATCHES, TEXT_SWATCHES } from "../EditorSwatches";
 import { InspectorField } from "../InspectorField";
+import { InspectorGroup } from "../InspectorGroup";
 
 interface SecondsBarSettingsProps extends BlockSettingsProps
 {
@@ -22,7 +23,7 @@ export function SecondsBarSettings({ block, onChange, withBarShape }: SecondsBar
     const text = strings.secondsBar;
 
     return (
-        <>
+        <InspectorGroup>
             <InspectorField label={text.fillColor}>
                 <ColorSwatches
                     label={text.fillColor}
@@ -66,6 +67,6 @@ export function SecondsBarSettings({ block, onChange, withBarShape }: SecondsBar
                     </InspectorField>
                 </>
             )}
-        </>
+        </InspectorGroup>
     );
 }

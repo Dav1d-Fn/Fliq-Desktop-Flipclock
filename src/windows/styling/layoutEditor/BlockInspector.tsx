@@ -16,6 +16,7 @@ import { ContentEditor } from "./ContentEditor";
 import { BACKGROUND_SWATCHES, TEXT_SWATCHES } from "./EditorSwatches";
 import { ColorDot } from "./ColorDot";
 import { InspectorField } from "./InspectorField";
+import { InspectorGroup } from "./InspectorGroup";
 import { InspectorSection } from "./InspectorSection";
 import { ClockStyleSettings } from "./blockSettings/ClockStyleSettings";
 import { TextStylePicker } from "./blockSettings/TextStylePicker";
@@ -35,7 +36,7 @@ interface BlockInspectorProps
 const CLOCK_DEFAULT_FONT = "clock-default";
 
 // Settings the "Look" section holds (ClockStyleSettings); the rest live in Text.
-const LOOK_SETTINGS: StyleSetting[] = ["cards", "glowColor", "dialColor", "handColor", "secondHandColor", "hourRingColor", "minuteRingColor", "secondRingColor", "labelSize", "progressColors"];
+const LOOK_SETTINGS: StyleSetting[] = ["cards", "glowColor", "dialColor", "handColor", "secondHandColor", "hourRingColor", "minuteRingColor", "secondRingColor", "labelSize", "progressColors", "effect"];
 
 // Text size slider range in %. The end is where the content stops growing in the block's room
 // (measured by the clock, see maxSizeShare); the fallback only until it is measured.
@@ -156,31 +157,35 @@ export function BlockInspector({ block, onChange, onRemove, onUngroup, openMembe
                         </InspectorField>
                     )}
 
-                    {settings.has("font") && (
-                        <InspectorField label={text.font} htmlFor="block-font">
-                            <Select
-                                id="block-font"
-                                value={block.font ?? CLOCK_DEFAULT_FONT}
-                                onChange={(font) => onChange({ font: font === CLOCK_DEFAULT_FONT || !font ? undefined : font })}
-                                data={[
-                                    { value: CLOCK_DEFAULT_FONT, label: text.clockDefaultFont(fontLabel(defaultFont)) },
-                                    ...FONT_OPTIONS,
-                                ]}
-                                allowDeselect={false}
-                            />
-                        </InspectorField>
-                    )}
+                    {(settings.has("font") || settings.has("color")) && (
+                        <InspectorGroup>
+                            {settings.has("font") && (
+                                <InspectorField label={text.font} htmlFor="block-font">
+                                    <Select
+                                        id="block-font"
+                                        value={block.font ?? CLOCK_DEFAULT_FONT}
+                                        onChange={(font) => onChange({ font: font === CLOCK_DEFAULT_FONT || !font ? undefined : font })}
+                                        data={[
+                                            { value: CLOCK_DEFAULT_FONT, label: text.clockDefaultFont(fontLabel(defaultFont)) },
+                                            ...FONT_OPTIONS,
+                                        ]}
+                                        allowDeselect={false}
+                                    />
+                                </InspectorField>
+                            )}
 
-                    {settings.has("color") && (
-                        <InspectorField label={colorLabel}>
-                            <ColorSwatches
-                                label={text.blockColor}
-                                value={block.color}
-                                onChange={(color) => onChange({ color })}
-                                swatches={TEXT_SWATCHES}
-                                defaultColor={defaultColor}
-                            />
-                        </InspectorField>
+                            {settings.has("color") && (
+                                <InspectorField label={colorLabel}>
+                                    <ColorSwatches
+                                        label={text.blockColor}
+                                        value={block.color}
+                                        onChange={(color) => onChange({ color })}
+                                        swatches={TEXT_SWATCHES}
+                                        defaultColor={defaultColor}
+                                    />
+                                </InspectorField>
+                            )}
+                        </InspectorGroup>
                     )}
 
                     {(settings.has("textSize") || settings.has("size")) && (
@@ -218,37 +223,38 @@ export function BlockInspector({ block, onChange, onRemove, onUngroup, openMembe
                 {hasStyleColors && <ClockStyleSettings block={block} onChange={onChange} />}
                 {hasLook && StyleSettings && <StyleSettings block={block} onChange={onChange} />}
 
-                <Switch
-                    mt={14}
-                    label={text.ownBackground}
-                    checked={block.background ?? false}
-                    onChange={(event) => onChange({ background: event.currentTarget.checked })}
-                />
+                <InspectorGroup>
+                    <Switch
+                        label={text.ownBackground}
+                        checked={block.background ?? false}
+                        onChange={(event) => onChange({ background: event.currentTarget.checked })}
+                    />
 
-                {block.background && (
-                    <>
-                        <InspectorField label={text.backgroundColor}>
-                            <ColorSwatches
-                                label={text.blockBackgroundColor}
-                                value={block.backgroundColor ?? BLOCK_DEFAULTS.backgroundColor}
-                                onChange={(color) => color && onChange({ backgroundColor: color })}
-                                swatches={BACKGROUND_SWATCHES}
-                            />
-                        </InspectorField>
+                    {block.background && (
+                        <>
+                            <InspectorField label={text.backgroundColor}>
+                                <ColorSwatches
+                                    label={text.blockBackgroundColor}
+                                    value={block.backgroundColor ?? BLOCK_DEFAULTS.backgroundColor}
+                                    onChange={(color) => color && onChange({ backgroundColor: color })}
+                                    swatches={BACKGROUND_SWATCHES}
+                                />
+                            </InspectorField>
 
-                        <InspectorField label={text.backgroundRounding}>
-                            <SliderControl
-                                label={text.blockBackgroundRounding}
-                                value={block.backgroundRadius ?? BLOCK_DEFAULTS.backgroundRadius}
-                                onChange={(backgroundRadius) => onChange({ backgroundRadius })}
-                                min={0}
-                                max={32}
-                                marks={[]}
-                                unit="px"
-                            />
-                        </InspectorField>
-                    </>
-                )}
+                            <InspectorField label={text.backgroundRounding}>
+                                <SliderControl
+                                    label={text.blockBackgroundRounding}
+                                    value={block.backgroundRadius ?? BLOCK_DEFAULTS.backgroundRadius}
+                                    onChange={(backgroundRadius) => onChange({ backgroundRadius })}
+                                    min={0}
+                                    max={32}
+                                    marks={[]}
+                                    unit="px"
+                                />
+                            </InspectorField>
+                        </>
+                    )}
+                </InspectorGroup>
             </InspectorSection>
 
             <InspectorSection id="spacing" title={text.sectionSpacing} summary={spacingSummary} defaultOpen={false}>

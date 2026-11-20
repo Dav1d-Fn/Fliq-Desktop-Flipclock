@@ -4,8 +4,10 @@ import { useStrings } from "../../../../i18n/useStrings";
 import { SliderControl } from "../../controls/SliderControl";
 import type { BlockSettingsProps } from "../BlockEditors";
 import { ColorSwatches } from "../ColorSwatches";
+import { EffectSelect } from "./EffectSelect";
 import { DIAL_SWATCHES, GLOW_SWATCHES, HAND_SWATCHES, type Swatch } from "../EditorSwatches";
 import { InspectorField } from "../InspectorField";
+import { InspectorGroup } from "../InspectorGroup";
 import { FlipCardSettings } from "./FlipCardSettings";
 import { SecondsBarSettings } from "./SecondsBarSettings";
 
@@ -45,7 +47,7 @@ function ColorField({ block, onChange, field, label, swatches, defaultColor }: C
 
 // What the text style and clock faces a block shows draw with, only what they use (settingsOf): card
 // settings for flip, glow color for the lit styles, dial and hand colors for analog, ring
-// colors and the time's size for rings, progress colors (and bar size). For a group, of every
+// colors and the time's size for rings, effects for the lit styles, progress colors (and bar size). For a group, of every
 // member's style.
 export function ClockStyleSettings({ block, onChange }: BlockSettingsProps)
 {
@@ -56,6 +58,9 @@ export function ClockStyleSettings({ block, onChange }: BlockSettingsProps)
     const analogStyle = items.map((item) => item.clockStyle ?? "digital").find((style) => ANALOG_DEFAULTS[style]);
     const analog = analogStyle ? ANALOG_DEFAULTS[analogStyle] : undefined;
     const fieldProps = { block, onChange };
+    // Families framed together: the analog dial and hands, the rings and their time label.
+    const analogColors = settings.has("dialColor") || settings.has("handColor") || settings.has("secondHandColor");
+    const ringSettings = settings.has("hourRingColor") || settings.has("minuteRingColor") || settings.has("secondRingColor") || settings.has("labelSize");
 
     return (
         <>
@@ -64,36 +69,45 @@ export function ClockStyleSettings({ block, onChange }: BlockSettingsProps)
             {settings.has("glowColor") && (
                 <ColorField {...fieldProps} field="glowColor" label={text.glowColor} swatches={GLOW_SWATCHES} defaultColor={glowStyle && GLOW_DEFAULTS[glowStyle]} />
             )}
-            {settings.has("dialColor") && (
-                <ColorField {...fieldProps} field="dialColor" label={text.dialColor} swatches={DIAL_SWATCHES} defaultColor={analog?.dial} />
+            {settings.has("effect") && <EffectSelect block={block} onChange={onChange} />}
+            {analogColors && (
+                <InspectorGroup>
+                    {settings.has("dialColor") && (
+                        <ColorField {...fieldProps} field="dialColor" label={text.dialColor} swatches={DIAL_SWATCHES} defaultColor={analog?.dial} />
+                    )}
+                    {settings.has("handColor") && (
+                        <ColorField {...fieldProps} field="handColor" label={text.handColor} swatches={HAND_SWATCHES} defaultColor={analog?.hand} />
+                    )}
+                    {settings.has("secondHandColor") && (
+                        <ColorField {...fieldProps} field="secondHandColor" label={text.secondHandColor} swatches={GLOW_SWATCHES} defaultColor={analog?.second} />
+                    )}
+                </InspectorGroup>
             )}
-            {settings.has("handColor") && (
-                <ColorField {...fieldProps} field="handColor" label={text.handColor} swatches={HAND_SWATCHES} defaultColor={analog?.hand} />
-            )}
-            {settings.has("secondHandColor") && (
-                <ColorField {...fieldProps} field="secondHandColor" label={text.secondHandColor} swatches={GLOW_SWATCHES} defaultColor={analog?.second} />
-            )}
-            {settings.has("hourRingColor") && (
-                <ColorField {...fieldProps} field="hourRingColor" label={text.hourRingColor} swatches={GLOW_SWATCHES} defaultColor={RING_DEFAULTS.hour} />
-            )}
-            {settings.has("minuteRingColor") && (
-                <ColorField {...fieldProps} field="minuteRingColor" label={text.minuteRingColor} swatches={GLOW_SWATCHES} defaultColor={RING_DEFAULTS.minute} />
-            )}
-            {settings.has("secondRingColor") && (
-                <ColorField {...fieldProps} field="secondRingColor" label={text.secondRingColor} swatches={GLOW_SWATCHES} defaultColor={RING_DEFAULTS.second} />
-            )}
-            {settings.has("labelSize") && (
-                <InspectorField label={text.labelSize}>
-                    <SliderControl
-                        label={text.labelSize}
-                        value={block.labelSize ?? 100}
-                        onChange={(labelSize) => onChange({ labelSize })}
-                        min={0}
-                        max={120}
-                        marks={[]}
-                        unit="%"
-                    />
-                </InspectorField>
+            {ringSettings && (
+                <InspectorGroup>
+                    {settings.has("hourRingColor") && (
+                        <ColorField {...fieldProps} field="hourRingColor" label={text.hourRingColor} swatches={GLOW_SWATCHES} defaultColor={RING_DEFAULTS.hour} />
+                    )}
+                    {settings.has("minuteRingColor") && (
+                        <ColorField {...fieldProps} field="minuteRingColor" label={text.minuteRingColor} swatches={GLOW_SWATCHES} defaultColor={RING_DEFAULTS.minute} />
+                    )}
+                    {settings.has("secondRingColor") && (
+                        <ColorField {...fieldProps} field="secondRingColor" label={text.secondRingColor} swatches={GLOW_SWATCHES} defaultColor={RING_DEFAULTS.second} />
+                    )}
+                    {settings.has("labelSize") && (
+                        <InspectorField label={text.labelSize}>
+                            <SliderControl
+                                label={text.labelSize}
+                                value={block.labelSize ?? 100}
+                                onChange={(labelSize) => onChange({ labelSize })}
+                                min={0}
+                                max={120}
+                                marks={[]}
+                                unit="%"
+                            />
+                        </InspectorField>
+                    )}
+                </InspectorGroup>
             )}
         </>
     );

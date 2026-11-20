@@ -1,7 +1,7 @@
 // Runs with `npm test`: what dropping a block onto another does, and where blocks slide to.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { LayoutGrid, type ClockLayout, type LayoutBlock } from "../src/layout/ClockLayout.ts";
+import { GRID_LIMITS, LayoutGrid, type ClockLayout, type LayoutBlock } from "../src/layout/ClockLayout.ts";
 
 function block(id: number, x: number, w: number, extra: Partial<LayoutBlock> = {}): LayoutBlock
 {
@@ -107,12 +107,15 @@ test("a new row grows blocks reaching across it and finds free columns", () =>
 
 test("no new row past the row limit", () =>
 {
-    const blocks = [block(1, 0, 2), block(2, 0, 2, { y: 1 }), block(3, 0, 2, { y: 2 }), block(4, 0, 1, { y: 3 }), block(5, 1, 1, { y: 3 })];
-    const layout: ClockLayout = { columns: 2, rows: 4, blocks };
-    assert.equal(new LayoutGrid(layout).withBlockInNewRow(1, 4, true), null);
+    // Every row full: one wide block per row, the last row split in two.
+    const last = GRID_LIMITS.maxRows - 1;
+    const fullRows = Array.from({ length: last }, (_, y) => block(y + 1, 0, 2, { y }));
+    const blocks = [...fullRows, block(last + 1, 0, 1, { y: last }), block(last + 2, 1, 1, { y: last })];
+    const layout: ClockLayout = { columns: 2, rows: GRID_LIMITS.maxRows, blocks };
+    assert.equal(new LayoutGrid(layout).withBlockInNewRow(1, GRID_LIMITS.maxRows, true), null);
     // Unless the dragged block leaves its row empty.
-    const alone: ClockLayout = { columns: 2, rows: 4, blocks: blocks.slice(0, 4) };
-    assert.equal(new LayoutGrid(alone).withBlockInNewRow(1, 4, true)?.rows, 4);
+    const alone: ClockLayout = { columns: 2, rows: GRID_LIMITS.maxRows, blocks: blocks.slice(0, GRID_LIMITS.maxRows) };
+    assert.equal(new LayoutGrid(alone).withBlockInNewRow(1, GRID_LIMITS.maxRows, true)?.rows, GRID_LIMITS.maxRows);
 });
 
 test("sliding the only block of a row into another removes the emptied row", () =>
@@ -121,4 +124,33 @@ test("sliding the only block of a row into another removes the emptied row", () 
     const result = new LayoutGrid(layout).withBlockInserted(1, 2, false);
     assert.ok(result);
     assert.equal(result.rows, 1);
+});
+
+test("room for a block: neighbours in the way shrink back, keeping their largest part", () =>
+{
+    const layout: ClockLayout = { columns: 4, rows: 2, blocks: [block(1, 0, 3), block(2, 3, 1), block(3, 0, 4, { y: 1 })] };
+    const grid = new LayoutGrid(layout);
+    // Block 2 grows one column to the left: block 1 gives it up.
+    const resized = grid.withRoomFor({ x: 2, y: 0, w: 2, h: 1 }, 2);
+    assert.ok(resized);
+    assert.deepEqual(resized.blocks.map((item) => [item.id, item.x, item.y, item.w, item.h]), [[1, 0, 0, 2, 1], [2, 3, 0, 1, 1], [3, 0, 1, 4, 1]]);
+    // A new block in the middle of the bottom row: the right part (the larger one) stays.
+    const added = grid.withRoomFor({ x: 1, y: 1, w: 1, h: 1 });
+    assert.ok(added);
+    assert.deepEqual(added.blocks.find((item) => item.id === 3), { ...block(3, 2, 2, { y: 1 }) });
+    // A free rect changes nothing.
+    assert.deepEqual(new LayoutGrid({ columns: 5, rows: 1, blocks: [block(1, 0, 2)] }).withRoomFor({ x: 3, y: 0, w: 2, h: 1 }), { columns: 5, rows: 1, blocks: [block(1, 0, 2)] });
+});
+
+test("no room when a block in the way would vanish, or the rect leaves the grid", () =>
+{
+    const layout: ClockLayout = { columns: 4, rows: 1, blocks: [block(1, 0, 1), block(2, 1, 3)] };
+    const grid = new LayoutGrid(layout);
+    assert.equal(grid.withRoomFor({ x: 0, y: 0, w: 2, h: 1 }), null);
+    assert.equal(grid.withRoomFor({ x: 3, y: 0, w: 2, h: 1 }), null);
+    // Shrinking a block taller than one row keeps the rows above.
+    const tall: ClockLayout = { columns: 2, rows: 3, blocks: [block(1, 0, 2, { h: 3 })] };
+    const room = new LayoutGrid(tall).withRoomFor({ x: 0, y: 2, w: 2, h: 1 });
+    assert.ok(room);
+    assert.deepEqual(room.blocks[0], block(1, 0, 2, { h: 2 }));
 });

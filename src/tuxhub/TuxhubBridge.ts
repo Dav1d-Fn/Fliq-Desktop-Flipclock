@@ -36,6 +36,7 @@ type Setting = WritableAtom<unknown, [never], void>;
 const SETTINGS: Record<string, Setting> = {
     uiLanguage: ATOMS.UI_LANGUAGE,
     lang: ATOMS.LANGUAGE,
+    settingsColorScheme: ATOMS.SETTINGS_COLOR_SCHEME,
     hourCycle: ATOMS.HOUR_CYCLE,
     hourLeadingZero: ATOMS.HOUR_LEADING_ZERO,
     boxBackgroundColor: ATOMS.BOX_BACKGROUND,

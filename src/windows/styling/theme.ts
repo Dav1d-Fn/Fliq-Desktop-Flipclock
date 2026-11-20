@@ -14,13 +14,31 @@ const fliqGreen: MantineColorsTuple = [
     "#0b2e15",
 ];
 
+// Neutral greys for the dark scheme, without the tint of Mantine's own dark palette.
+// 0 text, 2 dimmed, 4 lines and slider tracks, 5 hover, 6 inputs and default buttons,
+// 7 cards, popovers and dialogs, 8 segmented control track.
+const neutralDark: MantineColorsTuple = [
+    "#ededed",
+    "#c9c9c9",
+    "#8f8f8f",
+    "#6b6b6b",
+    "#2a2a2a",
+    "#222222",
+    "#1a1a1a",
+    "#141414",
+    "#0f0f0f",
+    "#0c0c0c",
+];
+
 // Mantine adjusted to the settings design: Inter, green accent, 8 px rounding, 36 px controls.
 export const stylingTheme = createTheme({
     fontFamily: "\"Inter Variable\", system-ui, sans-serif",
     fontFamilyMonospace: "\"JetBrains Mono Variable\", monospace",
     headings: { fontFamily: "\"Inter Variable\", system-ui, sans-serif" },
     primaryColor: "fliqGreen",
-    colors: { fliqGreen },
+    // The accent keeps its shade in the dark scheme too.
+    primaryShade: { light: 6, dark: 6 },
+    colors: { fliqGreen, dark: neutralDark },
     defaultRadius: "md",
     radius: { md: "8px" },
     components: {

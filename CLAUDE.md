@@ -23,12 +23,21 @@ gtk-layer-shell, X11 fallback). macOS is not shipped. Meant to grow into a widge
   - `ghost/` — copy of the clock drawn on another monitor while dragging (Linux layer-shell).
   - `styling/StylingApp` — settings window: sidebar + one page at a time (`SettingsPages`).
     `layoutEditor/` is the Clock › Layout page: `LayoutCanvas` (the real GridClock with an
-    editing layer: cells, snap ghost, drag and resize handles), `AddBlockBar`, and the
+    editing layer: cells, snap ghost, drag and resize handles; `GridStepper` −/+ pills for
+    rows at the clock's right edge and columns above it (one row less drops an empty row, else
+    the last row with its blocks: `LayoutGrid.withOneRowLess`); a red round remove target at
+    the bottom while a moved block is outside the clock), `BlockPalette` (top left above the
+    canvas: click adds on the next free spot, drag onto the clock places it under the snap
+    ghost). A move, resize or palette drop onto taken cells shrinks the blocks in the way when
+    they can give way (`LayoutGrid.withRoomFor`, previewed before release). Also there: the
     inspector (`ClockInspector` for the whole clock, `BlockInspector` built from the block
     registry, `ContentEditor` for what a block or group member shows, `SelectionInspector`
     for several blocks shift/ctrl-clicked on the canvas). Inspector settings sit in collapsible
     `InspectorSection`s (open/closed kept in localStorage `inspectorSections`, summary shown
-    while closed); long explanations go into `InspectorField`'s `help` tooltip. Rows are always
+    while closed); long explanations go into `InspectorField`'s `help` tooltip. Settings that belong
+    together (a choice and what only acts through it, like effect → speed/strength/variant or
+    own background → color/rounding, or one family like the analog colors) sit in an
+    `InspectorGroup` (accent tint mixed from theme variables, so it works in dark mode too). Rows are always
     as high as their highest block (`LayoutGrid.autoRowHeights`), no row settings; room comes
     from block padding, which every block has (unset: 8/4 with an own background, else 0).
     Column widths are per column (`columnWidths`), set by dragging the grip above a column's
@@ -40,7 +49,7 @@ gtk-layer-shell, X11 fallback). macOS is not shipped. Meant to grow into a widge
     `useLayoutLibrary` over `SAVED_LAYOUTS`/`ACTIVE_LAYOUT_ID` (logic in `src/layout/LayoutLibrary`,
     tested). A saved layout is the `ClockLayout` only, not the whole-clock settings.
 - `src/layout/` — `ClockLayout` (block and grid shapes, `LayoutGrid`: fits, free spot, snap
-  targets, grouping; pure and tested), `LayoutMigration` (one-time moves, from the old two
+  targets, room by shrinking neighbours, grouping; pure and tested), `LayoutMigration` (one-time moves, from the old two
   template rows on; the last one drops row heights and per-row alignments),
   `HiddenSpaceMigration` (old hidden text air and background-less padding turned into text size).
 - Groups: a block of kind `group` with `items` (members: kind and content fields only —
@@ -78,6 +87,16 @@ gtk-layer-shell, X11 fallback). macOS is not shipped. Meant to grow into a widge
   like Tick.js's, emoji icons left beside the text). Glyphs are data: `faces/SegmentGlyphs`
   (7-segment for digits only, 14-segment as soon as there are letters), `faces/DotGlyphs`
   (5 × 7), tested in `tests/glyphs.test.ts`. Flip `flipUnit` "word": one card per word.
+  The lit styles have an optional `effect` (`TextEffect`; which style offers which:
+  `TEXT_STYLE_EFFECTS` in `StyleSettings`, picked in the inspector's Look section by
+  `blockSettings/EffectSelect`). ClockBlock sets `effect-<name>` on the block (not on frozen
+  previews); the animations are pure CSS at the end of `faces.css` (off under
+  `prefers-reduced-motion`), staggered by a `--column` the faces set per dot column, LCD
+  character or nixie tube. Keep them light: few animated elements (dots are grouped per
+  column), opacity/fill-opacity, keyframes that hold still most of the cycle. Per block also
+  `effectSpeed`/`effectStrength` (percent, set as `--effect-speed`/`--effect-strength`, which
+  divide the durations and scale each keyframe's dip) and `effectVariant` (`EFFECT_VARIANTS`
+  per style and effect, first entry = unset = the original look; class `effect-variant-<name>`).
   Clock blocks also have a `clockStyle` ("digital" = digits in the text style, or a face:
   analog, rings, progress ring/dots), drawn by `faces/ClockFace` (SVG/CSS sized in em, own
   once-a-second timer, colors from CSS variables in `faces.css`). A `GroupItem.textStyle` only
