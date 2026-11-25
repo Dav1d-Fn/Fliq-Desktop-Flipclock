@@ -257,7 +257,7 @@ Here’s a glimpse at what’s coming:
 
 If you enjoy using Fliq and want to support its development, you can buy me a coffee:
 
-[![ko-fi](https://www.ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/davidfn)
+[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/davidfn)
 
 ---
 
