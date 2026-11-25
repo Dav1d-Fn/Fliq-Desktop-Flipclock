@@ -266,6 +266,11 @@ If you enjoy using Fliq and want to support its development, you can buy me a co
 Found a bug or have a feature idea?  
 Feel free to [open an issue](https://github.com/Dav1d-Fn/Fliq-Desktop-Flipclock/issues) or reach out!
 
+## License 📄
+
+[GPL-3.0](LICENSE) — if you build something with this code, your project has to stay open source too.
+Releases up to and including 2.2.0 were published under the MIT License.
+
 ---
 
 Thank you for using Fliq 🙌 

@@ -3,6 +3,7 @@ name = "desktop-flipclock"
 version = "2.2.0"
 description = "Fliq, a desktop flip clock"
 authors = ["Dav1d-Fn"]
+license = "GPL-3.0-or-later"
 edition = "2021"
 
 [lib]
